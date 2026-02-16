@@ -1,0 +1,60 @@
+import { restaurantData } from "./restaurants";
+import menuItemsData from "./menu-items.json";
+
+export interface MenuItem {
+  name: string;
+  price: string;
+}
+
+export interface RestaurantWithMenu {
+  name: string;
+  slug: string;
+  categories: string[];
+  priceRange: string | null;
+  tags: string[];
+  menuUrl: string;
+  menuItems: MenuItem[];
+  imageUrls: string[];
+  featuredImage: string | null;
+}
+
+const menuByRestaurant = new Map(
+  menuItemsData.restaurants.map((r) => [r.name, r.menuItems || []])
+);
+
+const imagesByRestaurant = new Map(
+  menuItemsData.restaurants.map((r) => [r.name, r.imageUrls || []])
+);
+
+export function getSlugFromMenuUrl(menuUrl: string): string {
+  const match = menuUrl.match(/siargaodelivery\.com\/([^/]+)\/?$/);
+  return match ? match[1] : menuUrl;
+}
+
+export const combinedRestaurants: RestaurantWithMenu[] = restaurantData.restaurants.map((r) => {
+  const slug = getSlugFromMenuUrl(r.menuUrl);
+  const menuItems = menuByRestaurant.get(r.name) || [];
+  const imageUrls = imagesByRestaurant.get(r.name) || [];
+  const featuredImage = imageUrls.length > 0 ? imageUrls[0] : null;
+  return {
+    ...r,
+    slug,
+    menuItems,
+    imageUrls,
+    featuredImage,
+  } as RestaurantWithMenu;
+});
+
+export const categories = restaurantData.categories;
+export const cravingCategories = restaurantData.cravingCategories;
+export const tagline = restaurantData.tagline;
+export const description = restaurantData.description;
+
+export function getRestaurantBySlug(slug: string): RestaurantWithMenu | undefined {
+  return combinedRestaurants.find((r) => r.slug === slug);
+}
+
+export function getRestaurantsByCategory(category: string): RestaurantWithMenu[] {
+  if (category === "All") return combinedRestaurants;
+  return combinedRestaurants.filter((r) => r.categories.includes(category));
+}

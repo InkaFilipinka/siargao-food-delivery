@@ -34,3 +34,6 @@ Thumbs.db
 # Vercel / Netlify
 .vercel
 .netlify
+
+# Menu scraper cache
+.menu-cache
