@@ -8,11 +8,10 @@ import { CartButton } from "./cart-button";
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/#categories", label: "Categories" },
-  { href: "/#restaurants", label: "All Restaurants" },
-  { href: "/track", label: "Track" },
+  { href: "/#restaurants", label: "Browse" },
+  { href: "/track", label: "Track Order" },
   { href: "/checkout", label: "Checkout" },
   { href: "/staff/orders", label: "Staff" },
-  { href: "/#order", label: "Order" },
 ];
 
 interface NavigationProps {
@@ -24,36 +23,36 @@ export function Navigation({ onCartClick }: NavigationProps) {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
         isScrolled
-          ? "bg-white shadow-lg border-b border-orange-100 dark:bg-slate-900 dark:border-orange-900/30"
-          : "bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm"
+          ? "bg-white dark:bg-slate-900 shadow-sm border-b border-slate-200 dark:border-slate-800"
+          : "bg-white dark:bg-slate-900"
       }`}
     >
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16 md:h-20">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-14">
           <Link
             href="/"
-            className="flex items-center space-x-2 text-xl md:text-2xl font-bold bg-gradient-to-r from-orange-600 to-amber-500 dark:from-orange-400 dark:to-amber-400 bg-clip-text text-transparent"
+            className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white"
           >
-            <span className="text-2xl">🍽️</span>
-            <span>Siargao Delivery</span>
+            <span className="text-primary font-bold">Siargao</span>
+            <span className="text-slate-600 dark:text-slate-400 font-normal">Delivery</span>
           </Link>
 
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex items-center gap-1">
             {navLinks.map((link) =>
               link.href.startsWith("/#") ? (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 font-semibold transition-colors"
+                  className="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   {link.label}
                 </a>
@@ -61,50 +60,54 @@ export function Navigation({ onCartClick }: NavigationProps) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 font-semibold transition-colors"
+                  className="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   {link.label}
                 </Link>
               )
             )}
-            <CartButton onClick={onCartClick} />
+            <div className="ml-2 pl-2 border-l border-slate-200 dark:border-slate-700">
+              <CartButton onClick={onCartClick} />
+            </div>
           </div>
 
-          <div className="flex md:hidden items-center gap-2">
+          <div className="flex md:hidden items-center gap-1">
             <CartButton onClick={onCartClick} />
             <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-slate-700 dark:text-slate-300 p-2"
-            aria-label={isOpen ? "Close menu" : "Open menu"}
-          >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              aria-label={isOpen ? "Close menu" : "Open menu"}
+            >
+              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
 
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-slate-200 dark:border-slate-700">
-            {navLinks.map((link) =>
-              link.href.startsWith("/#") ? (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setIsOpen(false)}
-                  className="block py-3 text-slate-700 dark:text-slate-300 hover:text-orange-600 font-semibold"
-                >
-                  {link.label}
-                </a>
-              ) : (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setIsOpen(false)}
-                  className="block py-3 text-slate-700 dark:text-slate-300 hover:text-orange-600 font-semibold"
-                >
-                  {link.label}
-                </Link>
-              )
-            )}
+          <div className="md:hidden py-4 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex flex-col gap-1">
+              {navLinks.map((link) =>
+                link.href.startsWith("/#") ? (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setIsOpen(false)}
+                    className="px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setIsOpen(false)}
+                    className="px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    {link.label}
+                  </Link>
+                )
+              )}
+            </div>
           </div>
         )}
       </div>

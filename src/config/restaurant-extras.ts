@@ -13,20 +13,19 @@ export interface RestaurantExtras {
 
 const slug = (url: string) => {
   const m = url.match(/siargaodelivery\.com\/([^/]+)\/?$/);
-  return m ? m[1] : "";
+  return m ? m[1] : url;
 };
 
-/** Map menuUrl or slug -> extras. Add entries as needed. */
+/** Map menuUrl or slug -> extras. Mockup data for testing. */
 export const restaurantExtras: Record<string, RestaurantExtras> = {
-  // Example: sanabowl: { ntfyTopic: "siargao-sanabowl", minOrderPhp: 200, hours: "07:00-21:00", phone: "639123456789" },
-  // Default hours for General Luna (many cafes/restaurants): 8am-10pm
-  sanabowl: { hours: "07:00-21:00" },
-  "weekend-cafe": { hours: "07:00-21:00" },
-  "tropical-temple": { hours: "07:00-22:00" },
-  "cafe-lunares": { hours: "07:00-21:00" },
-  "good-cup": { hours: "07:00-21:00" },
-  kermit: { hours: "11:00-23:00" },
-  bravo: { hours: "07:00-22:00" },
+  "surf-cafe": { hours: "07:00-18:00", minOrderPhp: 100 },
+  "island-bowl": { hours: "07:00-15:00", minOrderPhp: 150 },
+  "lolas-kitchen": { hours: "10:00-21:00", minOrderPhp: 80 },
+  "beach-burger": { hours: "11:00-23:00", minOrderPhp: 120 },
+  "sunset-pizza": { hours: "16:00-02:00", minOrderPhp: 200 },
+  "island-liquor": { hours: "14:00-02:00", minOrderPhp: 150 },
+  "general-luna-mart": { hours: "06:00-22:00", minOrderPhp: 100 },
+  "tropical-organics": { hours: "08:00-18:00", minOrderPhp: 100 },
 };
 
 export function getNtfyTopic(menuUrlOrSlug: string): string {

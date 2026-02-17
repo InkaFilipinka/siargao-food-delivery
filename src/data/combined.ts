@@ -1,5 +1,6 @@
 import { restaurantData } from "./restaurants";
 import menuItemsData from "./menu-items.json";
+import { getRestaurantHours, getMinOrderPhp } from "@/config/restaurant-extras";
 
 export interface MenuItem {
   name: string;
@@ -16,6 +17,8 @@ export interface RestaurantWithMenu {
   menuItems: MenuItem[];
   imageUrls: string[];
   featuredImage: string | null;
+  hours?: string | null;
+  minOrderPhp?: number | null;
 }
 
 const menuByRestaurant = new Map(
@@ -42,6 +45,8 @@ export const combinedRestaurants: RestaurantWithMenu[] = restaurantData.restaura
     menuItems,
     imageUrls,
     featuredImage,
+    hours: getRestaurantHours(slug) || getRestaurantHours(r.menuUrl),
+    minOrderPhp: getMinOrderPhp(slug) ?? getMinOrderPhp(r.menuUrl),
   } as RestaurantWithMenu;
 });
 

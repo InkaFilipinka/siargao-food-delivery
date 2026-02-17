@@ -197,10 +197,10 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <main className="pt-16 md:pt-20 min-h-screen">
-        <div className="container mx-auto px-4 py-12 text-center">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Your cart is empty</h1>
-          <Link href="/#restaurants" className="text-orange-600 hover:text-orange-500 font-medium">
+      <main className="pt-14 min-h-screen bg-slate-50 dark:bg-slate-900/50 flex items-center justify-center">
+        <div className="text-center px-4">
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Your cart is empty</h1>
+          <Link href="/#restaurants" className="text-primary hover:underline font-medium">
             Browse restaurants
           </Link>
         </div>
@@ -211,14 +211,14 @@ export default function CheckoutPage() {
   const minDate = new Date().toISOString().slice(0, 10);
 
   return (
-    <main className="pt-16 md:pt-20 min-h-screen">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <Link href="/" className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-orange-600 mb-6">
+    <main className="pt-14 min-h-screen bg-slate-50 dark:bg-slate-900/50">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Back
         </Link>
 
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-8">Checkout</h1>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white mb-8">Checkout</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -228,7 +228,7 @@ export default function CheckoutPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="Juan Dela Cruz"
             />
           </div>
@@ -240,7 +240,7 @@ export default function CheckoutPage() {
               required
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="09XX XXX XXXX"
             />
           </div>
@@ -253,9 +253,9 @@ export default function CheckoutPage() {
             <button
               type="button"
               onClick={() => setMapOpen(true)}
-              className="w-full flex items-center gap-2 px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-left hover:border-orange-400 transition-colors"
+              className="w-full flex items-center gap-2 px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-left hover:border-primary/50 transition-colors"
             >
-              <MapPin className="w-5 h-5 text-orange-500 shrink-0" />
+              <MapPin className="w-5 h-5 text-primary shrink-0" />
               {deliveryLocation ? (
                 <span className="text-slate-900 dark:text-white">
                   {deliveryLocation.placeName || `${deliveryLocation.distance}km from hub`} • ₱{deliveryLocation.feePhp} delivery
@@ -275,7 +275,7 @@ export default function CheckoutPage() {
               required
               value={landmark}
               onChange={(e) => setLandmark(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="Near Bravo, beside..."
             />
           </div>
@@ -288,7 +288,7 @@ export default function CheckoutPage() {
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               rows={2}
-              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
               placeholder="Resort name, street, barangay"
             />
           </div>
@@ -302,7 +302,7 @@ export default function CheckoutPage() {
                   name="timeWindow"
                   checked={timeWindow === "asap"}
                   onChange={() => setTimeWindow("asap")}
-                  className="text-orange-500"
+                  className="text-primary"
                 />
                 <span className="text-slate-900 dark:text-white">ASAP</span>
               </label>
@@ -312,7 +312,7 @@ export default function CheckoutPage() {
                   name="timeWindow"
                   checked={timeWindow === "scheduled"}
                   onChange={() => setTimeWindow("scheduled")}
-                  className="text-orange-500"
+                  className="text-primary"
                 />
                 <span className="text-slate-900 dark:text-white">Schedule</span>
               </label>
@@ -348,7 +348,7 @@ export default function CheckoutPage() {
                   onClick={() => setTipPhp(amt)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     tipPhp === amt
-                      ? "bg-orange-500 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                   }`}
                 >
@@ -364,7 +364,7 @@ export default function CheckoutPage() {
                 type="checkbox"
                 checked={priorityDelivery}
                 onChange={(e) => setPriorityDelivery(e.target.checked)}
-                className="rounded text-orange-500"
+                className="rounded text-primary"
               />
               <span className="text-slate-900 dark:text-white">Priority delivery (+₱{PRIORITY_FEE_PHP})</span>
             </label>
@@ -376,7 +376,7 @@ export default function CheckoutPage() {
                 type="checkbox"
                 checked={allowSubstitutions}
                 onChange={(e) => setAllowSubstitutions(e.target.checked)}
-                className="rounded text-orange-500"
+                className="rounded text-primary"
               />
               <span className="text-slate-900 dark:text-white">Allow substitutions if item unavailable</span>
             </label>
@@ -388,12 +388,12 @@ export default function CheckoutPage() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
               placeholder="Special requests, allergies..."
             />
           </div>
 
-          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 space-y-2">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 space-y-2">
             <h2 className="font-semibold text-slate-900 dark:text-white">Order summary</h2>
             {items.map((item) => (
               <div key={`${item.restaurantSlug}-${item.itemName}`} className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
@@ -425,9 +425,9 @@ export default function CheckoutPage() {
                 </div>
               )}
             </div>
-            <div className="flex justify-between font-bold text-slate-900 dark:text-white pt-2">
+            <div className="flex justify-between font-semibold text-slate-900 dark:text-white pt-2">
               <span>Total</span>
-              <span className="text-amber-600 dark:text-amber-400">₱{totalPhp.toLocaleString()}</span>
+              <span className="text-primary">₱{totalPhp.toLocaleString()}</span>
             </div>
           </div>
 
@@ -436,7 +436,7 @@ export default function CheckoutPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg hover:opacity-90 disabled:opacity-70 transition-opacity flex items-center justify-center gap-2"
           >
             {loading ? (
               <>

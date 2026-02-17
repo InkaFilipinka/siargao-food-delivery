@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { NavigationWrapper } from "@/components/navigation-wrapper";
+import { Footer } from "@/components/footer";
 
 export const metadata: Metadata = {
   title: "Siargao Food Delivery | General Luna Restaurants",
@@ -12,9 +13,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
-      <body>
+      <body className="font-sans flex flex-col min-h-screen">
         <NavigationWrapper />
-        {children}
+        <div className="flex-1">{children}</div>
+        <Footer />
       </body>
     </html>
   );

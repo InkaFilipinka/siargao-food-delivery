@@ -110,11 +110,11 @@ function TrackPageContent() {
     : -1;
 
   return (
-    <main className="pt-16 md:pt-20 min-h-screen">
-      <div className="container mx-auto px-4 py-8 max-w-xl">
+    <main className="pt-14 min-h-screen bg-slate-50 dark:bg-slate-900/50">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 py-8">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-orange-600 mb-6"
+          className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white mb-6 transition-colors"
         >
           ← Back
         </Link>
@@ -133,7 +133,7 @@ function TrackPageContent() {
               value={orderId}
               onChange={(e) => setOrderId(e.target.value)}
               placeholder="e.g. abc123-def456-..."
-              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500"
+              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
             />
           </div>
           <div>
@@ -145,14 +145,14 @@ function TrackPageContent() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="09XX XXX XXXX"
-              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500"
+              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
             />
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2"
+            className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg hover:opacity-90 disabled:opacity-70 transition-opacity flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -172,7 +172,7 @@ function TrackPageContent() {
           <div className="space-y-6">
             <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
               <h2 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                <Package className="w-5 h-5 text-orange-500" />
+                <Package className="w-5 h-5 text-primary" />
                 Status: {STATUS_LABELS[order.status] || order.status}
               </h2>
 
@@ -196,7 +196,7 @@ function TrackPageContent() {
                     <div key={step} className="relative -left-6 flex items-start gap-3">
                       <div
                         className={`mt-1.5 w-3 h-3 rounded-full shrink-0 ${
-                          isActive ? "bg-orange-500" : "bg-slate-300 dark:bg-slate-600"
+                          isActive ? "bg-primary" : "bg-slate-300 dark:bg-slate-600"
                         }`}
                       />
                       <div>

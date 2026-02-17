@@ -4,12 +4,14 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { RestaurantCard } from "@/components/restaurant-card";
 import { MapPicker } from "@/components/map-picker";
-import { MapPin, UtensilsCrossed, RotateCcw } from "lucide-react";
+import { MapPin, RotateCcw, EyeOff } from "lucide-react";
+import { HomePageSkeleton } from "@/components/skeleton-card";
 import { cn } from "@/lib/utils";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useLastOrderStore } from "@/store/last-order-store";
 import { useCartStore } from "@/store/cart-store";
 import { useFavoritesStore } from "@/store/favorites-store";
+import { isOpenNow } from "@/config/restaurant-extras";
 
 type Restaurant = {
   name: string;
@@ -21,6 +23,7 @@ type Restaurant = {
   menuItems: { name: string; price: string }[];
   imageUrls: string[];
   featuredImage: string | null;
+  hours?: string | null;
 };
 
 export default function Home() {
@@ -30,6 +33,7 @@ export default function Home() {
   const router = useRouter();
   const lastOrder = useLastOrderStore((s) => s.items);
   const addItem = useCartStore((s) => s.addItem);
+  const [hideClosed, setHideClosed] = useState(false);
   const [data, setData] = useState<{
     restaurants: Restaurant[];
     categories: string[];
@@ -51,77 +55,77 @@ export default function Home() {
 
   const filteredRestaurants = useMemo(() => {
     if (!data) return [];
-    if (selectedCategory === "Favorites") {
-      if (favorites.length === 0) return [];
-      return data.restaurants.filter((r) => favorites.includes(r.slug));
+    let list =
+      selectedCategory === "Favorites"
+        ? favorites.length === 0
+          ? []
+          : data.restaurants.filter((r) => favorites.includes(r.slug))
+        : selectedCategory === "All"
+          ? data.restaurants
+          : data.restaurants.filter((r) => r.categories.includes(selectedCategory));
+    if (hideClosed && list.length > 0) {
+      list = list.filter((r) => {
+        if (!r.hours) return true;
+        const open = isOpenNow(r.hours);
+        return open === null || open === true;
+      });
     }
-    if (selectedCategory === "All") return data.restaurants;
-    return data.restaurants.filter((r) => r.categories.includes(selectedCategory));
-  }, [data, selectedCategory, favorites]);
+    return list;
+  }, [data, selectedCategory, favorites, hideClosed]);
 
   if (loading) {
-    return (
-      <main className="pt-16 md:pt-20 min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-slate-500">Loading...</div>
-      </main>
-    );
+    return <HomePageSkeleton />;
   }
 
   if (!data) {
     return (
-      <main className="pt-16 md:pt-20 min-h-screen flex items-center justify-center">
-        <p className="text-red-500">Failed to load restaurants</p>
+      <main className="pt-14 min-h-screen flex items-center justify-center">
+        <p className="text-slate-600 dark:text-slate-400">Failed to load. Please refresh.</p>
       </main>
     );
   }
 
   return (
-    <main className="pt-16 md:pt-20">
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-orange-50 via-amber-50/80 to-yellow-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-200/30 via-transparent to-transparent" />
-        <div className="container mx-auto px-4 py-16 md:py-24 relative">
-          <div className="max-w-2xl">
-            <h1 className="text-4xl md:text-6xl font-bold text-slate-900 dark:text-white tracking-tight">
-              {data.tagline}
-            </h1>
-            <p className="mt-4 text-lg text-slate-600 dark:text-slate-300">
-              {data.description}
-            </p>
-            <button
-              onClick={() => setMapOpen(true)}
-              className="mt-6 inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-lg shadow-orange-500/25"
-            >
-              <MapPin className="w-5 h-5" />
-              {deliveryLocation
-                ? `${deliveryLocation.placeName || "Location set"} • ${deliveryLocation.distance}km • ₱${deliveryLocation.feePhp} delivery`
-                : "Set delivery location"}
-            </button>
-          </div>
+    <main className="pt-14 min-h-screen bg-slate-50 dark:bg-slate-900/50">
+      {/* Delivery location bar */}
+      <section className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+          <button
+            onClick={() => setMapOpen(true)}
+            className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
+          >
+            <div className="p-2 rounded-full bg-primary/10">
+              <MapPin className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                Deliver to
+              </p>
+              <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                {deliveryLocation
+                  ? `${deliveryLocation.placeName || "Location set"} • ${deliveryLocation.distance}km • ₱${deliveryLocation.feePhp} delivery`
+                  : "Set delivery location"}
+              </p>
+            </div>
+          </button>
         </div>
       </section>
 
-      {/* Categories */}
-      <section
-        id="categories"
-        className="py-12 bg-white dark:bg-slate-900/50 border-y border-slate-100 dark:border-slate-800"
-      >
-        <div className="container mx-auto px-4">
-          <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
-            Browse by category
-          </h2>
-          <div className="flex flex-wrap gap-2">
+      {/* Categories - horizontal scroll */}
+      <section id="categories" className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-14 z-40">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3">
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
             {favorites.length > 0 && (
               <button
                 onClick={() => setSelectedCategory("Favorites")}
                 className={cn(
-                  "px-4 py-2 rounded-full text-sm font-medium transition-colors",
+                  "shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
                   selectedCategory === "Favorites"
-                    ? "bg-orange-500 text-white"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                 )}
               >
-                ♥ Favorites {favorites.length}
+                ♥ Favorites
               </button>
             )}
             {data.categories.map((cat) => {
@@ -134,13 +138,13 @@ export default function Home() {
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    "px-4 py-2 rounded-full text-sm font-medium transition-colors",
+                    "shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
                     selectedCategory === cat
-                      ? "bg-orange-500 text-white"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                   )}
                 >
-                  {cat} {count > 0 && count}
+                  {cat} {count > 0 && <span className="opacity-80">({count})</span>}
                 </button>
               );
             })}
@@ -148,65 +152,58 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Craving */}
-      <section className="py-8 bg-slate-50/50 dark:bg-slate-800/20">
-        <div className="container mx-auto px-4">
-          <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
-            Or find what you&apos;re craving
+      {/* Restaurants grid */}
+      <section id="restaurants" className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+            {selectedCategory === "All"
+              ? "Restaurants, Groceries & More"
+              : selectedCategory === "Favorites"
+                ? "Your Favorites"
+                : selectedCategory}
           </h2>
-          <div className="flex flex-wrap gap-2">
-            {data.cravingCategories.map((cat) => {
-              const mapCat =
-                cat === "Asian Cuisine" ? "Asian" : cat === "Cheap Eats" ? "Cheap" : cat === "Drinks" ? "Coffee Shops" : cat;
-              const isActive = selectedCategory === mapCat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(mapCat)}
-                  className={cn(
-                    "px-4 py-2 rounded-xl text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-orange-500 text-white"
-                      : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-orange-300"
-                  )}
-                >
-                  {cat}
-                </button>
-              );
-            })}
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
+              <input
+                type="checkbox"
+                checked={hideClosed}
+                onChange={(e) => setHideClosed(e.target.checked)}
+                className="rounded border-slate-300 text-primary focus:ring-primary"
+              />
+              <EyeOff className="w-4 h-4" />
+              Hide closed
+            </label>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {filteredRestaurants.length} {selectedCategory === "All" ? "venues" : "results"}
+            </span>
           </div>
         </div>
-      </section>
 
-      {/* Restaurants */}
-      <section id="restaurants" className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <UtensilsCrossed className="w-8 h-8 text-orange-500" />
-              {selectedCategory === "All"
-                ? "All Restaurants"
-                : selectedCategory === "Favorites"
-                  ? "Your Favorites"
-                  : selectedCategory}
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400">
-              {filteredRestaurants.length} {selectedCategory === "All" ? "restaurants" : "results"}
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredRestaurants.map((restaurant, i) => (
+            <div key={restaurant.name} className="animate-in" style={{ animationDelay: `${i * 30}ms` }}>
+              <RestaurantCard restaurant={restaurant} />
+            </div>
+          ))}
+        </div>
+
+        {filteredRestaurants.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 px-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+              <EyeOff className="w-8 h-8 text-slate-400" />
+            </div>
+            <p className="font-medium text-slate-900 dark:text-white">No venues found</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 text-center max-w-sm">
+              Try a different category or turn off &quot;Hide closed&quot; to see more options.
             </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredRestaurants.map((restaurant) => (
-              <RestaurantCard key={restaurant.name} restaurant={restaurant} />
-            ))}
-          </div>
-        </div>
+        )}
       </section>
 
       {/* Reorder */}
       {lastOrder && lastOrder.length > 0 && (
-        <section className="py-8 border-t border-slate-200 dark:border-slate-700">
-          <div className="container mx-auto px-4 text-center">
-            <p className="text-slate-600 dark:text-slate-400 mb-3">One tap to order again</p>
+        <section className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
             <button
               onClick={() => {
                 lastOrder.forEach((item) =>
@@ -220,40 +217,14 @@ export default function Home() {
                 );
                 router.push("/checkout");
               }}
-              className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+              className="flex items-center gap-3 w-full sm:w-auto justify-center px-6 py-3 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors"
             >
-              <RotateCcw className="w-5 h-5" />
+              <RotateCcw className="w-4 h-4" />
               Reorder last order ({lastOrder.length} items)
             </button>
           </div>
         </section>
       )}
-
-      {/* Order CTA */}
-      <section id="order" className="py-16 bg-slate-50 dark:bg-slate-800/30">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Ready to order?</h2>
-          <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-lg mx-auto">
-            Browse menus above, pick your favorites, and contact us via WhatsApp to place your order.
-          </p>
-          <div className="flex flex-wrap gap-3 justify-center">
-            <a
-              href="https://wa.me/639457014440"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
-            >
-              Order via WhatsApp
-            </a>
-            <a
-              href="tel:+639457014440"
-              className="inline-flex items-center gap-2 border-2 border-slate-300 dark:border-slate-600 hover:border-orange-400 text-slate-700 dark:text-slate-300 font-semibold px-6 py-3 rounded-xl transition-colors"
-            >
-              Call Siargao Delivery
-            </a>
-          </div>
-        </div>
-      </section>
 
       <MapPicker
         isOpen={mapOpen}

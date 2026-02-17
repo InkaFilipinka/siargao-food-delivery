@@ -1,5 +1,68 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+
+/** GET /api/orders - List all orders for staff (no auth; protect in production) */
+export async function GET() {
+  try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Order list requires database" },
+        { status: 503 }
+      );
+    }
+
+    const { data: orders, error } = await supabase
+      .from("orders")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) {
+      console.error("Orders list error:", error);
+      return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+    }
+
+    const orderIds = (orders || []).map((o) => o.id);
+    const { data: items } = orderIds.length
+      ? await supabase
+          .from("order_items")
+          .select("order_id, restaurant_name, item_name, price, quantity")
+          .in("order_id", orderIds)
+      : { data: [] };
+
+    const itemsByOrder = new Map<string, typeof items>();
+    for (const i of items || []) {
+      const list = itemsByOrder.get(i.order_id) || [];
+      list.push(i);
+      itemsByOrder.set(i.order_id, list);
+    }
+
+    const list = (orders || []).map((o) => ({
+      id: o.id,
+      status: o.status,
+      customerName: o.customer_name,
+      customerPhone: o.customer_phone,
+      landmark: o.landmark,
+      deliveryAddress: o.delivery_address,
+      totalPhp: o.total_php,
+      timeWindow: o.time_window,
+      scheduledAt: o.scheduled_at,
+      createdAt: o.created_at,
+      confirmedAt: o.confirmed_at,
+      readyAt: o.ready_at,
+      assignedAt: o.assigned_at,
+      pickedAt: o.picked_at,
+      deliveredAt: o.delivered_at,
+      items: itemsByOrder.get(o.id) || [],
+    }));
+
+    return Response.json({ orders: list });
+  } catch (err) {
+    console.error("Orders GET error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
 import { sendNtfy } from "@/lib/ntfy";
 import { getNtfyTopic } from "@/config/restaurant-extras";
 import { getSlugByRestaurantName } from "@/data/combined";

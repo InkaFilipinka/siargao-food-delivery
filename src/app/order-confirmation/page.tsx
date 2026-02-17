@@ -40,10 +40,10 @@ function OrderConfirmationContent() {
       : `https://wa.me/${WHATSAPP_NUMBER}`;
 
   return (
-    <main className="pt-16 md:pt-20 min-h-screen">
+    <main className="pt-14 min-h-screen bg-slate-50 dark:bg-slate-900/50">
       <div className="container mx-auto px-4 py-16 text-center max-w-lg">
-        <div className="inline-flex p-4 rounded-full bg-green-100 dark:bg-green-900/30 mb-6">
-          <CheckCircle2 className="w-16 h-16 text-green-600 dark:text-green-400" />
+        <div className="inline-flex p-4 rounded-full bg-primary/10 mb-6">
+          <CheckCircle2 className="w-16 h-16 text-primary" />
         </div>
         <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-2">
           Order placed!
@@ -66,7 +66,7 @@ function OrderConfirmationContent() {
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+          className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-medium px-6 py-3 rounded-lg hover:opacity-90 transition-opacity"
         >
           <MessageCircle className="w-5 h-5" />
           Open WhatsApp to confirm
@@ -75,7 +75,7 @@ function OrderConfirmationContent() {
           {orderId && (
             <Link
               href={`/track?id=${orderId}`}
-              className="inline-flex items-center gap-2 text-orange-600 hover:text-orange-500 font-medium"
+              className="inline-flex items-center gap-2 text-primary hover:underline font-medium"
             >
               <Package className="w-4 h-4" />
               Track order

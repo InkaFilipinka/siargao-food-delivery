@@ -1,5 +1,11 @@
 "use client";
 
+import { MapPin, ChevronRight, UtensilsCrossed, Heart, Clock } from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { useFavoritesStore } from "@/store/favorites-store";
+import { isOpenNow } from "@/config/restaurant-extras";
+
 type RestaurantWithMenu = {
   name: string;
   slug: string;
@@ -13,11 +19,6 @@ type RestaurantWithMenu = {
   hours?: string | null;
   minOrderPhp?: number | null;
 };
-import { MapPin, ChevronRight, UtensilsCrossed, Heart, Clock } from "lucide-react";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { useFavoritesStore } from "@/store/favorites-store";
-import { isOpenNow } from "@/config/restaurant-extras";
 
 interface RestaurantCardProps {
   restaurant: RestaurantWithMenu;
@@ -40,104 +41,80 @@ export function RestaurantCard({ restaurant, className }: RestaurantCardProps) {
   const { isFavorite, toggleRestaurant } = useFavoritesStore();
   const isFav = isFavorite(restaurant.slug);
   const priceDisplay = restaurant.priceRange || "—";
-  const itemCount = restaurant.menuItems.length;
   const openStatus = restaurant.hours ? isOpenNow(restaurant.hours) : null;
 
   return (
     <Link
       href={`/restaurant/${restaurant.slug}`}
       className={cn(
-        "group block rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 overflow-hidden transition-all hover:shadow-lg hover:border-orange-200 dark:hover:border-orange-800",
+        "group block rounded-xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 transition-all duration-200 ease-out hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5",
         className
       )}
     >
-      {/* Image or placeholder */}
       <div className="aspect-[16/10] relative bg-slate-100 dark:bg-slate-800 overflow-hidden">
-        <div className="absolute top-3 left-3 right-12 flex items-center gap-2 z-10">
+        {restaurant.featuredImage ? (
+          <img
+            src={restaurant.featuredImage}
+            alt={restaurant.name}
+            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300 ease-out"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-800">
+            <UtensilsCrossed className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+        <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
           {openStatus !== null && (
             <span
               className={cn(
-                "px-2 py-1 rounded-md text-xs font-medium",
+                "px-2.5 py-1 rounded-md text-xs font-medium",
                 openStatus
-                  ? "bg-green-500/90 text-white"
-                  : "bg-slate-700/90 text-slate-200"
+                  ? "bg-white/95 dark:bg-slate-900/95 text-green-700 dark:text-green-400"
+                  : "bg-slate-800/90 text-slate-200"
               )}
             >
               {openStatus ? "Open" : "Closed"}
             </span>
           )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleRestaurant(restaurant.slug);
+            }}
+            className="p-2 rounded-full bg-white/95 dark:bg-slate-900/95 hover:bg-white dark:hover:bg-slate-900 transition-colors shadow-sm"
+            aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Heart
+              className={cn("w-4 h-4", isFav ? "fill-red-500 text-red-500" : "text-slate-500")}
+            />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleRestaurant(restaurant.slug);
-          }}
-          className="absolute top-3 right-3 p-2 rounded-full bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 transition-colors z-10"
-          aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
-        >
-          <Heart
-            className={cn("w-5 h-5", isFav ? "fill-red-500 text-red-500" : "text-slate-400")}
-          />
-        </button>
-        {restaurant.featuredImage ? (
-          <img
-            src={restaurant.featuredImage}
-            alt={restaurant.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-amber-100 dark:from-slate-700 dark:to-slate-800">
-            <UtensilsCrossed className="w-12 h-12 text-orange-300 dark:text-slate-500" />
-          </div>
-        )}
       </div>
 
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="font-bold text-lg text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-slate-900 dark:text-white truncate group-hover:text-primary transition-colors">
               {restaurant.name}
             </h3>
-            <p className="text-sm text-amber-600 dark:text-amber-400 font-medium mt-1">
-              {priceDisplay}
-              {itemCount > 0 && (
-                <span className="text-slate-500 dark:text-slate-400 ml-2">
-                  • {itemCount} items
-                </span>
-              )}
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              {restaurant.categories.slice(0, 2).join(" • ")}
             </p>
           </div>
-          <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-orange-500 shrink-0" />
+          <ChevronRight className="w-5 h-5 text-slate-400 shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-transform duration-200" />
         </div>
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {restaurant.categories.slice(0, 3).map((cat) => (
-            <span
-              key={cat}
-              className="text-xs px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
-            >
-              {cat}
+        <div className="flex items-center gap-3 mt-3 text-xs text-slate-500 dark:text-slate-400">
+          <span className="font-medium text-slate-700 dark:text-slate-300">{priceDisplay}</span>
+          {restaurant.hours && (
+            <span className="flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" />
+              {formatHours(restaurant.hours)}
             </span>
-          ))}
+          )}
         </div>
-        {restaurant.tags.length > 0 && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-            {restaurant.tags.join(" • ")}
-          </p>
-        )}
-      </div>
-      <div className="px-5 py-2 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between gap-2 text-sm text-slate-600 dark:text-slate-400">
-        <div className="flex items-center gap-2">
-          <MapPin className="w-4 h-4" />
-          General Luna, Siargao
-        </div>
-        {restaurant.hours && (
-          <span className="flex items-center gap-1 text-xs">
-            <Clock className="w-3 h-3" />
-            {formatHours(restaurant.hours)}
-          </span>
-        )}
       </div>
     </Link>
   );
