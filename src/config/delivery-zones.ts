@@ -1,6 +1,6 @@
 /**
  * Delivery zones for General Luna, Siargao
- * Fee is based on distance from hub (round-trip)
+ * Fee: ₱12.5 per km from hub (one-way distance)
  */
 export interface DeliveryZone {
   id: string;
@@ -9,14 +9,16 @@ export interface DeliveryZone {
   maxDistanceKm: number;
   /** Flat delivery fee (PHP) - used when within zone */
   feePhp: number;
-  /** Optional: beyond this zone use per-km rate */
+  /** Optional: beyond this zone use per-km rate (PHP per km one-way) */
   feePerKm?: number;
 }
+
+const FEE_PER_KM = 12.5;
 
 export const DELIVERY_ZONES: DeliveryZone[] = [
   { id: "core", name: "General Luna core", maxDistanceKm: 3, feePhp: 50 },
   { id: "extended", name: "Extended area", maxDistanceKm: 6, feePhp: 80 },
-  { id: "outside", name: "Outside core", maxDistanceKm: 25, feePhp: 0, feePerKm: 6.5 },
+  { id: "outside", name: "Outside core", maxDistanceKm: 25, feePhp: 0, feePerKm: FEE_PER_KM },
 ];
 
 /** Hub coordinates (General Luna) */
@@ -29,16 +31,14 @@ export function getDeliveryFee(distanceKm: number): { feePhp: number; zone: Deli
   for (const zone of DELIVERY_ZONES) {
     if (distanceKm <= zone.maxDistanceKm) {
       if (zone.feePerKm != null) {
-        const roundTripKm = distanceKm * 2;
-        return { feePhp: Math.round(roundTripKm * zone.feePerKm), zone };
+        return { feePhp: Math.round(distanceKm * zone.feePerKm), zone };
       }
       return { feePhp: zone.feePhp, zone };
     }
   }
   const last = DELIVERY_ZONES[DELIVERY_ZONES.length - 1];
-  const roundTripKm = distanceKm * 2;
   return {
-    feePhp: Math.round(roundTripKm * (last.feePerKm ?? 6.5)),
+    feePhp: Math.round(distanceKm * (last.feePerKm ?? FEE_PER_KM)),
     zone: last,
   };
 }
