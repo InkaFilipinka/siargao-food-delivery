@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { X, MapPin, AlertCircle } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { X, MapPin, AlertCircle, Locate } from "lucide-react";
 import { getDeliveryFee } from "@/config/delivery-zones";
 
 interface MapPickerProps {
@@ -64,8 +64,70 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
   const [mapError, setMapError] = useState<string>("");
   const [mapReady, setMapReady] = useState(false);
   const [calculating, setCalculating] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState<string>("");
   const mapRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const selectedMarkerRef = useRef<google.maps.Marker | null>(null);
+
+  const applyLocationToMap = useCallback(
+    async (lat: number, lng: number, locationName: string) => {
+      const map = mapInstanceRef.current;
+      const marker = selectedMarkerRef.current;
+      if (marker) marker.setMap(null);
+      setMapError("");
+      setPlaceName(locationName);
+      setSelectedLocation({ lat, lng });
+      setCalculating(true);
+      try {
+        const dist = await calculateRoadDistance(BASE_LAT, BASE_LNG, lat, lng);
+        setDistance(dist);
+      } catch {
+        setMapError("Could not calculate road distance.");
+        setSelectedLocation(null);
+      } finally {
+        setCalculating(false);
+      }
+      if (map) {
+        map.setCenter({ lat, lng });
+        map.setZoom(15);
+        const m = new window.google!.maps.Marker({
+          position: { lat, lng },
+          map,
+          title: "Your Delivery Address",
+        });
+        selectedMarkerRef.current = m;
+      }
+    },
+    []
+  );
+
+  const handleUseMyLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGeoError("Geolocation is not supported by your browser.");
+      return;
+    }
+    setGeoError("");
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setGeoLoading(false);
+        await applyLocationToMap(lat, lng, "Current location");
+      },
+      (err) => {
+        setGeoLoading(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setGeoError("Location access denied. Please enable it in your browser.");
+        } else {
+          setGeoError("Could not get your location. Try again or pick on the map.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }, [applyLocationToMap]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -74,6 +136,8 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
     setSelectedLocation(null);
     setDistance(0);
     setPlaceName("");
+    setGeoError("");
+    setGeoLoading(false);
 
     if (!GOOGLE_MAPS_API_KEY) {
       setMapError("Google Maps API key is missing. Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to .env.local");
@@ -89,6 +153,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           zoom: 12,
           clickableIcons: false,
         });
+        mapInstanceRef.current = map;
 
         new window.google.maps.Marker({
           position: { lat: BASE_LAT, lng: BASE_LNG },
@@ -97,14 +162,12 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           icon: { url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" },
         });
 
-        let selectedMarker: google.maps.Marker | null = null;
-
         map.addListener("click", async (e: google.maps.MapMouseEvent) => {
           if (!e.latLng || calculating) return;
           const lat = e.latLng.lat();
           const lng = e.latLng.lng();
-          if (selectedMarker) selectedMarker.setMap(null);
-          selectedMarker = new window.google.maps.Marker({
+          if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
+          selectedMarkerRef.current = new window.google.maps.Marker({
             position: { lat, lng },
             map,
             title: "Your Delivery Address",
@@ -119,7 +182,8 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
             setDistance(dist);
           } catch {
             setMapError("Could not calculate road distance. Try another location.");
-            if (selectedMarker) selectedMarker.setMap(null);
+            if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
+            selectedMarkerRef.current = null;
             setSelectedLocation(null);
           } finally {
             setCalculating(false);
@@ -148,8 +212,8 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               setPlaceName(locationName);
               map.setCenter({ lat, lng });
               map.setZoom(15);
-              if (selectedMarker) selectedMarker.setMap(null);
-              selectedMarker = new window.google.maps.Marker({
+              if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
+              selectedMarkerRef.current = new window.google.maps.Marker({
                 position: { lat, lng },
                 map,
                 title: place.name || "Selected Location",
@@ -163,7 +227,8 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
                 setDistance(dist);
               } catch {
                 setMapError("Could not calculate road distance.");
-                if (selectedMarker) selectedMarker.setMap(null);
+                if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
+                selectedMarkerRef.current = null;
                 setSelectedLocation(null);
               } finally {
                 setCalculating(false);
@@ -233,16 +298,35 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               <X className="w-6 h-6" />
             </button>
           </div>
-          <div className="relative">
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search hotel, resort, or address..."
-              className="w-full px-4 py-3 pr-10 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
-              autoComplete="off"
-            />
-            <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search hotel, resort, or address..."
+                className="w-full px-4 py-3 pr-10 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                autoComplete="off"
+              />
+              <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            </div>
+            <button
+              type="button"
+              onClick={handleUseMyLocation}
+              disabled={!mapReady || geoLoading || calculating}
+              className="flex items-center gap-2 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 shrink-0"
+              title="Use my current location"
+            >
+              {geoLoading ? (
+                <span className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Locate className="w-5 h-5" />
+              )}
+              <span className="hidden sm:inline">Use my location</span>
+            </button>
           </div>
+          {geoError ? (
+            <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">{geoError}</p>
+          ) : null}
         </div>
         <div className="flex-1 relative min-h-[400px]">
           {mapError ? (

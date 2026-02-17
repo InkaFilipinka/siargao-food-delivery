@@ -31,7 +31,9 @@ create table if not exists public.orders (
   ready_at timestamptz,
   assigned_at timestamptz,
   picked_at timestamptz,
-  delivered_at timestamptz
+  delivered_at timestamptz,
+  payment_method text default 'cash' check (payment_method in ('cash', 'card', 'gcash', 'crypto', 'paypal')),
+  payment_status text default 'pending' check (payment_status in ('pending', 'paid', 'failed', 'cancelled'))
 );
 
 create table if not exists public.order_items (

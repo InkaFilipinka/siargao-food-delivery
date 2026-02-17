@@ -12,6 +12,9 @@ const navLinks = [
   { href: "/track", label: "Track Order" },
   { href: "/checkout", label: "Checkout" },
   { href: "/staff/orders", label: "Staff" },
+  { href: "/restaurant-portal", label: "Restaurant" },
+  { href: "/driver", label: "Driver" },
+  { href: "/admin", label: "Admin" },
 ];
 
 interface NavigationProps {

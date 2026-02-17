@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -11,8 +11,17 @@ import {
   MapPin,
   Phone,
   ChevronDown,
+  Lock,
+  ExternalLink,
+  Headphones,
+  Columns3,
 } from "lucide-react";
+import { SUPPORT_WHATSAPP } from "@/config/support";
+import { DispatchBoard } from "@/components/dispatch-board";
 import { cn } from "@/lib/utils";
+
+const STAFF_TOKEN_KEY = "siargao-staff-token";
+const POLL_INTERVAL_MS = 30000;
 
 const STATUS_OPTIONS = [
   "confirmed",
@@ -32,18 +41,23 @@ type Order = {
   customerPhone: string;
   landmark: string;
   deliveryAddress: string;
+  deliveryLat?: number | null;
+  deliveryLng?: number | null;
   totalPhp: number;
   timeWindow: string;
+  updatedBy?: string | null;
   scheduledAt: string | null;
   createdAt: string;
   items: { restaurant_name: string; item_name: string; price: string; quantity: number }[];
 };
 
 export default function StaffOrdersPage() {
-  const [view, setView] = useState<"list" | "update">("list");
+  const [view, setView] = useState<"list" | "board" | "update">("list");
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const [staffToken, setStaffTokenState] = useState("");
   const [orderId, setOrderId] = useState("");
   const [newStatus, setNewStatus] = useState("confirmed");
   const [loading, setLoading] = useState(false);
@@ -52,12 +66,24 @@ export default function StaffOrdersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  function loadOrders() {
+  const getAuthHeaders = useCallback((): Record<string, string> => {
+    const token = typeof window !== "undefined" ? sessionStorage.getItem(STAFF_TOKEN_KEY) : null;
+    if (!token) return {};
+    return { Authorization: `Bearer ${token}` };
+  }, []);
+
+  const loadOrders = useCallback(() => {
     setOrdersLoading(true);
     setOrdersError(null);
-    fetch("/api/orders")
+    setNeedsAuth(false);
+    fetch("/api/orders", { headers: { "Content-Type": "application/json", ...getAuthHeaders() } })
       .then(async (res) => {
         const data = await res.json();
+        if (res.status === 401) {
+          sessionStorage.removeItem(STAFF_TOKEN_KEY);
+          setNeedsAuth(true);
+          return { orders: [] };
+        }
         if (res.status === 503) {
           setOrdersError(data.error || "Database not configured");
           return { orders: [] };
@@ -74,11 +100,33 @@ export default function StaffOrdersPage() {
         setOrders([]);
       })
       .finally(() => setOrdersLoading(false));
+  }, [getAuthHeaders]);
+
+  function handleStaffLogin(e: React.FormEvent) {
+    e.preventDefault();
+    const token = staffToken.trim();
+    if (!token) return;
+    sessionStorage.setItem(STAFF_TOKEN_KEY, token);
+    setStaffTokenState("");
+    setNeedsAuth(false);
+    loadOrders();
+  }
+
+  function handleStaffLogout() {
+    sessionStorage.removeItem(STAFF_TOKEN_KEY);
+    setNeedsAuth(true);
+    setOrders([]);
   }
 
   useEffect(() => {
-    if (view === "list") loadOrders();
-  }, [view]);
+    if (view === "list" || view === "board") loadOrders();
+  }, [view, loadOrders]);
+
+  useEffect(() => {
+    if ((view !== "list" && view !== "board") || needsAuth) return;
+    const id = setInterval(loadOrders, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [view, needsAuth, loadOrders]);
 
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault();
@@ -88,8 +136,8 @@ export default function StaffOrdersPage() {
     try {
       const res = await fetch(`/api/orders/${orderId.trim()}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() } as HeadersInit,
+        body: JSON.stringify({ status: newStatus, source: "staff" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
@@ -107,8 +155,8 @@ export default function StaffOrdersPage() {
     try {
       const res = await fetch(`/api/orders/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() } as HeadersInit,
+        body: JSON.stringify({ status, source: "staff" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
@@ -165,7 +213,19 @@ export default function StaffOrdersPage() {
               )}
             >
               <List className="w-4 h-4" />
-              Order list
+              List
+            </button>
+            <button
+              onClick={() => setView("board")}
+              className={cn(
+                "px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium",
+                view === "board"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+              )}
+            >
+              <Columns3 className="w-4 h-4" />
+              Dispatch board
             </button>
             <button
               onClick={() => setView("update")}
@@ -182,7 +242,69 @@ export default function StaffOrdersPage() {
           </div>
         </div>
 
-        {view === "list" && (
+        {view === "list" && needsAuth && (
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 max-w-md">
+            <div className="flex items-center gap-2 mb-4">
+              <Lock className="w-5 h-5 text-slate-500" />
+              <h2 className="font-semibold text-slate-900 dark:text-white">Staff access required</h2>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+              Enter the staff token to view and manage orders.
+            </p>
+            <form onSubmit={handleStaffLogin} className="space-y-3">
+              <input
+                type="password"
+                value={staffToken}
+                onChange={(e) => setStaffTokenState(e.target.value)}
+                placeholder="Staff token"
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Sign in
+              </button>
+            </form>
+          </div>
+        )}
+
+        {view === "board" && !needsAuth && (
+          <>
+            <div className="flex gap-4 mb-4 items-center">
+              <button
+                onClick={loadOrders}
+                disabled={ordersLoading}
+                className="px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm flex items-center gap-2 hover:bg-slate-300 dark:hover:bg-slate-600"
+              >
+                {ordersLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                Refresh
+              </button>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Auto-refresh every 30s</span>
+            </div>
+            {ordersLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+              </div>
+            ) : ordersError ? (
+              <p className="text-amber-600 dark:text-amber-400 py-8 text-center">{ordersError}</p>
+            ) : (
+              <DispatchBoard
+                orders={orders}
+                onStatusChange={updateOrderStatus}
+                updatingId={updatingId}
+                getAuthHeaders={getAuthHeaders}
+              />
+            )}
+          </>
+        )}
+
+        {view === "list" && !needsAuth && (
           <>
             <div className="flex items-center gap-4 mb-4">
               <select
@@ -208,6 +330,13 @@ export default function StaffOrdersPage() {
                   <RefreshCw className="w-4 h-4" />
                 )}
                 Refresh
+              </button>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Auto-refresh every 30s</span>
+              <button
+                onClick={handleStaffLogout}
+                className="ml-auto px-3 py-2 rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-sm"
+              >
+                Sign out
               </button>
             </div>
 
@@ -275,13 +404,35 @@ export default function StaffOrdersPage() {
                             <span> · {o.deliveryAddress}</span>
                           )}
                         </div>
-                        <a
-                          href={`tel:${o.customerPhone}`}
-                          className="flex items-center gap-2 text-sm text-orange-600 hover:underline"
-                        >
-                          <Phone className="w-4 h-4" />
-                          {o.customerPhone}
-                        </a>
+                        <div className="flex flex-wrap gap-3 text-sm">
+                          <a
+                            href={`tel:${o.customerPhone}`}
+                            className="flex items-center gap-2 text-orange-600 hover:underline"
+                          >
+                            <Phone className="w-4 h-4" />
+                            Call customer
+                          </a>
+                          {o.deliveryLat != null && o.deliveryLng != null && (
+                            <a
+                              href={`https://www.google.com/maps/dir/?api=1&destination=${o.deliveryLat},${o.deliveryLng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-orange-600 hover:underline"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              Open in Google Maps
+                            </a>
+                          )}
+                          <a
+                            href={`https://wa.me/${SUPPORT_WHATSAPP}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-orange-600"
+                          >
+                            <Headphones className="w-4 h-4" />
+                            Contact customer support
+                          </a>
+                        </div>
                         <ul className="text-sm text-slate-600 dark:text-slate-400">
                           {o.items.map((i, idx) => (
                             <li key={idx}>
@@ -295,6 +446,11 @@ export default function StaffOrdersPage() {
                             : "ASAP"}
                           {" · "}
                           {formatTime(o.createdAt)}
+                          {o.updatedBy && (
+                            <span className="ml-2 text-slate-400">
+                              · last by {o.updatedBy}
+                            </span>
+                          )}
                         </p>
                         <div className="flex items-center gap-2 pt-2">
                           <span className="text-sm text-slate-600 dark:text-slate-400">

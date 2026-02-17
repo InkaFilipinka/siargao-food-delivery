@@ -103,6 +103,149 @@
         "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&q=80",
         "https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=800&q=80"
       ]
+    },
+    {
+      "name": "Coconut Kitchen",
+      "menuUrl": "https://siargaodelivery.com/coconut-kitchen/",
+      "menuItems": [
+        { "name": "Silog Breakfast", "price": "140 PHP" },
+        { "name": "Tapsilog", "price": "130 PHP" },
+        { "name": "Longganisa Rice", "price": "120 PHP" }
+      ],
+      "imageUrls": [
+        "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=800&q=80",
+        "https://images.unsplash.com/photo-1546069901-d5bfd2cbfb1f?w=800&q=80"
+      ]
+    },
+    {
+      "name": "Wave Cafe",
+      "menuUrl": "https://siargaodelivery.com/wave-cafe/",
+      "menuItems": [
+        { "name": "Flat White", "price": "150 PHP" },
+        { "name": "Croissant", "price": "95 PHP" },
+        { "name": "Eggs Benedict", "price": "220 PHP" }
+      ],
+      "imageUrls": [
+        "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&q=80",
+        "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&q=80"
+      ]
+    },
+    {
+      "name": "Green Leaf",
+      "menuUrl": "https://siargaodelivery.com/green-leaf/",
+      "menuItems": [
+        { "name": "Buddha Bowl", "price": "250 PHP" },
+        { "name": "Kale Salad", "price": "180 PHP" },
+        { "name": "Vegan Wrap", "price": "160 PHP" }
+      ],
+      "imageUrls": [
+        "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=80",
+        "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80"
+      ]
+    },
+    {
+      "name": "Sari-Sari Grill",
+      "menuUrl": "https://siargaodelivery.com/sari-sari-grill/",
+      "menuItems": [
+        { "name": "Inihaw na Baboy", "price": "110 PHP" },
+        { "name": "Chicken Inasal", "price": "100 PHP" },
+        { "name": "Rice + Ulam", "price": "85 PHP" }
+      ],
+      "imageUrls": [
+        "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80",
+        "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=800&q=80"
+      ]
+    },
+    {
+      "name": "Surf Shack",
+      "menuUrl": "https://siargaodelivery.com/surf-shack/",
+      "menuItems": [
+        { "name": "Fish Tacos", "price": "145 PHP" },
+        { "name": "Beef Tacos x3", "price": "165 PHP" },
+        { "name": "Nachos", "price": "120 PHP" }
+      ],
+      "imageUrls": [
+        "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=800&q=80",
+        "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&q=80"
+      ]
+    },
+    {
+      "name": "Pasta Paradise",
+      "menuUrl": "https://siargaodelivery.com/pasta-paradise/",
+      "menuItems": [
+        { "name": "Spaghetti Carbonara", "price": "280 PHP" },
+        { "name": "Penne Arrabiata", "price": "260 PHP" },
+        { "name": "Lasagna", "price": "320 PHP" }
+      ],
+      "imageUrls": [
+        "https://images.unsplash.com/photo-1551183053-bf91a1f81141?w=800&q=80",
+        "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=800&q=80"
+      ]
+    },
+    {
+      "name": "Seaside Grill",
+      "menuUrl": "https://siargaodelivery.com/seaside-grill/",
+      "menuItems": [
+        { "name": "Grilled Lapu-Lapu", "price": "380 PHP" },
+        { "name": "Prawns Garlic", "price": "420 PHP" },
+        { "name": "Seafood Platter", "price": "650 PHP" }
+      ],
+      "imageUrls": [
+        "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&q=80",
+        "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&q=80"
+      ]
+    },
+    {
+      "name": "Sunrise Bakery",
+      "menuUrl": "https://siargaodelivery.com/sunrise-bakery/",
+      "menuItems": [
+        { "name": "Pandesal 6pc", "price": "45 PHP" },
+        { "name": "Ensaimada", "price": "65 PHP" },
+        { "name": "Spanish Bread 5pc", "price": "55 PHP" }
+      ],
+      "imageUrls": [
+        "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&q=80",
+        "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=800&q=80"
+      ]
+    },
+    {
+      "name": "Island Brew",
+      "menuUrl": "https://siargaodelivery.com/island-brew/",
+      "menuItems": [
+        { "name": "Craft Beer Pint", "price": "180 PHP" },
+        { "name": "Cocktail of the Day", "price": "220 PHP" },
+        { "name": "Beer Bucket 6pc", "price": "450 PHP" }
+      ],
+      "imageUrls": [
+        "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=800&q=80",
+        "https://images.unsplash.com/photo-1470337458703-46ed17584a51?w=800&q=80"
+      ]
+    },
+    {
+      "name": "Fresh Mart",
+      "menuUrl": "https://siargaodelivery.com/fresh-mart/",
+      "menuItems": [
+        { "name": "Milk 1L", "price": "75 PHP" },
+        { "name": "Bread Loaf", "price": "55 PHP" },
+        { "name": "Instant Noodles Pack", "price": "45 PHP" }
+      ],
+      "imageUrls": [
+        "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=800&q=80",
+        "https://images.unsplash.com/photo-1580822184718-f2b2b2ee62e9?w=800&q=80"
+      ]
+    },
+    {
+      "name": "Tropical Smoothie Bar",
+      "menuUrl": "https://siargaodelivery.com/tropical-smoothie-bar/",
+      "menuItems": [
+        { "name": "Mango Smoothie", "price": "150 PHP" },
+        { "name": "Green Detox", "price": "165 PHP" },
+        { "name": "Tropical Blend", "price": "140 PHP" }
+      ],
+      "imageUrls": [
+        "https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=800&q=80",
+        "https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?w=800&q=80"
+      ]
     }
   ]
 }

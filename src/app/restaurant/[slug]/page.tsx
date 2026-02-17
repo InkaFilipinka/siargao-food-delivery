@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getRestaurantBySlug, combinedRestaurants } from "@/data/combined";
 import { ArrowLeft, MapPin, MessageCircle, Phone, Clock, ShoppingBag } from "lucide-react";
-import { MenuItemRow } from "@/components/menu-item-row";
+import { SUPPORT_PHONE, SUPPORT_WHATSAPP } from "@/config/support";
+import { RestaurantMenuWithAvailability } from "@/components/restaurant-menu-with-availability";
 
 export function generateStaticParams() {
   return combinedRestaurants.map((r) => ({ slug: r.slug }));
@@ -90,7 +91,7 @@ export default async function RestaurantPage({
 
             <div className="flex flex-wrap gap-2 mt-6">
               <a
-                href="https://wa.me/639457014440"
+                href={`https://wa.me/${SUPPORT_WHATSAPP}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
@@ -99,7 +100,7 @@ export default async function RestaurantPage({
                 Order via WhatsApp
               </a>
               <a
-                href="tel:+639457014440"
+                href={`tel:${SUPPORT_PHONE}`}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
                 <Phone className="w-4 h-4" />
@@ -113,17 +114,7 @@ export default async function RestaurantPage({
               <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50">
                 <h2 className="font-semibold text-slate-900 dark:text-white">Menu</h2>
               </div>
-              <ul className="divide-y divide-slate-200 dark:divide-slate-800">
-                {restaurant.menuItems.map((item, i) => (
-                  <MenuItemRow
-                    key={i}
-                    restaurantName={restaurant.name}
-                    restaurantSlug={restaurant.slug}
-                    itemName={item.name}
-                    price={item.price}
-                  />
-                ))}
-              </ul>
+              <RestaurantMenuWithAvailability restaurant={restaurant} />
             </div>
           ) : (
             <div className="px-6 py-12 text-center text-slate-500 dark:text-slate-400 text-sm">

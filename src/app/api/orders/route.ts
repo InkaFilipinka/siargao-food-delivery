@@ -1,9 +1,28 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-/** GET /api/orders - List all orders for staff (no auth; protect in production) */
-export async function GET() {
+function getStaffToken(request: Request): string | null {
+  const auth = request.headers.get("authorization");
+  if (auth?.startsWith("Bearer ")) return auth.slice(7);
+  return new URL(request.url).searchParams.get("token");
+}
+
+function requireStaffAuth(request: Request): Response | null {
+  const staffToken = process.env.STAFF_TOKEN;
+  if (!staffToken) return null; // No auth required when STAFF_TOKEN not set
+  const token = getStaffToken(request);
+  if (token !== staffToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return null;
+}
+
+/** GET /api/orders - List all orders for staff (requires STAFF_TOKEN when set) */
+export async function GET(request: Request) {
   try {
+    const authErr = requireStaffAuth(request);
+    if (authErr) return authErr;
+
     const supabase = getSupabaseAdmin();
     if (!supabase) {
       return NextResponse.json(
@@ -45,7 +64,16 @@ export async function GET() {
       customerPhone: o.customer_phone,
       landmark: o.landmark,
       deliveryAddress: o.delivery_address,
+      deliveryLat: o.delivery_lat ?? null,
+      deliveryLng: o.delivery_lng ?? null,
       totalPhp: o.total_php,
+      tipPhp: o.tip_php ?? 0,
+      paymentMethod: o.payment_method ?? "cash",
+      paymentStatus: o.payment_status ?? "pending",
+      arrivedAtHubAt: o.arrived_at_hub_at ?? null,
+      cashReceivedByDriver: o.cash_received_by_driver ?? null,
+      cashTurnedIn: o.cash_turned_in ?? null,
+      updatedBy: o.updated_by ?? null,
       timeWindow: o.time_window,
       scheduledAt: o.scheduled_at,
       createdAt: o.created_at,
@@ -125,6 +153,7 @@ export async function POST(request: Request) {
       tipPhp,
       priorityDelivery,
       allowSubstitutions,
+      paymentMethod,
     } = body;
 
     if (!customerName?.trim() || !customerPhone?.trim()) {
@@ -178,6 +207,8 @@ export async function POST(request: Request) {
           time_window: timeWindow ?? "asap",
           scheduled_at: scheduledAt ?? null,
           allow_substitutions: allowSubstitutions ?? true,
+          payment_method: paymentMethod ?? "cash",
+          payment_status: paymentMethod === "cash" ? "pending" : paymentMethod ? "pending" : "pending",
         })
         .select("id, created_at")
         .single();

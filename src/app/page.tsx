@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { RestaurantCard } from "@/components/restaurant-card";
 import { MapPicker } from "@/components/map-picker";
-import { MapPin, RotateCcw, EyeOff } from "lucide-react";
+import { MapPin, RotateCcw, EyeOff, Plus } from "lucide-react";
 import { HomePageSkeleton } from "@/components/skeleton-card";
 import { cn } from "@/lib/utils";
 import { useDeliveryStore } from "@/store/delivery-store";
@@ -52,15 +52,30 @@ export default function Home() {
   }, []);
 
   const favorites = useFavoritesStore((s) => s.restaurantSlugs);
+  const itemFavorites = useFavoritesStore((s) => s.itemFavorites);
+
+  const favoriteItemsWithData = useMemo(() => {
+    if (!data) return [];
+    return itemFavorites
+      .map((fav) => {
+        const rest = data.restaurants.find((r) => r.slug === fav.restaurantSlug);
+        const item = rest?.menuItems.find((m) => m.name === fav.itemName);
+        if (!rest || !item) return null;
+        return { restaurant: rest, item };
+      })
+      .filter(Boolean) as { restaurant: Restaurant; item: { name: string; price: string } }[];
+  }, [data, itemFavorites]);
 
   const filteredRestaurants = useMemo(() => {
     if (!data) return [];
     let list =
-      selectedCategory === "Favorites"
-        ? favorites.length === 0
-          ? []
-          : data.restaurants.filter((r) => favorites.includes(r.slug))
-        : selectedCategory === "All"
+      selectedCategory === "Favorite items"
+        ? [] // Handled separately
+        : selectedCategory === "Favorites"
+          ? favorites.length === 0
+            ? []
+            : data.restaurants.filter((r) => favorites.includes(r.slug))
+          : selectedCategory === "All"
           ? data.restaurants
           : data.restaurants.filter((r) => r.categories.includes(selectedCategory));
     if (hideClosed && list.length > 0) {
@@ -125,7 +140,20 @@ export default function Home() {
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                 )}
               >
-                ♥ Favorites
+                ♥ Restaurants
+              </button>
+            )}
+            {favoriteItemsWithData.length > 0 && (
+              <button
+                onClick={() => setSelectedCategory("Favorite items")}
+                className={cn(
+                  "shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                  selectedCategory === "Favorite items"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                )}
+              >
+                ♥ Items ({favoriteItemsWithData.length})
               </button>
             )}
             {data.categories.map((cat) => {
@@ -160,7 +188,9 @@ export default function Home() {
               ? "Restaurants, Groceries & More"
               : selectedCategory === "Favorites"
                 ? "Your Favorites"
-                : selectedCategory}
+                : selectedCategory === "Favorite items"
+                  ? "Your Favorite Items"
+                  : selectedCategory}
           </h2>
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
@@ -174,11 +204,53 @@ export default function Home() {
               Hide closed
             </label>
             <span className="text-sm text-slate-500 dark:text-slate-400">
-              {filteredRestaurants.length} {selectedCategory === "All" ? "venues" : "results"}
+              {selectedCategory === "Favorite items"
+                ? `${favoriteItemsWithData.length} items`
+                : `${filteredRestaurants.length} ${selectedCategory === "All" ? "venues" : "results"}`}
             </span>
           </div>
         </div>
 
+        {selectedCategory === "Favorite items" ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {favoriteItemsWithData.map(({ restaurant, item }, i) => (
+              <div
+                key={`${restaurant.slug}-${item.name}`}
+                className="flex items-center justify-between gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-slate-900 dark:text-white truncate">{item.name}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{restaurant.name}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-0.5">{item.price}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      addItem({
+                        restaurantName: restaurant.name,
+                        restaurantSlug: restaurant.slug,
+                        itemName: item.name,
+                        price: item.price,
+                        quantity: 1,
+                      });
+                      router.push("/checkout");
+                    }}
+                    className="p-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90"
+                    aria-label={`Add ${item.name} to cart`}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => router.push(`/restaurant/${restaurant.slug}`)}
+                    className="text-sm text-slate-600 dark:text-slate-400 hover:text-orange-600"
+                  >
+                    View menu
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {filteredRestaurants.map((restaurant, i) => (
             <div key={restaurant.name} className="animate-in" style={{ animationDelay: `${i * 30}ms` }}>
@@ -186,15 +258,22 @@ export default function Home() {
             </div>
           ))}
         </div>
+        )}
 
-        {filteredRestaurants.length === 0 && (
+        {(selectedCategory === "Favorite items"
+          ? favoriteItemsWithData.length === 0
+          : filteredRestaurants.length === 0) && (
           <div className="flex flex-col items-center justify-center py-20 px-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
               <EyeOff className="w-8 h-8 text-slate-400" />
             </div>
-            <p className="font-medium text-slate-900 dark:text-white">No venues found</p>
+            <p className="font-medium text-slate-900 dark:text-white">
+              {selectedCategory === "Favorite items" ? "No favorite items yet" : "No venues found"}
+            </p>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 text-center max-w-sm">
-              Try a different category or turn off &quot;Hide closed&quot; to see more options.
+              {selectedCategory === "Favorite items"
+                ? "Tap the heart on menu items to add them here."
+                : "Try a different category or turn off &quot;Hide closed&quot; to see more options."}
             </p>
           </div>
         )}

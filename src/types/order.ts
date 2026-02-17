@@ -52,6 +52,8 @@ export interface Order {
   createdAt: string;
 }
 
+export type PaymentMethod = "cash" | "card" | "gcash" | "crypto" | "paypal";
+
 export interface CreateOrderInput {
   customerName: string;
   customerPhone: string;
@@ -70,4 +72,5 @@ export interface CreateOrderInput {
   tipPhp?: number;
   priorityDelivery?: boolean;
   allowSubstitutions?: boolean;
+  paymentMethod?: PaymentMethod;
 }

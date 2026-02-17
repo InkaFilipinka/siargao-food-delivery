@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+function getStaffToken(request: Request): string | null {
+  const auth = request.headers.get("authorization");
+  if (auth?.startsWith("Bearer ")) return auth.slice(7);
+  return new URL(request.url).searchParams.get("token");
+}
+
+function requireStaffAuth(request: Request): Response | null {
+  const staffToken = process.env.STAFF_TOKEN;
+  if (!staffToken) return null;
+  const token = getStaffToken(request);
+  if (token !== staffToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return null;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -60,6 +76,8 @@ export async function GET(
       customerName: order.customer_name,
       deliveryAddress: order.delivery_address,
       landmark: order.landmark,
+      deliveryLat: order.delivery_lat ?? null,
+      deliveryLng: order.delivery_lng ?? null,
       totalPhp: order.total_php,
       timeWindow: order.time_window,
       scheduledAt: order.scheduled_at,
@@ -82,26 +100,60 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authErr = requireStaffAuth(request);
+    if (authErr) return authErr;
+
     const { id } = await params;
     const body = await request.json();
-    const { status } = body;
+    const {
+      status,
+      arrivedAtHub,
+      cashReceived,
+      cashTurnedIn,
+      cashVarianceReason,
+      source,
+      paymentStatus,
+    } = body;
 
-    const validStatuses = [
-      "confirmed",
-      "preparing",
-      "ready",
-      "assigned",
-      "picked",
-      "out_for_delivery",
-      "delivered",
-      "cancelled",
-    ];
+    const updatePayload: Record<string, unknown> = {};
 
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: `Invalid status. Use: ${validStatuses.join(", ")}` },
-        { status: 400 }
-      );
+    if (status != null) {
+      const validStatuses = [
+        "confirmed",
+        "preparing",
+        "ready",
+        "assigned",
+        "picked",
+        "out_for_delivery",
+        "delivered",
+        "cancelled",
+      ];
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json(
+          { error: `Invalid status. Use: ${validStatuses.join(", ")}` },
+          { status: 400 }
+        );
+      }
+      updatePayload.status = status;
+      const now = new Date().toISOString();
+      if (status === "confirmed") updatePayload.confirmed_at = now;
+      if (status === "ready") updatePayload.ready_at = now;
+      if (status === "assigned") updatePayload.assigned_at = now;
+      if (status === "picked") updatePayload.picked_at = now;
+      if (status === "delivered") updatePayload.delivered_at = now;
+    }
+
+    if (arrivedAtHub === true) {
+      updatePayload.arrived_at_hub_at = new Date().toISOString();
+    }
+    if (typeof cashReceived === "number") updatePayload.cash_received_by_driver = cashReceived;
+    if (typeof cashTurnedIn === "number") updatePayload.cash_turned_in = cashTurnedIn;
+    if (typeof cashVarianceReason === "string") updatePayload.cash_variance_reason = cashVarianceReason;
+    if (source === "driver" || source === "staff") {
+      updatePayload.updated_by = source;
+    }
+    if (paymentStatus && ["pending", "paid", "failed", "cancelled"].includes(paymentStatus)) {
+      updatePayload.payment_status = paymentStatus;
     }
 
     const supabase = getSupabaseAdmin();
@@ -112,14 +164,12 @@ export async function PATCH(
       );
     }
 
-    const updatePayload: Record<string, unknown> = { status };
-
-    const now = new Date().toISOString();
-    if (status === "confirmed") updatePayload.confirmed_at = now;
-    if (status === "ready") updatePayload.ready_at = now;
-    if (status === "assigned") updatePayload.assigned_at = now;
-    if (status === "picked") updatePayload.picked_at = now;
-    if (status === "delivered") updatePayload.delivered_at = now;
+    if (Object.keys(updatePayload).length === 0) {
+      return NextResponse.json(
+        { error: "No valid updates provided" },
+        { status: 400 }
+      );
+    }
 
     const { data, error } = await supabase
       .from("orders")

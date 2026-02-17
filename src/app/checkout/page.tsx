@@ -7,7 +7,9 @@ import { useCartStore } from "@/store/cart-store";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useLastOrderStore } from "@/store/last-order-store";
 import { MapPicker } from "@/components/map-picker";
-import { ArrowLeft, Loader2, MapPin } from "lucide-react";
+import { CryptoPaymentModal } from "@/components/crypto-payment-modal";
+import { ArrowLeft, CreditCard, Loader2, MapPin, Banknote, Smartphone, Wallet } from "lucide-react";
+import type { PaymentMethod } from "@/types/order";
 
 const TIP_OPTIONS = [0, 20, 50, 100];
 const PRIORITY_FEE_PHP = 50;
@@ -41,6 +43,7 @@ export default function CheckoutPage() {
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [landmark, setLandmark] = useState("");
   const [notes, setNotes] = useState("");
@@ -51,6 +54,9 @@ export default function CheckoutPage() {
   const [priorityDelivery, setPriorityDelivery] = useState(false);
   const [allowSubstitutions, setAllowSubstitutions] = useState(true);
   const [minOrderMap, setMinOrderMap] = useState<Record<string, number>>({});
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [cryptoModalOpen, setCryptoModalOpen] = useState(false);
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/restaurants")
@@ -85,6 +91,14 @@ export default function CheckoutPage() {
       setError("Please set your delivery location on the map.");
       setLoading(false);
       return;
+    }
+
+    if (paymentMethod === "cash") {
+      if (deliveryLocation.lat == null || deliveryLocation.lng == null) {
+        setError("For cash on delivery, please use the map to set your exact location (geolocation required).");
+        setLoading(false);
+        return;
+      }
     }
 
     if (timeWindow === "scheduled" && (!scheduledDate || !scheduledTime)) {
@@ -148,6 +162,7 @@ export default function CheckoutPage() {
           tipPhp,
           priorityDelivery,
           allowSubstitutions,
+          paymentMethod,
         }),
       });
 
@@ -157,12 +172,10 @@ export default function CheckoutPage() {
         throw new Error(data.error || "Failed to place order");
       }
 
-      setLastOrder(items);
-      clearCart();
-
+      const orderId = data.id;
       const displayScheduled = scheduledAt ? new Date(scheduledAt).toLocaleString() : undefined;
       const whatsappMessage = formatOrderForWhatsApp(
-        data.id,
+        orderId,
         items,
         totalPhp,
         address.trim() || deliveryLocation.placeName || "See landmark",
@@ -172,22 +185,153 @@ export default function CheckoutPage() {
         displayScheduled
       );
 
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("order-confirmation-wa", whatsappMessage);
-        sessionStorage.setItem(
-          "order-confirmation-eta",
-          JSON.stringify({
-            distanceKm: deliveryLocation.distance,
-            priority: priorityDelivery,
-          })
-        );
-        sessionStorage.setItem(
-          "order-confirmation-meta",
-          JSON.stringify({ orderId: data.id, phone: phone.trim() })
-        );
+      const saveSessionAndRedirect = (id: string) => {
+        setLastOrder(items);
+        clearCart();
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("order-confirmation-wa", whatsappMessage);
+          sessionStorage.setItem(
+            "order-confirmation-eta",
+            JSON.stringify({ distanceKm: deliveryLocation.distance, priority: priorityDelivery })
+          );
+          sessionStorage.setItem(
+            "order-confirmation-meta",
+            JSON.stringify({
+              orderId: id,
+              phone: phone.trim(),
+              email: email.trim() || undefined,
+              receiptData: email.trim()
+                ? {
+                    customerName: name.trim(),
+                    orderId: id,
+                    items: items.map((i) => `${i.itemName} x${i.quantity} - ${i.price}`).join("\n"),
+                    subtotal: subtotalPhp.toLocaleString(),
+                    deliveryFee: deliveryFeePhp.toLocaleString(),
+                    tip: tipPhp.toLocaleString(),
+                    priorityFee: priorityFeePhp.toLocaleString(),
+                    total: totalPhp.toLocaleString(),
+                    landmark: landmark.trim(),
+                    address: address.trim() || deliveryLocation.placeName || "See landmark",
+                    timeWindow: timeWindow === "scheduled" && scheduledAt ? scheduledAt : "ASAP",
+                  }
+                : undefined,
+            })
+          );
+        }
+        router.push(`/order-confirmation?id=${id}`);
+      };
+
+      const saveSessionForRedirect = () => {
+        setLastOrder(items);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(
+            "order-confirmation-wa",
+            formatOrderForWhatsApp(
+              orderId,
+              items,
+              totalPhp,
+              address.trim() || deliveryLocation.placeName || "See landmark",
+              landmark.trim(),
+              notes.trim(),
+              timeWindow,
+              displayScheduled
+            )
+          );
+          sessionStorage.setItem(
+            "order-confirmation-eta",
+            JSON.stringify({ distanceKm: deliveryLocation.distance, priority: priorityDelivery })
+          );
+          sessionStorage.setItem(
+            "order-confirmation-meta",
+            JSON.stringify({
+              orderId,
+              phone: phone.trim(),
+              email: email.trim() || undefined,
+              receiptData: email.trim()
+                ? {
+                    customerName: name.trim(),
+                    orderId,
+                    items: items.map((i) => `${i.itemName} x${i.quantity} - ${i.price}`).join("\n"),
+                    subtotal: subtotalPhp.toLocaleString(),
+                    deliveryFee: deliveryFeePhp.toLocaleString(),
+                    tip: tipPhp.toLocaleString(),
+                    priorityFee: priorityFeePhp.toLocaleString(),
+                    total: totalPhp.toLocaleString(),
+                    landmark: landmark.trim(),
+                    address: address.trim() || deliveryLocation.placeName || "See landmark",
+                    timeWindow: timeWindow === "scheduled" && scheduledAt ? scheduledAt : "ASAP",
+                  }
+                : undefined,
+            })
+          );
+        }
+      };
+
+      if (paymentMethod === "card") {
+        const stripeRes = await fetch("/api/create-checkout-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: totalPhp,
+            orderId,
+            customerEmail: email.trim() || undefined,
+            customerName: name.trim(),
+            lineItems: items.map((i) => ({
+              name: i.itemName,
+              amount: i.priceValue * i.quantity,
+              quantity: i.quantity,
+            })),
+          }),
+        });
+        const stripeData = await stripeRes.json();
+        if (!stripeRes.ok || !stripeData.url) throw new Error(stripeData.error || "Stripe failed");
+        saveSessionForRedirect();
+        clearCart();
+        window.location.href = stripeData.url;
+        return;
       }
 
-      router.push(`/order-confirmation?id=${data.id}`);
+      if (paymentMethod === "gcash") {
+        const pmRes = await fetch("/api/create-paymongo-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: totalPhp,
+            orderId,
+            customerEmail: email.trim() || undefined,
+            customerName: name.trim(),
+          }),
+        });
+        const pmData = await pmRes.json();
+        if (!pmRes.ok || !pmData.checkoutUrl) throw new Error(pmData.error || "GCash payment failed");
+        saveSessionForRedirect();
+        clearCart();
+        window.location.href = pmData.checkoutUrl;
+        return;
+      }
+
+      if (paymentMethod === "paypal") {
+        const ppRes = await fetch("/api/create-paypal-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: totalPhp, orderId }),
+        });
+        const ppData = await ppRes.json();
+        if (!ppRes.ok || !ppData.approvalUrl) throw new Error(ppData.error || "PayPal failed");
+        saveSessionForRedirect();
+        clearCart();
+        window.location.href = ppData.approvalUrl;
+        return;
+      }
+
+      if (paymentMethod === "crypto") {
+        setPendingOrderId(orderId);
+        setCryptoModalOpen(true);
+        setLoading(false);
+        return;
+      }
+
+      saveSessionAndRedirect(orderId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -242,6 +386,19 @@ export default function CheckoutPage() {
               onChange={(e) => setPhone(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="09XX XXX XXXX"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Email <span className="font-normal text-slate-500">(optional, for receipt)</span>
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="you@example.com"
             />
           </div>
 
@@ -332,6 +489,43 @@ export default function CheckoutPage() {
                   onChange={(e) => setScheduledTime(e.target.value)}
                   className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
                 />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Payment method *</label>
+            <div className="space-y-2">
+              {[
+                { id: "cash" as const, label: "Cash on delivery", icon: Banknote },
+                { id: "card" as const, label: "Credit/Debit card (Stripe)", icon: CreditCard },
+                { id: "gcash" as const, label: "GCash (PayMongo)", icon: Smartphone },
+                { id: "crypto" as const, label: "Crypto (USDC/BUSD)", icon: Wallet },
+                { id: "paypal" as const, label: "PayPal", icon: CreditCard },
+              ].map(({ id, label, icon: Icon }) => (
+                <label
+                  key={id}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    paymentMethod === id
+                      ? "border-primary bg-primary/10"
+                      : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    checked={paymentMethod === id}
+                    onChange={() => setPaymentMethod(id)}
+                    className="text-primary"
+                  />
+                  <Icon className="w-5 h-5 text-slate-600 dark:text-slate-400 shrink-0" />
+                  <span className="text-slate-900 dark:text-white">{label}</span>
+                </label>
+              ))}
+            </div>
+            {paymentMethod === "cash" && (
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-200">
+                <strong>Geolocation required.</strong> Order is confirmed by the restaurant or us via a call to you before preparation.
               </div>
             )}
           </div>
@@ -456,6 +650,61 @@ export default function CheckoutPage() {
             setLocation(loc);
             setMapOpen(false);
           }}
+        />
+
+        <CryptoPaymentModal
+          isOpen={cryptoModalOpen}
+          onClose={() => {
+            setCryptoModalOpen(false);
+            setPendingOrderId(null);
+          }}
+          amountPhp={totalPhp}
+          orderId={pendingOrderId || ""}
+          customerEmail={email}
+          customerName={name}
+          onSuccess={async (txHash) => {
+            if (pendingOrderId && txHash) {
+              await fetch(`/api/orders/${pendingOrderId}/confirm-crypto`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ txHash }),
+              });
+            }
+            const displayScheduled = timeWindow === "scheduled" && scheduledDate && scheduledTime
+              ? `${scheduledDate}T${scheduledTime}:00`
+              : undefined;
+            const wa = formatOrderForWhatsApp(
+              pendingOrderId!,
+              items,
+              totalPhp,
+              address.trim() || deliveryLocation?.placeName || "See landmark",
+              landmark.trim(),
+              notes.trim(),
+              timeWindow,
+              displayScheduled ? new Date(displayScheduled).toLocaleString() : undefined
+            );
+            setLastOrder(items);
+            clearCart();
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("order-confirmation-wa", wa);
+              sessionStorage.setItem(
+                "order-confirmation-eta",
+                JSON.stringify({ distanceKm: deliveryLocation?.distance, priority: priorityDelivery })
+              );
+              sessionStorage.setItem(
+                "order-confirmation-meta",
+                JSON.stringify({
+                  orderId: pendingOrderId,
+                  phone: phone.trim(),
+                  email: email.trim() || undefined,
+                })
+              );
+            }
+            setCryptoModalOpen(false);
+            setPendingOrderId(null);
+            router.push(`/order-confirmation?id=${pendingOrderId}`);
+          }}
+          onError={(err) => setError(err)}
         />
       </div>
     </main>

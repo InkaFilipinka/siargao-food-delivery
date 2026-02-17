@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MapPin, MessageCircle, Phone } from "lucide-react";
+import { SUPPORT_PHONE, SUPPORT_WHATSAPP } from "@/config/support";
 
 export function Footer() {
   return (
@@ -28,7 +29,7 @@ export function Footer() {
               Track order
             </Link>
             <a
-              href="https://wa.me/639457014440"
+              href={`https://wa.me/${SUPPORT_WHATSAPP}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
@@ -37,7 +38,7 @@ export function Footer() {
               WhatsApp
             </a>
             <a
-              href="tel:+639457014440"
+              href={`tel:${SUPPORT_PHONE}`}
               className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               <Phone className="w-4 h-4" />

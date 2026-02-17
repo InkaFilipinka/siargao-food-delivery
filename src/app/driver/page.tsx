@@ -1,0 +1,430 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  RefreshCw,
+  Loader2,
+  MapPin,
+  ExternalLink,
+  Home,
+  Banknote,
+  DollarSign,
+  Lock,
+  Package,
+} from "lucide-react";
+
+const STAFF_TOKEN_KEY = "siargao-staff-token";
+const DRIVER_STATUSES = ["ready", "assigned", "picked", "out_for_delivery"];
+const POLL_INTERVAL_MS = 30000;
+
+type Order = {
+  id: string;
+  status: string;
+  customerName: string;
+  customerPhone: string;
+  landmark: string;
+  deliveryAddress: string;
+  deliveryLat?: number | null;
+  deliveryLng?: number | null;
+  totalPhp: number;
+  tipPhp: number;
+  arrivedAtHubAt?: string | null;
+  cashReceivedByDriver?: number | null;
+  cashTurnedIn?: number | null;
+  createdAt: string;
+  items: { item_name: string; price: string; quantity: number }[];
+};
+
+function formatTime(s: string | null) {
+  if (!s) return "—";
+  return new Date(s).toLocaleString("en-PH", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+export default function DriverPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const [staffToken, setStaffTokenState] = useState("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [cashModal, setCashModal] = useState<Order | null>(null);
+  const [cashReceived, setCashReceived] = useState("");
+  const [cashTurnedIn, setCashTurnedIn] = useState("");
+  const [cashReason, setCashReason] = useState("");
+
+  const getAuthHeaders = useCallback((): Record<string, string> => {
+    const token = typeof window !== "undefined" ? sessionStorage.getItem(STAFF_TOKEN_KEY) : null;
+    if (!token) return {};
+    return { Authorization: `Bearer ${token}` };
+  }, []);
+
+  const loadOrders = useCallback(() => {
+    setLoading(true);
+    setError("");
+    setNeedsAuth(false);
+    fetch("/api/orders", { headers: getAuthHeaders() })
+      .then(async (res) => {
+        const data = await res.json();
+        if (res.status === 401) {
+          sessionStorage.removeItem(STAFF_TOKEN_KEY);
+          setNeedsAuth(true);
+          return { orders: [] };
+        }
+        if (!res.ok) return { orders: [] };
+        return data;
+      })
+      .then((data) => {
+        const all = (data.orders || []).filter((o: Order) =>
+          DRIVER_STATUSES.includes(o.status)
+        );
+        setOrders(all);
+      })
+      .catch(() => setError("Failed to load"))
+      .finally(() => setLoading(false));
+  }, [getAuthHeaders]);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
+
+  useEffect(() => {
+    if (needsAuth) return;
+    const id = setInterval(loadOrders, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [needsAuth, loadOrders]);
+
+  async function updateOrder(
+    orderId: string,
+    payload: {
+      status?: string;
+      arrivedAtHub?: boolean;
+      cashReceived?: number;
+      cashTurnedIn?: number;
+      cashVarianceReason?: string;
+    }
+  ) {
+    setUpdatingId(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        } as HeadersInit,
+        body: JSON.stringify({ ...payload, source: "driver" }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      loadOrders();
+      setCashModal(null);
+    } catch {
+      setError("Update failed");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  const [earnings, setEarnings] = useState<{ count: number; tips: number } | null>(null);
+  useEffect(() => {
+    if (needsAuth) return;
+    fetch("/api/orders", { headers: getAuthHeaders() })
+      .then((r) => r.json())
+      .then((data) => {
+        const delivered = (data.orders || []).filter(
+          (o: Order) => o.status === "delivered"
+        );
+        const today = new Date().toDateString();
+        const todayOrders = delivered.filter(
+          (o: Order) => new Date(o.createdAt).toDateString() === today
+        );
+        const tips = todayOrders.reduce((s: number, o: Order) => s + (o.tipPhp || 0), 0);
+        setEarnings({ count: todayOrders.length, tips });
+      })
+      .catch(() => setEarnings(null));
+  }, [needsAuth, getAuthHeaders, orders]);
+
+  function handleStaffLogin(e: React.FormEvent) {
+    e.preventDefault();
+    const token = staffToken.trim();
+    if (!token) return;
+    sessionStorage.setItem(STAFF_TOKEN_KEY, token);
+    setStaffTokenState("");
+    setNeedsAuth(false);
+    loadOrders();
+  }
+
+  return (
+    <main className="pt-14 min-h-screen bg-slate-50 dark:bg-slate-900/50">
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-orange-600 mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </Link>
+
+        <div className="flex items-center gap-2 mb-4">
+          <Package className="w-6 h-6 text-primary" />
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            Driver portal
+          </h1>
+        </div>
+
+        {needsAuth && (
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 max-w-md">
+            <Lock className="w-8 h-8 text-slate-400 mb-4" />
+            <h2 className="font-semibold text-slate-900 dark:text-white mb-2">
+              Staff access required
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+              Enter the staff token to view deliveries.
+            </p>
+            <form onSubmit={handleStaffLogin} className="space-y-3">
+              <input
+                type="password"
+                value={staffToken}
+                onChange={(e) => setStaffTokenState(e.target.value)}
+                placeholder="Staff token"
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg"
+              >
+                Sign in
+              </button>
+            </form>
+          </div>
+        )}
+
+        {!needsAuth && (
+          <>
+            {earnings && (
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Delivered today</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {earnings.count}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Tips today</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                    ₱{earnings.tips.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Ready / Assigned / Picked / Out for delivery
+              </p>
+              <button
+                onClick={loadOrders}
+                disabled={loading}
+                className="p-2 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+
+            {error && <p className="text-amber-600 dark:text-amber-400 mb-4">{error}</p>}
+
+            {loading && orders.length === 0 ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+              </div>
+            ) : orders.length === 0 ? (
+              <p className="text-slate-500 dark:text-slate-400 py-8 text-center">
+                No active deliveries.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((o) => (
+                  <div
+                    key={o.id}
+                    className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-mono text-xs text-slate-500">{String(o.id).slice(0, 8)}…</p>
+                        <p className="font-medium text-slate-900 dark:text-white">{o.customerName}</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1">
+                          <MapPin className="w-4 h-4 shrink-0" />
+                          {o.landmark}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          ₱{Number(o.totalPhp).toLocaleString()} · {formatTime(o.createdAt)}
+                        </p>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                        {o.status.replace(/_/g, " ")}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {o.deliveryLat != null && o.deliveryLng != null && (
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${o.deliveryLat},${o.deliveryLng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Open in Google Maps
+                        </a>
+                      )}
+                      {o.status === "assigned" && !o.arrivedAtHubAt && (
+                        <button
+                          onClick={() =>
+                            updateOrder(o.id, { arrivedAtHub: true })
+                          }
+                          disabled={updatingId === o.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-medium hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50"
+                        >
+                          {updatingId === o.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Home className="w-4 h-4" />
+                          )}
+                          Arrived at hub
+                        </button>
+                      )}
+                      {o.status === "ready" && (
+                        <button
+                          onClick={() => updateOrder(o.id, { status: "assigned" })}
+                          disabled={updatingId === o.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-sm font-medium disabled:opacity-50"
+                        >
+                          Mark assigned
+                        </button>
+                      )}
+                      {o.status === "assigned" && (
+                        <button
+                          onClick={() => updateOrder(o.id, { status: "picked" })}
+                          disabled={updatingId === o.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-sm font-medium disabled:opacity-50"
+                        >
+                          Picked up
+                        </button>
+                      )}
+                      {(o.status === "picked" || o.status === "out_for_delivery") && (
+                        <button
+                          onClick={() => updateOrder(o.id, { status: "delivered" })}
+                          disabled={updatingId === o.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                        >
+                          Delivered
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setCashModal(o);
+                          setCashReceived(String(o.cashReceivedByDriver ?? o.totalPhp ?? ""));
+                          setCashTurnedIn(String(o.cashTurnedIn ?? ""));
+                          setCashReason("");
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm font-medium"
+                      >
+                        <Banknote className="w-4 h-4" />
+                        Cash
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Link
+              href="/staff/orders"
+              className="block mt-8 text-center text-slate-600 dark:text-slate-400 hover:text-orange-600 text-sm"
+            >
+              Full order list (Staff)
+            </Link>
+          </>
+        )}
+
+        {cashModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-xl p-6 max-w-md w-full">
+              <h3 className="font-semibold text-slate-900 dark:text-white mb-4">
+                Cash handling
+              </h3>
+              <p className="text-sm text-slate-500 mb-2">
+                Order {String(cashModal.id).slice(0, 8)}… · ₱{Number(cashModal.totalPhp).toLocaleString()} expected
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Cash received from customer</label>
+                  <input
+                    type="number"
+                    value={cashReceived}
+                    onChange={(e) => setCashReceived(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Cash turned in at hub</label>
+                  <input
+                    type="number"
+                    value={cashTurnedIn}
+                    onChange={(e) => setCashTurnedIn(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Variance reason (if any)</label>
+                  <input
+                    type="text"
+                    value={cashReason}
+                    onChange={(e) => setCashReason(e.target.value)}
+                    placeholder="Discount, change issue..."
+                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() =>
+                    updateOrder(cashModal.id, {
+                      cashReceived: parseFloat(cashReceived) || undefined,
+                      cashTurnedIn: parseFloat(cashTurnedIn) || undefined,
+                      cashVarianceReason: cashReason.trim() || undefined,
+                    })
+                  }
+                  disabled={updatingId === cashModal.id}
+                  className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground font-medium"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setCashModal(null)}
+                  className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}

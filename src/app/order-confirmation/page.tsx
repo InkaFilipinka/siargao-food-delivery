@@ -3,16 +3,40 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, MessageCircle, Clock, Package } from "lucide-react";
+import { CheckCircle2, MessageCircle, Clock, Package, Headphones, Mail } from "lucide-react";
 import { getEtaRange, formatEtaRange } from "@/lib/eta";
-
-const WHATSAPP_NUMBER = "639457014440";
+import { SUPPORT_WHATSAPP } from "@/config/support";
+import { sendOrderReceipt } from "@/lib/emailjs";
 
 function OrderConfirmationContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("id");
   const [waMessage, setWaMessage] = useState("");
   const [etaRange, setEtaRange] = useState<{ min: number; max: number } | null>(null);
+  const [emailSent, setEmailSent] = useState<boolean | null>(null);
+
+  // Verify/capture payment when returning from Stripe, PayPal, or PayMongo
+  useEffect(() => {
+    const oid = searchParams.get("id");
+    const stripeSessionId = searchParams.get("session_id");
+    const paypalSuccess = searchParams.get("paypal");
+    const paypalToken = searchParams.get("token");
+
+    if (stripeSessionId && oid) {
+      fetch("/api/verify-stripe-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: stripeSessionId }),
+      }).catch(() => {});
+    }
+    if (paypalSuccess === "success" && paypalToken && oid) {
+      fetch("/api/capture-paypal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paypalOrderId: paypalToken, orderId: oid }),
+      }).catch(() => {});
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("order-confirmation-wa");
@@ -32,12 +56,40 @@ function OrderConfirmationContent() {
     } else {
       setEtaRange(getEtaRange(3, false));
     }
+
+    const meta = sessionStorage.getItem("order-confirmation-meta");
+    if (meta) {
+      try {
+        const { email, receiptData } = JSON.parse(meta);
+        if (email && receiptData && !sessionStorage.getItem(`order-receipt-sent-${receiptData.orderId}`)) {
+          sessionStorage.setItem(`order-receipt-sent-${receiptData.orderId}`, "1");
+          sendOrderReceipt({
+            to_email: email,
+            customer_name: receiptData.customerName,
+            order_id: receiptData.orderId,
+            items: receiptData.items,
+            subtotal: receiptData.subtotal,
+            delivery_fee: receiptData.deliveryFee,
+            tip: receiptData.tip,
+            priority_fee: receiptData.priorityFee,
+            total: receiptData.total,
+            landmark: receiptData.landmark,
+            address: receiptData.address,
+            time_window: receiptData.timeWindow,
+          })
+            .then(() => setEmailSent(true))
+            .catch(() => setEmailSent(false));
+        }
+      } catch {
+        /* ignore */
+      }
+    }
   }, []);
 
   const whatsappUrl =
     waMessage && typeof window !== "undefined"
-      ? `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(waMessage)}`
-      : `https://wa.me/${WHATSAPP_NUMBER}`;
+      ? `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(waMessage)}`
+      : `https://wa.me/${SUPPORT_WHATSAPP}`;
 
   return (
     <main className="pt-14 min-h-screen bg-slate-50 dark:bg-slate-900/50">
@@ -54,9 +106,15 @@ function OrderConfirmationContent() {
           </p>
         )}
         {etaRange && (
-          <p className="text-slate-600 dark:text-slate-400 mb-4 flex items-center justify-center gap-2">
+          <p className="text-slate-600 dark:text-slate-400 mb-2 flex items-center justify-center gap-2">
             <Clock className="w-4 h-4" />
             Est. delivery: {formatEtaRange(etaRange.min, etaRange.max)}
+          </p>
+        )}
+        {emailSent === true && (
+          <p className="text-slate-600 dark:text-slate-400 mb-4 flex items-center justify-center gap-2">
+            <Mail className="w-4 h-4" />
+            Receipt sent to your email
           </p>
         )}
         <p className="text-slate-600 dark:text-slate-400 mb-8">
@@ -81,6 +139,15 @@ function OrderConfirmationContent() {
               Track order
             </Link>
           )}
+          <a
+            href={`https://wa.me/${SUPPORT_WHATSAPP}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-orange-600 font-medium"
+          >
+            <Headphones className="w-4 h-4" />
+            Contact customer support
+          </a>
           <Link
             href="/"
             className="text-slate-600 dark:text-slate-400 hover:text-orange-600 font-medium"

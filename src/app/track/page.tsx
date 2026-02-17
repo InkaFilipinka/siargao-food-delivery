@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Search, Loader2, Package, MapPin } from "lucide-react";
+import { Search, Loader2, Package, MapPin, ExternalLink, Headphones } from "lucide-react";
+import { SUPPORT_WHATSAPP } from "@/config/support";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Order received",
@@ -63,6 +64,8 @@ function TrackPageContent() {
     customerName: string;
     deliveryAddress: string;
     landmark: string;
+    deliveryLat?: number | null;
+    deliveryLng?: number | null;
     totalPhp: number;
     timeWindow: string;
     scheduledAt: string | null;
@@ -223,7 +226,7 @@ function TrackPageContent() {
 
             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 space-y-2">
               <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                <MapPin className="w-4 h-4 text-orange-500" />
+                <MapPin className="w-4 h-4 text-orange-500 shrink-0" />
                 <span>{order.landmark}</span>
               </div>
               {order.deliveryAddress && order.deliveryAddress !== order.landmark && (
@@ -231,6 +234,26 @@ function TrackPageContent() {
                   {order.deliveryAddress}
                 </p>
               )}
+              {order.deliveryLat != null && order.deliveryLng != null && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLat},${order.deliveryLng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-orange-600 hover:underline font-medium mt-1"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open in Google Maps
+                </a>
+              )}
+              <a
+                href={`https://wa.me/${SUPPORT_WHATSAPP}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-orange-600 font-medium"
+              >
+                <Headphones className="w-4 h-4" />
+                Contact customer support
+              </a>
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4">

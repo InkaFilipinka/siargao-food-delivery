@@ -11,9 +11,13 @@
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
+    "@paypal/react-paypal-js": "^8.9.2",
     "@supabase/supabase-js": "^2.95.3",
+    "@walletconnect/ethereum-provider": "^2.23.5",
+    "axios": "^1.13.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "ethers": "^6.16.0",
     "lucide-react": "^0.475.0",
     "next": "^15.5.9",
     "react": "^18.3.1",

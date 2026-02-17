@@ -26,6 +26,17 @@ export const restaurantExtras: Record<string, RestaurantExtras> = {
   "island-liquor": { hours: "14:00-02:00", minOrderPhp: 150 },
   "general-luna-mart": { hours: "06:00-22:00", minOrderPhp: 100 },
   "tropical-organics": { hours: "08:00-18:00", minOrderPhp: 100 },
+  "coconut-kitchen": { hours: "07:00-20:00", minOrderPhp: 150 },
+  "wave-cafe": { hours: "06:30-18:00", minOrderPhp: 120 },
+  "green-leaf": { hours: "08:00-21:00", minOrderPhp: 180 },
+  "sari-sari-grill": { hours: "10:00-22:00", minOrderPhp: 80 },
+  "surf-shack": { hours: "11:00-01:00", minOrderPhp: 100 },
+  "pasta-paradise": { hours: "17:00-23:00", minOrderPhp: 200 },
+  "seaside-grill": { hours: "11:00-22:00", minOrderPhp: 300 },
+  "sunrise-bakery": { hours: "05:00-14:00", minOrderPhp: 100 },
+  "island-brew": { hours: "16:00-02:00", minOrderPhp: 150 },
+  "fresh-mart": { hours: "06:00-23:00", minOrderPhp: 100 },
+  "tropical-smoothie-bar": { hours: "07:00-20:00", minOrderPhp: 120 },
 };
 
 export function getNtfyTopic(menuUrlOrSlug: string): string {
