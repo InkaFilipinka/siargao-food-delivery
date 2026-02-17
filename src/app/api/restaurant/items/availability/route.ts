@@ -2,20 +2,10 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getRestaurantBySlug } from "@/data/combined";
 
-function getStaffToken(request: Request): string | null {
+function getBearerToken(request: Request): string | null {
   const auth = request.headers.get("authorization");
   if (auth?.startsWith("Bearer ")) return auth.slice(7);
   return new URL(request.url).searchParams.get("token");
-}
-
-function requireStaffAuth(request: Request): Response | null {
-  const staffToken = process.env.STAFF_TOKEN;
-  if (!staffToken) return null;
-  const token = getStaffToken(request);
-  if (token !== staffToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  return null;
 }
 
 /** GET /api/restaurant/items/availability?slug=xxx - Item availability (public - for menu display) */
@@ -53,12 +43,9 @@ export async function GET(request: Request) {
   }
 }
 
-/** PATCH /api/restaurant/items/availability - Set item available (staff auth) */
+/** PATCH /api/restaurant/items/availability - Set item available (staff or restaurant auth) */
 export async function PATCH(request: Request) {
   try {
-    const authErr = requireStaffAuth(request);
-    if (authErr) return authErr;
-
     const body = await request.json();
     const { slug, itemName, available } = body as {
       slug?: string;
@@ -71,6 +58,17 @@ export async function PATCH(request: Request) {
         { error: "slug and itemName required" },
         { status: 400 }
       );
+    }
+
+    const token = getBearerToken(request);
+    const staffToken = process.env.STAFF_TOKEN;
+    const { verifyToken } = await import("@/lib/auth");
+    const decoded = verifyToken(token || "");
+    const allowed =
+      (staffToken && token === staffToken) ||
+      (decoded?.type === "restaurant" && decoded.slug === slug.trim());
+    if (!allowed) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const restaurant = getRestaurantBySlug(slug.trim());

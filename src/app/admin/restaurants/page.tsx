@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ExternalLink, Clock } from "lucide-react";
+import { ExternalLink, Clock, Settings2, X } from "lucide-react";
+
+const STAFF_TOKEN_KEY = "siargao-staff-token";
 
 type Restaurant = {
   name: string;
@@ -15,20 +17,106 @@ type Restaurant = {
   minOrderPhp?: number | null;
 };
 
+type Config = {
+  slug: string;
+  commission_pct: number;
+  delivery_commission_pct: number;
+  gcash_number?: string | null;
+  email?: string | null;
+  payout_method?: string | null;
+  crypto_wallet_address?: string | null;
+};
+
 export default function AdminRestaurantsPage() {
   const [data, setData] = useState<{
     restaurants: Restaurant[];
     categories: string[];
   } | null>(null);
+  const [configs, setConfigs] = useState<Config[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editSlug, setEditSlug] = useState<string | null>(null);
+  const [editCommission, setEditCommission] = useState(30);
+  const [editDeliveryCommission, setEditDeliveryCommission] = useState(30);
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editPayoutMethod, setEditPayoutMethod] = useState<"cash" | "gcash" | "crypto">("cash");
+  const [editGcashNumber, setEditGcashNumber] = useState("");
+  const [editCryptoWallet, setEditCryptoWallet] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/restaurants")
-      .then((res) => res.json())
-      .then(setData)
+  const getAuthHeaders = useCallback((): Record<string, string> => {
+    const token = typeof window !== "undefined" ? sessionStorage.getItem(STAFF_TOKEN_KEY) : null;
+    if (!token) return {};
+    return { Authorization: `Bearer ${token}` };
+  }, []);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      fetch("/api/restaurants").then((r) => r.json()),
+      fetch("/api/admin/restaurant-config", { headers: getAuthHeaders() }).then(async (r) => {
+        if (r.status === 401) return { configs: [] };
+        return r.json();
+      }),
+    ])
+      .then(([restData, configData]) => {
+        setData(restData);
+        setConfigs(configData.configs || []);
+      })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [getAuthHeaders]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const getConfig = (slug: string) => configs.find((c) => c.slug === slug);
+  const openEdit = (r: Restaurant) => {
+    const c = getConfig(r.slug);
+    const pm = (c?.payout_method as "cash" | "gcash" | "crypto") || "cash";
+    setEditSlug(r.slug);
+    setEditCommission(c?.commission_pct ?? 30);
+    setEditDeliveryCommission(c?.delivery_commission_pct ?? 30);
+    setEditEmail(c?.email ?? "");
+    setEditPassword("");
+    setEditPayoutMethod(pm);
+    setEditGcashNumber(c?.gcash_number ?? "");
+    setEditCryptoWallet(c?.crypto_wallet_address ?? "");
+  };
+  const saveConfig = async () => {
+    if (!editSlug) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/restaurant-config", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          slug: editSlug,
+          commission_pct: editCommission,
+          delivery_commission_pct: editDeliveryCommission,
+          email: editEmail.trim(),
+          payout_method: editPayoutMethod,
+          gcash_number: editPayoutMethod === "gcash" ? editGcashNumber.trim() : "",
+          crypto_wallet_address: editPayoutMethod === "crypto" ? editCryptoWallet.trim() : "",
+          ...(editPassword ? { password: editPassword } : {}),
+        }),
+      });
+      if (res.ok) {
+        const { config } = await res.json();
+        setConfigs((prev) => {
+          const rest = prev.filter((c) => c.slug !== editSlug);
+          return [...rest, config].sort((a, b) => a.slug.localeCompare(b.slug));
+        });
+        setEditSlug(null);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -53,59 +141,209 @@ export default function AdminRestaurantsPage() {
           Restaurants
         </h1>
         <p className="text-slate-600 dark:text-slate-400 mt-1">
-          {data.restaurants.length} venues from static data
+          {data.restaurants.length} venues • Commission % per venue
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {data.restaurants.map((r) => (
-          <div
-            key={r.slug}
-            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden"
-          >
-            <div className="p-6">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold text-slate-900 dark:text-white">
-                  {r.name}
-                </h3>
-                <Link
-                  href={`/restaurant/${r.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-slate-500 hover:text-primary shrink-0"
-                  title="View on site"
+        {data.restaurants.map((r) => {
+          const c = getConfig(r.slug);
+          const commissionPct = c?.commission_pct ?? 30;
+          const deliveryPct = c?.delivery_commission_pct ?? 30;
+          const payoutMethod = (c?.payout_method as string) || "cash";
+          return (
+            <div
+              key={r.slug}
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden"
+            >
+              <div className="p-6">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-slate-900 dark:text-white">
+                    {r.name}
+                  </h3>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => openEdit(r)}
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-primary"
+                      title="Commission settings"
+                    >
+                      <Settings2 className="w-4 h-4" />
+                    </button>
+                    <Link
+                      href={`/restaurant/${r.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-primary"
+                      title="View on site"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {r.categories.slice(0, 3).map((cat) => (
+                    <span
+                      key={cat}
+                      className="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
+                    >
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 mt-3 text-sm text-slate-500 dark:text-slate-400">
+                  {r.hours && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      {r.hours.replace("-", " – ")}
+                    </span>
+                  )}
+                  {r.minOrderPhp != null && r.minOrderPhp > 0 && (
+                    <span>Min ₱{r.minOrderPhp}</span>
+                  )}
+                </div>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                  {r.menuItems.length} items • {r.priceRange || "—"}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Food: {commissionPct}% • Delivery: {deliveryPct}%
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Payout: {payoutMethod}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {editSlug && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 max-w-sm w-full shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-slate-900 dark:text-white">
+                Commission: {data.restaurants.find((r) => r.slug === editSlug)?.name}
+              </h3>
+              <button
+                onClick={() => setEditSlug(null)}
+                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Food commission %
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={editCommission}
+                  onChange={(e) => setEditCommission(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Delivery commission %
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={editDeliveryCommission}
+                  onChange={(e) => setEditDeliveryCommission(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Login email
+                </label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="restaurant@example.com"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Payout method
+                </label>
+                <select
+                  value={editPayoutMethod}
+                  onChange={(e) => setEditPayoutMethod(e.target.value as "cash" | "gcash" | "crypto")}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                </Link>
+                  <option value="cash">Cash</option>
+                  <option value="gcash">GCash</option>
+                  <option value="crypto">Crypto</option>
+                </select>
               </div>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {r.categories.slice(0, 3).map((c) => (
-                  <span
-                    key={c}
-                    className="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
-                  >
-                    {c}
-                  </span>
-                ))}
+              {editPayoutMethod === "gcash" && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    GCash number
+                  </label>
+                  <input
+                    type="text"
+                    value={editGcashNumber}
+                    onChange={(e) => setEditGcashNumber(e.target.value)}
+                    placeholder="09XX XXX XXXX"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                  />
+                </div>
+              )}
+              {editPayoutMethod === "crypto" && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Crypto wallet address
+                  </label>
+                  <input
+                    type="text"
+                    value={editCryptoWallet}
+                    onChange={(e) => setEditCryptoWallet(e.target.value)}
+                    placeholder="USDC/BUSD address"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  New password (leave blank to keep)
+                </label>
+                <input
+                  type="password"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
               </div>
-              <div className="flex items-center gap-3 mt-3 text-sm text-slate-500 dark:text-slate-400">
-                {r.hours && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {r.hours.replace("-", " – ")}
-                  </span>
-                )}
-                {r.minOrderPhp != null && r.minOrderPhp > 0 && (
-                  <span>Min ₱{r.minOrderPhp}</span>
-                )}
-              </div>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-                {r.menuItems.length} menu items • {r.priceRange || "—"}
-              </p>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setEditSlug(null)}
+                className="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveConfig}
+                disabled={saving}
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

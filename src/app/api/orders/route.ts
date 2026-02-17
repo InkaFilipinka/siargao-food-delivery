@@ -1,27 +1,37 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-function getStaffToken(request: Request): string | null {
+function getBearerToken(request: Request): string | null {
   const auth = request.headers.get("authorization");
   if (auth?.startsWith("Bearer ")) return auth.slice(7);
   return new URL(request.url).searchParams.get("token");
 }
 
-function requireStaffAuth(request: Request): Response | null {
+async function checkOrdersAuth(request: Request): Promise<{ ok: true; driverId?: string } | Response> {
+  const token = getBearerToken(request);
   const staffToken = process.env.STAFF_TOKEN;
-  if (!staffToken) return null; // No auth required when STAFF_TOKEN not set
-  const token = getStaffToken(request);
-  if (token !== staffToken) {
+
+  if (staffToken && token === staffToken) {
+    return { ok: true };
+  }
+
+  const { verifyToken } = await import("@/lib/auth");
+  const decoded = verifyToken(token || "");
+  if (decoded?.type === "driver") {
+    return { ok: true, driverId: decoded.driverId };
+  }
+
+  if (staffToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return null;
+  return { ok: true };
 }
 
-/** GET /api/orders - List all orders for staff (requires STAFF_TOKEN when set) */
+/** GET /api/orders - List orders (staff: all, driver: only assigned to them) */
 export async function GET(request: Request) {
   try {
-    const authErr = requireStaffAuth(request);
-    if (authErr) return authErr;
+    const authResult = await checkOrdersAuth(request);
+    if (authResult instanceof Response) return authResult;
 
     const supabase = getSupabaseAdmin();
     if (!supabase) {
@@ -31,11 +41,11 @@ export async function GET(request: Request) {
       );
     }
 
-    const { data: orders, error } = await supabase
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100);
+    let query = supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(100);
+    if (authResult.driverId) {
+      query = query.eq("driver_id", authResult.driverId);
+    }
+    const { data: orders, error } = await query;
 
     if (error) {
       console.error("Orders list error:", error);
@@ -94,6 +104,7 @@ export async function GET(request: Request) {
 import { sendNtfy } from "@/lib/ntfy";
 import { getNtfyTopic } from "@/config/restaurant-extras";
 import { getSlugByRestaurantName, getIsGroceryBySlug } from "@/data/combined";
+import { costFromDisplay, getCommissionPct } from "@/lib/restaurant-config";
 import type { CreateOrderInput, OrderItem } from "@/types/order";
 
 function sendOrderNtfy(orderId: string, items: OrderItem[], landmark: string, customerPhone: string) {
@@ -231,15 +242,27 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
       }
 
+      const slugs = [...new Set(items.map((i) => getSlug(i)))];
+      const { data: configs } = slugs.length
+        ? await supabase.from("restaurant_config").select("slug, commission_pct").in("slug", slugs)
+        : { data: [] };
+      const commissionBySlug = new Map((configs || []).map((c) => [c.slug, getCommissionPct(c)]));
+
       const { error: itemsError } = await supabase.from("order_items").insert(
-        items.map((i) => ({
-          order_id: order.id,
-          restaurant_name: i.restaurantName,
-          item_name: i.itemName,
-          price: i.price,
-          price_value: i.priceValue,
-          quantity: i.quantity,
-        }))
+        items.map((i) => {
+          const slug = getSlug(i);
+          const commissionPct = commissionBySlug.get(slug) ?? 30;
+          const costValue = Math.round(costFromDisplay(i.priceValue, commissionPct) * 100) / 100;
+          return {
+            order_id: order.id,
+            restaurant_name: i.restaurantName,
+            item_name: i.itemName,
+            price: i.price,
+            price_value: i.priceValue,
+            cost_value: costValue,
+            quantity: i.quantity,
+          };
+        })
       );
 
       if (itemsError) {

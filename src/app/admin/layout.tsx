@@ -8,6 +8,7 @@ import {
   UtensilsCrossed,
   ShoppingBag,
   Package,
+  Truck,
   Lock,
   ChevronLeft,
   Search,
@@ -20,6 +21,7 @@ const STAFF_TOKEN_KEY = "siargao-staff-token";
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/restaurants", label: "Restaurants", icon: UtensilsCrossed },
+  { href: "/admin/drivers", label: "Drivers", icon: Truck },
   { href: "/admin/orders", label: "Orders", icon: Package },
   { href: "/admin/support", label: "Support", icon: Search },
   { href: "/admin/cash", label: "Cash ledger", icon: DollarSign },

@@ -1,37 +1,42 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getRestaurantBySlug } from "@/data/combined";
+import { verifyToken } from "@/lib/auth";
 
-function getStaffToken(request: Request): string | null {
+function getBearerToken(request: Request): string | null {
   const auth = request.headers.get("authorization");
   if (auth?.startsWith("Bearer ")) return auth.slice(7);
   return new URL(request.url).searchParams.get("token");
 }
 
-function requireStaffAuth(request: Request): Response | null {
+/** Resolve slug and auth: staff token allows any slug, restaurant token restricts to that slug */
+function checkRestaurantAuth(request: Request): { ok: true; slug: string } | Response {
+  const token = getBearerToken(request);
   const staffToken = process.env.STAFF_TOKEN;
-  if (!staffToken) return null;
-  const token = getStaffToken(request);
-  if (token !== staffToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { searchParams } = new URL(request.url);
+  const querySlug = searchParams.get("slug")?.trim();
+
+  if (staffToken && token === staffToken) {
+    if (!querySlug) {
+      return NextResponse.json({ error: "slug query required with staff token" }, { status: 400 });
+    }
+    return { ok: true, slug: querySlug };
   }
-  return null;
+
+  const decoded = verifyToken(token || "");
+  if (decoded?.type === "restaurant") {
+    return { ok: true, slug: decoded.slug };
+  }
+
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-/** GET /api/restaurant/orders?slug=xxx - Orders with items from this restaurant (staff auth) */
+/** GET /api/restaurant/orders?slug=xxx - Orders with items from this restaurant (staff or restaurant auth) */
 export async function GET(request: Request) {
   try {
-    const authErr = requireStaffAuth(request);
-    if (authErr) return authErr;
-
-    const { searchParams } = new URL(request.url);
-    const slug = searchParams.get("slug")?.trim();
-    if (!slug) {
-      return NextResponse.json(
-        { error: "slug query required" },
-        { status: 400 }
-      );
-    }
+    const authResult = checkRestaurantAuth(request);
+    if (authResult instanceof Response) return authResult;
+    const { slug } = authResult;
 
     const restaurant = getRestaurantBySlug(slug);
     if (!restaurant) {

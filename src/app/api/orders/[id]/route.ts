@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { verifyToken } from "@/lib/auth";
 
-function getStaffToken(request: Request): string | null {
+function getBearerToken(request: Request): string | null {
   const auth = request.headers.get("authorization");
   if (auth?.startsWith("Bearer ")) return auth.slice(7);
   return new URL(request.url).searchParams.get("token");
 }
 
-function requireStaffAuth(request: Request): Response | null {
+/** Returns staff auth or driver auth. Driver can only update their assigned orders. */
+function checkOrderUpdateAuth(request: Request): { ok: true; driverId?: string } | Response {
+  const token = getBearerToken(request);
   const staffToken = process.env.STAFF_TOKEN;
-  if (!staffToken) return null;
-  const token = getStaffToken(request);
-  if (token !== staffToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  return null;
+  if (staffToken && token === staffToken) return { ok: true };
+  const decoded = verifyToken(token || "");
+  if (decoded?.type === "driver") return { ok: true, driverId: decoded.driverId };
+  if (staffToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  return { ok: true };
 }
 
 export async function GET(
@@ -100,8 +102,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authErr = requireStaffAuth(request);
-    if (authErr) return authErr;
+    const authResult = checkOrderUpdateAuth(request);
+    if (authResult instanceof Response) return authResult;
 
     const { id } = await params;
     const body = await request.json();
@@ -162,6 +164,13 @@ export async function PATCH(
         { error: "Status updates require database" },
         { status: 503 }
       );
+    }
+
+    if (authResult.driverId) {
+      const { data: order } = await supabase.from("orders").select("driver_id").eq("id", id).single();
+      if (!order || order.driver_id !== authResult.driverId) {
+        return NextResponse.json({ error: "Not assigned to you" }, { status: 403 });
+      }
     }
 
     if (Object.keys(updatePayload).length === 0) {

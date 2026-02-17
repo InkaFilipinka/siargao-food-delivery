@@ -1,34 +1,32 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getRestaurantBySlug } from "@/data/combined";
+import { verifyToken } from "@/lib/auth";
 
-function getStaffToken(request: Request): string | null {
+function getBearerToken(request: Request): string | null {
   const auth = request.headers.get("authorization");
   if (auth?.startsWith("Bearer ")) return auth.slice(7);
   return null;
 }
 
-function requireStaffAuth(request: Request): Response | null {
+/** Staff token or restaurant token (slug from body must match token) */
+function checkRestaurantAuth(request: Request, bodySlug: string): Response | null {
+  const token = getBearerToken(request);
   const staffToken = process.env.STAFF_TOKEN;
-  if (!staffToken) return null;
-  const token = getStaffToken(request);
-  if (token !== staffToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  return null;
+  if (staffToken && token === staffToken) return null;
+  const decoded = verifyToken(token || "");
+  if (decoded?.type === "restaurant" && decoded.slug === bodySlug?.trim()) return null;
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
 const PREP_OPTIONS = [5, 10, 20, 30, 45];
 
-/** POST /api/restaurant/orders/[orderId] - Accept or reject (staff auth) */
+/** POST /api/restaurant/orders/[orderId] - Accept or reject (staff or restaurant auth) */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const authErr = requireStaffAuth(request);
-    if (authErr) return authErr;
-
     const { orderId } = await params;
     const body = await request.json();
     const { slug, action, prepMins } = body as {
@@ -43,6 +41,9 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    const authErr = checkRestaurantAuth(request, slug);
+    if (authErr) return authErr;
 
     const restaurant = getRestaurantBySlug(slug.trim());
     if (!restaurant) {

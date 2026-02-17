@@ -9,6 +9,7 @@ import {
   XCircle,
   Loader2,
   ArrowRight,
+  DollarSign,
 } from "lucide-react";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
@@ -21,23 +22,50 @@ type OrderSummary = {
   createdAt: string;
 };
 
+type CommissionIncome = {
+  periodStart: string;
+  periodLabel: string;
+  byRestaurant: {
+    restaurantName: string;
+    slug: string;
+    foodCommissionPhp: number;
+    deliveryCommissionPhp: number;
+    totalCommissionPhp: number;
+  }[];
+  totalFoodCommissionPhp: number;
+  totalDeliveryCommissionPhp: number;
+  totalCommissionPhp: number;
+};
+
 export default function AdminDashboard() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [commission, setCommission] = useState<CommissionIncome | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const getAuthHeaders = () => {
+    const token = sessionStorage.getItem(STAFF_TOKEN_KEY);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
 
   useEffect(() => {
     const token = sessionStorage.getItem(STAFF_TOKEN_KEY);
     if (!token) return;
-    fetch("/api/orders", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async (res) => {
+    Promise.all([
+      fetch("/api/orders", { headers: getAuthHeaders() }).then(async (res) => {
         if (res.status === 401) throw new Error("Unauthorized");
         if (!res.ok) throw new Error("Failed to load");
         return res.json();
+      }),
+      fetch("/api/admin/commission-income", { headers: getAuthHeaders() }).then(async (res) => {
+        if (res.ok) return res.json();
+        return null;
+      }),
+    ])
+      .then(([orderData, commissionData]) => {
+        setOrders(orderData.orders || []);
+        setCommission(commissionData);
       })
-      .then((data) => setOrders(data.orders || []))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -96,6 +124,61 @@ export default function AdminDashboard() {
           Order overview and recent activity
         </p>
       </div>
+
+      {commission && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+          <h2 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-green-500" />
+            Commission income — {commission.periodLabel}
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-3 mb-6">
+            <div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Food commission</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                ₱{commission.totalFoodCommissionPhp.toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Delivery commission</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                ₱{commission.totalDeliveryCommissionPhp.toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Total today</p>
+              <p className="text-2xl font-bold text-green-600">
+                ₱{commission.totalCommissionPhp.toLocaleString()}
+              </p>
+            </div>
+          </div>
+          {commission.byRestaurant.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700">
+                    <th className="text-left py-2 text-slate-500 dark:text-slate-400">Restaurant</th>
+                    <th className="text-right py-2 text-slate-500 dark:text-slate-400">Food</th>
+                    <th className="text-right py-2 text-slate-500 dark:text-slate-400">Delivery</th>
+                    <th className="text-right py-2 text-slate-500 dark:text-slate-400">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {commission.byRestaurant.map((r) => (
+                    <tr key={r.slug} className="border-b border-slate-100 dark:border-slate-700/50">
+                      <td className="py-2 text-slate-900 dark:text-white">{r.restaurantName}</td>
+                      <td className="py-2 text-right">₱{r.foodCommissionPhp.toLocaleString()}</td>
+                      <td className="py-2 text-right">₱{r.deliveryCommissionPhp.toLocaleString()}</td>
+                      <td className="py-2 text-right font-medium">₱{r.totalCommissionPhp.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-slate-500 dark:text-slate-400 text-sm">No commission from orders today yet.</p>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">

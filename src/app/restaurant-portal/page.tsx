@@ -20,6 +20,8 @@ import { combinedRestaurants, getRestaurantBySlug } from "@/data/combined";
 import { cn } from "@/lib/utils";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
+const RESTAURANT_TOKEN_KEY = "siargao-restaurant-token";
+const RESTAURANT_SLUG_KEY = "siargao-restaurant-slug";
 const PREP_OPTIONS = [5, 10, 20, 30, 45];
 
 type Order = {
@@ -57,16 +59,27 @@ export default function RestaurantPortalPage() {
   const [error, setError] = useState("");
   const [needsAuth, setNeedsAuth] = useState(false);
   const [staffToken, setStaffTokenState] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginMode, setLoginMode] = useState<"restaurant" | "staff">("restaurant");
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [selectedPrep, setSelectedPrep] = useState<Record<string, number>>({});
-  const [tab, setTab] = useState<"orders" | "availability">("orders");
+  const [tab, setTab] = useState<"orders" | "availability" | "earnings">("orders");
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [togglingItem, setTogglingItem] = useState<string | null>(null);
+  const [earnings, setEarnings] = useState<{
+    pendingPhp: number;
+    paidTotalPhp: number;
+    payouts: { id: string; amountPhp: number; paidAt: string; orderIds: string[] }[];
+  } | null>(null);
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
-    const token = typeof window !== "undefined" ? sessionStorage.getItem(STAFF_TOKEN_KEY) : null;
-    if (!token) return {};
-    return { Authorization: `Bearer ${token}` };
+    if (typeof window === "undefined") return {};
+    const restaurantToken = sessionStorage.getItem(RESTAURANT_TOKEN_KEY);
+    if (restaurantToken) return { Authorization: `Bearer ${restaurantToken}` };
+    const staffToken = sessionStorage.getItem(STAFF_TOKEN_KEY);
+    if (staffToken) return { Authorization: `Bearer ${staffToken}` };
+    return {};
   }, []);
 
   const loadOrders = useCallback(() => {
@@ -81,6 +94,8 @@ export default function RestaurantPortalPage() {
         const data = await res.json();
         if (res.status === 401) {
           sessionStorage.removeItem(STAFF_TOKEN_KEY);
+          sessionStorage.removeItem(RESTAURANT_TOKEN_KEY);
+          sessionStorage.removeItem(RESTAURANT_SLUG_KEY);
           setNeedsAuth(true);
           return { orders: [], restaurant: null };
         }
@@ -99,18 +114,35 @@ export default function RestaurantPortalPage() {
   }, [slug, getAuthHeaders]);
 
   useEffect(() => {
+    const savedSlug = typeof window !== "undefined" ? sessionStorage.getItem(RESTAURANT_SLUG_KEY) : null;
+    if (savedSlug && !slug) setSlug(savedSlug);
+  }, []);
+
+  const loadEarnings = useCallback(() => {
+    if (!slug) return;
+    fetch(`/api/restaurant/earnings?slug=${encodeURIComponent(slug)}`, {
+      headers: getAuthHeaders(),
+    })
+      .then((res) => res.json())
+      .then((d) => setEarnings({ pendingPhp: d.pendingPhp ?? 0, paidTotalPhp: d.paidTotalPhp ?? 0, payouts: d.payouts ?? [] }))
+      .catch(() => setEarnings(null));
+  }, [slug, getAuthHeaders]);
+
+  useEffect(() => {
     if (slug) {
       loadOrders();
       fetch(`/api/restaurant/items/availability?slug=${encodeURIComponent(slug)}`)
         .then((res) => res.json())
         .then((d) => setAvailability(d.availability || {}))
         .catch(() => setAvailability({}));
+      loadEarnings();
     } else {
       setOrders([]);
       setRestaurant(null);
       setAvailability({});
+      setEarnings(null);
     }
-  }, [slug, loadOrders]);
+  }, [slug, loadOrders, loadEarnings]);
 
   useEffect(() => {
     if (!slug || needsAuth) return;
@@ -176,6 +208,27 @@ export default function RestaurantPortalPage() {
     }
   }
 
+  async function handleRestaurantLogin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!loginEmail.trim() || !loginPassword) return;
+    try {
+      const res = await fetch("/api/auth/restaurant/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail.trim(), password: loginPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login failed");
+      sessionStorage.setItem(RESTAURANT_TOKEN_KEY, data.token);
+      sessionStorage.setItem(RESTAURANT_SLUG_KEY, data.slug);
+      setSlug(data.slug);
+      setLoginPassword("");
+      setNeedsAuth(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    }
+  }
+
   function handleStaffLogin(e: React.FormEvent) {
     e.preventDefault();
     const token = staffToken.trim();
@@ -208,34 +261,77 @@ export default function RestaurantPortalPage() {
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 max-w-md">
             <div className="flex items-center gap-2 mb-4">
               <Lock className="w-5 h-5 text-slate-500" />
-              <h2 className="font-semibold text-slate-900 dark:text-white">Staff access required</h2>
+              <h2 className="font-semibold text-slate-900 dark:text-white">Sign in</h2>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              Enter the staff token to view and accept orders.
-            </p>
-            <form onSubmit={handleStaffLogin} className="space-y-3">
-              <input
-                type="password"
-                value={staffToken}
-                onChange={(e) => setStaffTokenState(e.target.value)}
-                placeholder="Staff token"
-                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
-                autoFocus
-              />
+            <div className="flex gap-2 mb-4">
               <button
-                type="submit"
-                className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg hover:opacity-90 transition-opacity"
+                type="button"
+                onClick={() => setLoginMode("restaurant")}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                  loginMode === "restaurant"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                }`}
               >
-                Sign in
+                Restaurant login
               </button>
-            </form>
-            <p className="text-xs text-slate-500 mt-4">
-              Use the same token as the{" "}
-              <Link href="/staff/orders" className="text-orange-600 hover:underline">
-                Staff orders
-              </Link>{" "}
-              page.
-            </p>
+              <button
+                type="button"
+                onClick={() => setLoginMode("staff")}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                  loginMode === "staff"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                }`}
+              >
+                Staff token
+              </button>
+            </div>
+            {loginMode === "restaurant" ? (
+              <form onSubmit={handleRestaurantLogin} className="space-y-3">
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="Email"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
+                  autoFocus
+                />
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Sign in
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleStaffLogin} className="space-y-3">
+                <input
+                  type="password"
+                  value={staffToken}
+                  onChange={(e) => setStaffTokenState(e.target.value)}
+                  placeholder="Staff token"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Sign in
+                </button>
+                <p className="text-xs text-slate-500">
+                  Then select your restaurant below.
+                </p>
+              </form>
+            )}
+            {error && <p className="text-sm text-amber-600 mt-2">{error}</p>}
           </div>
         )}
 
@@ -276,7 +372,7 @@ export default function RestaurantPortalPage() {
 
             {slug && restaurant && (
               <>
-                <div className="flex gap-2 mb-4">
+                <div className="flex flex-wrap gap-2 mb-4">
                   <button
                     onClick={() => setTab("orders")}
                     className={`px-4 py-2 rounded-lg text-sm font-medium ${
@@ -289,16 +385,64 @@ export default function RestaurantPortalPage() {
                   </button>
                   <button
                     onClick={() => setTab("availability")}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
                       tab === "availability"
                         ? "bg-primary text-primary-foreground"
                         : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
                     }`}
                   >
-                    Item availability (86)
+                    Availability
+                  </button>
+                  <button
+                    onClick={() => setTab("earnings")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                      tab === "earnings"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    Earnings
                   </button>
                 </div>
 
+                {tab === "earnings" && (
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 mb-6">
+                    <h3 className="font-semibold text-slate-900 dark:text-white mb-4">
+                      Earnings
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Pending (2h after delivery)</p>
+                        <p className="text-xl font-bold text-slate-900 dark:text-white">
+                          ₱{earnings?.pendingPhp?.toLocaleString() ?? "0"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Paid total</p>
+                        <p className="text-xl font-bold text-slate-900 dark:text-white">
+                          ₱{earnings?.paidTotalPhp?.toLocaleString() ?? "0"}
+                        </p>
+                      </div>
+                    </div>
+                    {earnings?.payouts?.length ? (
+                      <div>
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Payment history</p>
+                        <ul className="space-y-2">
+                          {earnings.payouts.map((p) => (
+                            <li key={p.id} className="flex justify-between text-sm">
+                              <span>₱{p.amountPhp?.toLocaleString()}</span>
+                              <span className="text-slate-500">
+                                {p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-PH") : "—"}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">No payouts yet.</p>
+                    )}
+                  </div>
+                )}
                 {tab === "availability" && (
                   <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 mb-6">
                     <h3 className="font-semibold text-slate-900 dark:text-white mb-3">

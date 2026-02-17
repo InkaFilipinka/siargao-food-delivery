@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
+const DRIVER_TOKEN_KEY = "siargao-driver-token";
 const DRIVER_STATUSES = ["ready", "assigned", "picked", "out_for_delivery"];
 const POLL_INTERVAL_MS = 30000;
 
@@ -55,6 +56,9 @@ export default function DriverPage() {
   const [error, setError] = useState("");
   const [needsAuth, setNeedsAuth] = useState(false);
   const [staffToken, setStaffTokenState] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginMode, setLoginMode] = useState<"driver" | "staff">("driver");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [cashModal, setCashModal] = useState<Order | null>(null);
   const [cashReceived, setCashReceived] = useState("");
@@ -62,9 +66,12 @@ export default function DriverPage() {
   const [cashReason, setCashReason] = useState("");
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
-    const token = typeof window !== "undefined" ? sessionStorage.getItem(STAFF_TOKEN_KEY) : null;
-    if (!token) return {};
-    return { Authorization: `Bearer ${token}` };
+    if (typeof window === "undefined") return {};
+    const driverToken = sessionStorage.getItem(DRIVER_TOKEN_KEY);
+    if (driverToken) return { Authorization: `Bearer ${driverToken}` };
+    const staffToken = sessionStorage.getItem(STAFF_TOKEN_KEY);
+    if (staffToken) return { Authorization: `Bearer ${staffToken}` };
+    return {};
   }, []);
 
   const loadOrders = useCallback(() => {
@@ -76,6 +83,7 @@ export default function DriverPage() {
         const data = await res.json();
         if (res.status === 401) {
           sessionStorage.removeItem(STAFF_TOKEN_KEY);
+          sessionStorage.removeItem(DRIVER_TOKEN_KEY);
           setNeedsAuth(true);
           return { orders: [] };
         }
@@ -132,24 +140,46 @@ export default function DriverPage() {
     }
   }
 
-  const [earnings, setEarnings] = useState<{ count: number; tips: number } | null>(null);
+  const [earnings, setEarnings] = useState<{
+    todayPhp: number;
+    allTimePhp: number;
+    paidTotalPhp: number;
+    payouts: { id: string; amountPhp: number; paidAt: string }[];
+  } | null>(null);
   useEffect(() => {
     if (needsAuth) return;
-    fetch("/api/orders", { headers: getAuthHeaders() })
+    fetch("/api/driver/earnings", { headers: getAuthHeaders() })
       .then((r) => r.json())
-      .then((data) => {
-        const delivered = (data.orders || []).filter(
-          (o: Order) => o.status === "delivered"
-        );
-        const today = new Date().toDateString();
-        const todayOrders = delivered.filter(
-          (o: Order) => new Date(o.createdAt).toDateString() === today
-        );
-        const tips = todayOrders.reduce((s: number, o: Order) => s + (o.tipPhp || 0), 0);
-        setEarnings({ count: todayOrders.length, tips });
-      })
+      .then((data) =>
+        setEarnings({
+          todayPhp: data.todayPhp ?? 0,
+          allTimePhp: data.allTimePhp ?? 0,
+          paidTotalPhp: data.paidTotalPhp ?? 0,
+          payouts: data.payouts ?? [],
+        })
+      )
       .catch(() => setEarnings(null));
   }, [needsAuth, getAuthHeaders, orders]);
+
+  async function handleDriverLogin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!loginEmail.trim() || !loginPassword) return;
+    try {
+      const res = await fetch("/api/auth/driver/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail.trim(), password: loginPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login failed");
+      sessionStorage.setItem(DRIVER_TOKEN_KEY, data.token);
+      setLoginPassword("");
+      setNeedsAuth(false);
+      loadOrders();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    }
+  }
 
   function handleStaffLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -183,46 +213,115 @@ export default function DriverPage() {
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 max-w-md">
             <Lock className="w-8 h-8 text-slate-400 mb-4" />
             <h2 className="font-semibold text-slate-900 dark:text-white mb-2">
-              Staff access required
+              Sign in
             </h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              Enter the staff token to view deliveries.
-            </p>
-            <form onSubmit={handleStaffLogin} className="space-y-3">
-              <input
-                type="password"
-                value={staffToken}
-                onChange={(e) => setStaffTokenState(e.target.value)}
-                placeholder="Staff token"
-                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
-                autoFocus
-              />
+            <div className="flex gap-2 mb-4">
               <button
-                type="submit"
-                className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg"
+                type="button"
+                onClick={() => setLoginMode("driver")}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                  loginMode === "driver"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                }`}
               >
-                Sign in
+                Driver login
               </button>
-            </form>
+              <button
+                type="button"
+                onClick={() => setLoginMode("staff")}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                  loginMode === "staff"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                }`}
+              >
+                Staff token
+              </button>
+            </div>
+            {loginMode === "driver" ? (
+              <form onSubmit={handleDriverLogin} className="space-y-3">
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="Email"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                />
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg"
+                >
+                  Sign in
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleStaffLogin} className="space-y-3">
+                <input
+                  type="password"
+                  value={staffToken}
+                  onChange={(e) => setStaffTokenState(e.target.value)}
+                  placeholder="Staff token"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg"
+                >
+                  Sign in
+                </button>
+              </form>
+            )}
+            {error && <p className="text-sm text-amber-600 mt-2">{error}</p>}
           </div>
         )}
 
         {!needsAuth && (
           <>
             {earnings && (
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Delivered today</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                    {earnings.count}
-                  </p>
+              <div className="space-y-4 mb-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Today</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                      ₱{earnings.todayPhp.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">All time</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                      ₱{earnings.allTimePhp.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Paid out</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                      ₱{earnings.paidTotalPhp.toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Tips today</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                    ₱{earnings.tips.toLocaleString()}
-                  </p>
-                </div>
+                {earnings.payouts?.length ? (
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Payment history</p>
+                    <ul className="space-y-2">
+                      {earnings.payouts.map((p) => (
+                        <li key={p.id} className="flex justify-between text-sm">
+                          <span>₱{p.amountPhp?.toLocaleString()}</span>
+                          <span className="text-slate-500">
+                            {p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-PH") : "—"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
             )}
 

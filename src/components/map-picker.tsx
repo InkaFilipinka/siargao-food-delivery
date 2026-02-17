@@ -20,6 +20,23 @@ const SEARCH_RADIUS_KM = 25;
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
+const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+  return new Promise((resolve) => {
+    if (!window.google?.maps?.Geocoder) {
+      resolve("");
+      return;
+    }
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === "OK" && results?.[0]?.formatted_address) {
+        resolve(results[0].formatted_address);
+      } else {
+        resolve("");
+      }
+    });
+  });
+};
+
 const calculateRoadDistance = async (
   originLat: number,
   originLng: number,
@@ -79,7 +96,14 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
       const marker = selectedMarkerRef.current;
       if (marker) marker.setMap(null);
       setMapError("");
-      setPlaceName(locationName);
+      if (locationName && locationName !== "Current location") {
+        setPlaceName(locationName);
+      } else if (window.google?.maps?.Geocoder) {
+        const addr = await reverseGeocode(lat, lng);
+        setPlaceName(addr || locationName || "");
+      } else {
+        setPlaceName(locationName || "");
+      }
       setSelectedLocation({ lat, lng });
       setCalculating(true);
       try {
@@ -123,6 +147,13 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
     []
   );
 
+  const geoOptions: PositionOptions = {
+    enableHighAccuracy: true,
+    timeout: 15000,
+    maximumAge: 0,
+  };
+
+  /** Use watchPosition for up to 5s to get the most accurate fix (GPS improves over time) */
   const tryGeolocation = useCallback(() => {
     if (!navigator.geolocation) {
       setGeoError("Geolocation is not supported by your browser.");
@@ -133,19 +164,56 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
     setGeoLoading(true);
     setGeoAttemptDone(false);
     geoResultRef.current = null;
+
+    let best: { lat: number; lng: number; accuracy: number } | null = null;
+    let watchId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const applyBest = () => {
+      if (watchId != null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+      if (timeoutId != null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      if (best) {
+        geoResultRef.current = { lat: best.lat, lng: best.lng };
+      }
+      setGeoLoading(false);
+      setGeoAttemptDone(true);
+    };
+
+    const onSuccess = (pos: GeolocationPosition) => {
+      const acc = pos.coords.accuracy ?? 999;
+      if (!best || acc < best.accuracy) {
+        best = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: acc,
+        };
+      }
+    };
+
+    const onError = () => {
+      if (watchId != null) navigator.geolocation.clearWatch(watchId);
+      geoResultRef.current = best ? { lat: best.lat, lng: best.lng } : null;
+      setGeoLoading(false);
+      setGeoAttemptDone(true);
+      if (!best) setGeoError("Could not get your location. Pick on the map or search below.");
+    };
+
+    watchId = navigator.geolocation.watchPosition(onSuccess, onError, geoOptions);
+    timeoutId = setTimeout(applyBest, 5000);
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        geoResultRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setGeoLoading(false);
-        setGeoAttemptDone(true);
+        onSuccess(pos);
+        applyBest();
       },
-      () => {
-        geoResultRef.current = null;
-        setGeoLoading(false);
-        setGeoAttemptDone(true);
-        setGeoError("Could not get your location. Pick on the map or search below.");
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      () => {},
+      geoOptions
     );
   }, []);
 
@@ -156,7 +224,6 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
     }
     setGeoError("");
     setGeoLoading(true);
-    geoResultRef.current = null;
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const lat = pos.coords.latitude;
@@ -172,7 +239,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           setGeoError("Could not get your location. Try again or pick on the map.");
         }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      geoOptions
     );
   }, [applyLocationToMap]);
 
@@ -278,9 +345,10 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           const searchBounds = searchCircle.getBounds();
           const autocomplete = new window.google.maps.places.Autocomplete(searchInputRef.current, {
             bounds: searchBounds!,
-            strictBounds: true,
+            strictBounds: false,
             componentRestrictions: { country: "ph" },
             fields: ["geometry", "name", "formatted_address"],
+            types: ["establishment", "geocode", "address"],
           });
           autocomplete.addListener("place_changed", async () => {
             if (calculating) return;
@@ -392,7 +460,9 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
             <div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Select Delivery Location</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-              {selectedLocation ? "Drag marker or search to adjust • Add room/guest on checkout" : "Locating you… or pick on map / search below"}
+              {selectedLocation
+                ? "Drag the pin or search to fine-tune • GPS can be ±20–50m — move the pin for exact spot"
+                : "Locating you… or click the map, drag the pin, or search by place name (e.g. hotel, resort)"}
             </p>
             </div>
             <button onClick={onClose} aria-label="Close" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
@@ -404,7 +474,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search hotel, resort, or address..."
+                placeholder="Search place, hotel, resort, or address..."
                 className="w-full px-4 py-3 pr-10 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
                 autoComplete="off"
               />
