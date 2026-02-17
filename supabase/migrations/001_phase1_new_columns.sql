@@ -21,3 +21,6 @@ alter table public.orders add column if not exists delivered_at timestamptz;
 -- Backfill: if landmark is null, use delivery_address for old orders
 update public.orders set landmark = coalesce(landmark, delivery_address) where landmark is null or landmark = '';
 update public.orders set subtotal_php = total_php where subtotal_php is null;
+
+-- Phase 2: allow status updates (for staff)
+create policy "Allow update orders" on public.orders for update using (true);

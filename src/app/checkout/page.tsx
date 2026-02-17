@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCartStore } from "@/store/cart-store";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { useLastOrderStore } from "@/store/last-order-store";
 import { MapPicker } from "@/components/map-picker";
 import { ArrowLeft, Loader2, MapPin } from "lucide-react";
 
@@ -32,6 +33,7 @@ function formatOrderForWhatsApp(
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, clearCart } = useCartStore();
+  const setLastOrder = useLastOrderStore((s) => s.setLastOrder);
   const { location: deliveryLocation, setLocation } = useDeliveryStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -48,6 +50,20 @@ export default function CheckoutPage() {
   const [tipPhp, setTipPhp] = useState(0);
   const [priorityDelivery, setPriorityDelivery] = useState(false);
   const [allowSubstitutions, setAllowSubstitutions] = useState(true);
+  const [minOrderMap, setMinOrderMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    fetch("/api/restaurants")
+      .then((res) => res.json())
+      .then((data: { restaurants: { slug: string; minOrderPhp?: number | null }[] }) => {
+        const map: Record<string, number> = {};
+        for (const r of data.restaurants || []) {
+          if (r.minOrderPhp != null && r.minOrderPhp > 0) map[r.slug] = r.minOrderPhp;
+        }
+        setMinOrderMap(map);
+      })
+      .catch(() => {});
+  }, []);
 
   const subtotalPhp = items.reduce((sum, i) => sum + i.priceValue * i.quantity, 0);
   const deliveryFeePhp = deliveryLocation?.feePhp ?? 0;
@@ -77,6 +93,27 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Minimum order per restaurant
+    const byRestaurant = new Map<string, { subtotal: number; name: string }>();
+    for (const item of items) {
+      const key = item.restaurantSlug || item.restaurantName;
+      const existing = byRestaurant.get(key);
+      const add = item.priceValue * item.quantity;
+      if (existing) {
+        existing.subtotal += add;
+      } else {
+        byRestaurant.set(key, { subtotal: add, name: item.restaurantName });
+      }
+    }
+    for (const [slug, { subtotal, name }] of byRestaurant) {
+      const min = minOrderMap[slug];
+      if (min != null && subtotal < min) {
+        setError(`${name} has a minimum order of ₱${min.toLocaleString()}. Your items: ₱${subtotal.toLocaleString()}`);
+        setLoading(false);
+        return;
+      }
+    }
+
     const scheduledAt =
       timeWindow === "scheduled" && scheduledDate && scheduledTime
         ? `${scheduledDate}T${scheduledTime}:00`
@@ -100,6 +137,7 @@ export default function CheckoutPage() {
           notes: notes.trim() || undefined,
           items: items.map((i) => ({
             restaurantName: i.restaurantName,
+            restaurantSlug: i.restaurantSlug,
             itemName: i.itemName,
             price: i.price,
             priceValue: i.priceValue,
@@ -119,6 +157,7 @@ export default function CheckoutPage() {
         throw new Error(data.error || "Failed to place order");
       }
 
+      setLastOrder(items);
       clearCart();
 
       const displayScheduled = scheduledAt ? new Date(scheduledAt).toLocaleString() : undefined;
@@ -135,6 +174,17 @@ export default function CheckoutPage() {
 
       if (typeof window !== "undefined") {
         sessionStorage.setItem("order-confirmation-wa", whatsappMessage);
+        sessionStorage.setItem(
+          "order-confirmation-eta",
+          JSON.stringify({
+            distanceKm: deliveryLocation.distance,
+            priority: priorityDelivery,
+          })
+        );
+        sessionStorage.setItem(
+          "order-confirmation-meta",
+          JSON.stringify({ orderId: data.id, phone: phone.trim() })
+        );
       }
 
       router.push(`/order-confirmation?id=${data.id}`);

@@ -58,3 +58,9 @@ export function getRestaurantsByCategory(category: string): RestaurantWithMenu[]
   if (category === "All") return combinedRestaurants;
   return combinedRestaurants.filter((r) => r.categories.includes(category));
 }
+
+const slugByRestaurantName = new Map(combinedRestaurants.map((r) => [r.name, r.slug]));
+
+export function getSlugByRestaurantName(name: string): string | undefined {
+  return slugByRestaurantName.get(name);
+}

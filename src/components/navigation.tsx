@@ -9,7 +9,9 @@ const navLinks = [
   { href: "/", label: "Home" },
   { href: "/#categories", label: "Categories" },
   { href: "/#restaurants", label: "All Restaurants" },
+  { href: "/track", label: "Track" },
   { href: "/checkout", label: "Checkout" },
+  { href: "/staff/orders", label: "Staff" },
   { href: "/#order", label: "Order" },
 ];
 

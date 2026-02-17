@@ -1,5 +1,6 @@
 import { restaurantData } from "@/data/restaurants";
 import menuItemsData from "@/data/menu-items.json";
+import { getRestaurantHours, getMinOrderPhp } from "@/config/restaurant-extras";
 
 export function GET() {
   const menuByRestaurant = new Map(
@@ -27,6 +28,8 @@ export function GET() {
       menuItems,
       imageUrls,
       featuredImage: imageUrls[0] || null,
+      hours: getRestaurantHours(slug) || getRestaurantHours(r.menuUrl),
+      minOrderPhp: getMinOrderPhp(slug) ?? getMinOrderPhp(r.menuUrl),
     };
   });
 

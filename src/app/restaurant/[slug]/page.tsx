@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getRestaurantBySlug, combinedRestaurants } from "@/data/combined";
-import { ArrowLeft, ExternalLink, MapPin, MessageCircle } from "lucide-react";
+import { ArrowLeft, ExternalLink, MapPin, MessageCircle, Phone } from "lucide-react";
 import { MenuItemRow } from "@/components/menu-item-row";
 
 export function generateStaticParams() {
@@ -84,6 +84,13 @@ export default async function RestaurantPage({
             >
               <MessageCircle className="w-4 h-4" />
               Order via WhatsApp
+            </a>
+            <a
+              href="tel:+639457014440"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-orange-400 text-slate-700 dark:text-slate-300"
+            >
+              <Phone className="w-4 h-4" />
+              Call
             </a>
           </div>
         </div>

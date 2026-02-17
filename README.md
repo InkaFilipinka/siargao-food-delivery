@@ -36,6 +36,12 @@ Orders can be stored in Supabase:
 
 Without Supabase, orders still work: the app creates an order ID and opens WhatsApp with a pre-filled message. Staff confirm via WhatsApp.
 
+### ntfy notifications (per-restaurant)
+
+When an order is placed, each restaurant gets a push notification on their ntfy topic (same pattern as Palm Riders scooter). Default topic: `siargao-{restaurant-slug}` (e.g. `siargao-sanabowl`). Restaurants subscribe via the ntfy app or web.
+
+Override topics in `src/config/restaurant-extras.ts`. Optional env: `NTFY_BASE_URL` for self-hosted ntfy.
+
 ### Tech stack
 
 - Next.js 15 + TypeScript

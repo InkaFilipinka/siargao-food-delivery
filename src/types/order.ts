@@ -9,6 +9,7 @@ export interface CartItem {
 
 export interface OrderItem {
   restaurantName: string;
+  restaurantSlug?: string;
   itemName: string;
   price: string;
   priceValue: number;

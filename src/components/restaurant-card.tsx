@@ -10,19 +10,38 @@ type RestaurantWithMenu = {
   menuItems: { name: string; price: string }[];
   imageUrls: string[];
   featuredImage: string | null;
+  hours?: string | null;
+  minOrderPhp?: number | null;
 };
-import { MapPin, ChevronRight, UtensilsCrossed } from "lucide-react";
+import { MapPin, ChevronRight, UtensilsCrossed, Heart, Clock } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useFavoritesStore } from "@/store/favorites-store";
+import { isOpenNow } from "@/config/restaurant-extras";
 
 interface RestaurantCardProps {
   restaurant: RestaurantWithMenu;
   className?: string;
 }
 
+function formatHours(h: string): string {
+  const [open, close] = h.split("-").map((s) => s.trim());
+  if (!open || !close) return h;
+  const fmt = (t: string) => {
+    const [h, m] = t.split(":").map(Number);
+    const h12 = h % 12 || 12;
+    const ampm = h < 12 ? "am" : "pm";
+    return m ? `${h12}:${String(m).padStart(2, "0")}${ampm}` : `${h12}${ampm}`;
+  };
+  return `${fmt(open)}–${fmt(close)}`;
+}
+
 export function RestaurantCard({ restaurant, className }: RestaurantCardProps) {
+  const { isFavorite, toggleRestaurant } = useFavoritesStore();
+  const isFav = isFavorite(restaurant.slug);
   const priceDisplay = restaurant.priceRange || "—";
   const itemCount = restaurant.menuItems.length;
+  const openStatus = restaurant.hours ? isOpenNow(restaurant.hours) : null;
 
   return (
     <Link
@@ -34,6 +53,34 @@ export function RestaurantCard({ restaurant, className }: RestaurantCardProps) {
     >
       {/* Image or placeholder */}
       <div className="aspect-[16/10] relative bg-slate-100 dark:bg-slate-800 overflow-hidden">
+        <div className="absolute top-3 left-3 right-12 flex items-center gap-2 z-10">
+          {openStatus !== null && (
+            <span
+              className={cn(
+                "px-2 py-1 rounded-md text-xs font-medium",
+                openStatus
+                  ? "bg-green-500/90 text-white"
+                  : "bg-slate-700/90 text-slate-200"
+              )}
+            >
+              {openStatus ? "Open" : "Closed"}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleRestaurant(restaurant.slug);
+          }}
+          className="absolute top-3 right-3 p-2 rounded-full bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 transition-colors z-10"
+          aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+        >
+          <Heart
+            className={cn("w-5 h-5", isFav ? "fill-red-500 text-red-500" : "text-slate-400")}
+          />
+        </button>
         {restaurant.featuredImage ? (
           <img
             src={restaurant.featuredImage}
@@ -80,9 +127,17 @@ export function RestaurantCard({ restaurant, className }: RestaurantCardProps) {
           </p>
         )}
       </div>
-      <div className="px-5 py-2 bg-slate-50 dark:bg-slate-800/50 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-        <MapPin className="w-4 h-4" />
-        General Luna, Siargao
+      <div className="px-5 py-2 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between gap-2 text-sm text-slate-600 dark:text-slate-400">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-4 h-4" />
+          General Luna, Siargao
+        </div>
+        {restaurant.hours && (
+          <span className="flex items-center gap-1 text-xs">
+            <Clock className="w-3 h-3" />
+            {formatHours(restaurant.hours)}
+          </span>
+        )}
       </div>
     </Link>
   );

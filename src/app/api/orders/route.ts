@@ -1,6 +1,44 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import type { CreateOrderInput } from "@/types/order";
+import { sendNtfy } from "@/lib/ntfy";
+import { getNtfyTopic } from "@/config/restaurant-extras";
+import { getSlugByRestaurantName } from "@/data/combined";
+import type { CreateOrderInput, OrderItem } from "@/types/order";
+
+function sendOrderNtfy(orderId: string, items: OrderItem[], landmark: string, customerPhone: string) {
+  const byRestaurant = new Map<string, { slug: string; items: OrderItem[] }>();
+  for (const item of items) {
+    const slug =
+      item.restaurantSlug ??
+      getSlugByRestaurantName(item.restaurantName) ??
+      item.restaurantName.toLowerCase().replace(/\s+/g, "-");
+    if (!byRestaurant.has(item.restaurantName)) {
+      byRestaurant.set(item.restaurantName, { slug, items: [] });
+    }
+    byRestaurant.get(item.restaurantName)!.items.push(item);
+  }
+  const phTime = new Date().toLocaleString("en-PH", {
+    timeZone: "Asia/Manila",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  for (const [restaurantName, { slug, items: restItems }] of byRestaurant) {
+    const topic = getNtfyTopic(slug);
+    const lines = restItems.map((i) => `• ${i.itemName} x${i.quantity} - ${i.price}`);
+    const msg = `🍽️ New order #${String(orderId).slice(0, 8)}
+
+${lines.join("\n")}
+
+📍 ${landmark}
+🕐 ${phTime}
+📞 ${customerPhone}`;
+    sendNtfy(topic, msg, { title: `${restaurantName} - Order`, priority: "high", tags: "plate_with_cutlery" }).catch(() => {});
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -103,6 +141,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
       }
 
+      sendOrderNtfy(order.id, items, landmark.trim(), customerPhone.trim());
+
       return NextResponse.json({
         id: order.id,
         createdAt: order.created_at,
@@ -110,6 +150,7 @@ export async function POST(request: Request) {
     }
 
     const id = crypto.randomUUID();
+    sendOrderNtfy(id, items, landmark.trim(), customerPhone.trim());
     return NextResponse.json({
       id,
       createdAt: new Date().toISOString(),

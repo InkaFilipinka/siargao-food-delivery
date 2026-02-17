@@ -52,5 +52,7 @@ alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 
 create policy "Allow insert orders" on public.orders for insert with check (true);
-create policy "Allow insert order_items" on public.order_items for insert with check (true);
 create policy "Allow select orders" on public.orders for select using (true);
+create policy "Allow update orders" on public.orders for update using (true);
+create policy "Allow insert order_items" on public.order_items for insert with check (true);
+create policy "Allow select order_items" on public.order_items for select using (true);

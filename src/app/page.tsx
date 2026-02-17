@@ -1,11 +1,15 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { RestaurantCard } from "@/components/restaurant-card";
 import { MapPicker } from "@/components/map-picker";
-import { MapPin, UtensilsCrossed } from "lucide-react";
+import { MapPin, UtensilsCrossed, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { useLastOrderStore } from "@/store/last-order-store";
+import { useCartStore } from "@/store/cart-store";
+import { useFavoritesStore } from "@/store/favorites-store";
 
 type Restaurant = {
   name: string;
@@ -23,6 +27,9 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [mapOpen, setMapOpen] = useState(false);
   const { location: deliveryLocation, setLocation } = useDeliveryStore();
+  const router = useRouter();
+  const lastOrder = useLastOrderStore((s) => s.items);
+  const addItem = useCartStore((s) => s.addItem);
   const [data, setData] = useState<{
     restaurants: Restaurant[];
     categories: string[];
@@ -40,11 +47,17 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
+  const favorites = useFavoritesStore((s) => s.restaurantSlugs);
+
   const filteredRestaurants = useMemo(() => {
     if (!data) return [];
+    if (selectedCategory === "Favorites") {
+      if (favorites.length === 0) return [];
+      return data.restaurants.filter((r) => favorites.includes(r.slug));
+    }
     if (selectedCategory === "All") return data.restaurants;
     return data.restaurants.filter((r) => r.categories.includes(selectedCategory));
-  }, [data, selectedCategory]);
+  }, [data, selectedCategory, favorites]);
 
   if (loading) {
     return (
@@ -98,6 +111,19 @@ export default function Home() {
             Browse by category
           </h2>
           <div className="flex flex-wrap gap-2">
+            {favorites.length > 0 && (
+              <button
+                onClick={() => setSelectedCategory("Favorites")}
+                className={cn(
+                  "px-4 py-2 rounded-full text-sm font-medium transition-colors",
+                  selectedCategory === "Favorites"
+                    ? "bg-orange-500 text-white"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                )}
+              >
+                ♥ Favorites {favorites.length}
+              </button>
+            )}
             {data.categories.map((cat) => {
               const count =
                 cat === "All"
@@ -158,7 +184,11 @@ export default function Home() {
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <UtensilsCrossed className="w-8 h-8 text-orange-500" />
-              {selectedCategory === "All" ? "All Restaurants" : selectedCategory}
+              {selectedCategory === "All"
+                ? "All Restaurants"
+                : selectedCategory === "Favorites"
+                  ? "Your Favorites"
+                  : selectedCategory}
             </h2>
             <p className="text-slate-500 dark:text-slate-400">
               {filteredRestaurants.length} {selectedCategory === "All" ? "restaurants" : "results"}
@@ -172,6 +202,33 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Reorder */}
+      {lastOrder && lastOrder.length > 0 && (
+        <section className="py-8 border-t border-slate-200 dark:border-slate-700">
+          <div className="container mx-auto px-4 text-center">
+            <p className="text-slate-600 dark:text-slate-400 mb-3">One tap to order again</p>
+            <button
+              onClick={() => {
+                lastOrder.forEach((item) =>
+                  addItem({
+                    restaurantName: item.restaurantName,
+                    restaurantSlug: item.restaurantSlug,
+                    itemName: item.itemName,
+                    price: item.price,
+                    quantity: item.quantity,
+                  })
+                );
+                router.push("/checkout");
+              }}
+              className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+            >
+              <RotateCcw className="w-5 h-5" />
+              Reorder last order ({lastOrder.length} items)
+            </button>
+          </div>
+        </section>
+      )}
+
       {/* Order CTA */}
       <section id="order" className="py-16 bg-slate-50 dark:bg-slate-800/30">
         <div className="container mx-auto px-4 text-center">
@@ -179,14 +236,22 @@ export default function Home() {
           <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-lg mx-auto">
             Browse menus above, pick your favorites, and contact us via WhatsApp to place your order.
           </p>
-          <a
-            href="https://wa.me/639457014440"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
-          >
-            Order via WhatsApp
-          </a>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <a
+              href="https://wa.me/639457014440"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+            >
+              Order via WhatsApp
+            </a>
+            <a
+              href="tel:+639457014440"
+              className="inline-flex items-center gap-2 border-2 border-slate-300 dark:border-slate-600 hover:border-orange-400 text-slate-700 dark:text-slate-300 font-semibold px-6 py-3 rounded-xl transition-colors"
+            >
+              Call Siargao Delivery
+            </a>
+          </div>
         </div>
       </section>
 
