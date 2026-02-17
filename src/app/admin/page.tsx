@@ -43,7 +43,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const getAuthHeaders = () => {
+  const getAuthHeaders = (): HeadersInit => {
     const token = sessionStorage.getItem(STAFF_TOKEN_KEY);
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
@@ -51,13 +51,14 @@ export default function AdminDashboard() {
   useEffect(() => {
     const token = sessionStorage.getItem(STAFF_TOKEN_KEY);
     if (!token) return;
+    const headers = getAuthHeaders();
     Promise.all([
-      fetch("/api/orders", { headers: getAuthHeaders() }).then(async (res) => {
+      fetch("/api/orders", { headers }).then(async (res) => {
         if (res.status === 401) throw new Error("Unauthorized");
         if (!res.ok) throw new Error("Failed to load");
         return res.json();
       }),
-      fetch("/api/admin/commission-income", { headers: getAuthHeaders() }).then(async (res) => {
+      fetch("/api/admin/commission-income", { headers }).then(async (res) => {
         if (res.ok) return res.json();
         return null;
       }),

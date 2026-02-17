@@ -4,6 +4,7 @@ import { useCartStore } from "@/store/cart-store";
 import { useFavoritesStore } from "@/store/favorites-store";
 import { Plus, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { DietaryTag } from "@/data/dietary-tags";
 
 interface MenuItemRowProps {
   restaurantName: string;
@@ -12,6 +13,7 @@ interface MenuItemRowProps {
   price: string;
   available?: boolean;
   isGrocery?: boolean;
+  dietaryTags?: DietaryTag[];
 }
 
 export function MenuItemRow({
@@ -21,6 +23,7 @@ export function MenuItemRow({
   price,
   available = true,
   isGrocery = false,
+  dietaryTags = [],
 }: MenuItemRowProps) {
   const addItem = useCartStore((s) => s.addItem);
   const clearAddItemError = useCartStore((s) => s.clearAddItemError);
@@ -47,13 +50,27 @@ export function MenuItemRow({
             className={cn("w-4 h-4", isItemFav && "fill-orange-500 text-orange-500")}
           />
         </button>
-        <span className="font-medium text-slate-900 dark:text-white">{itemName}</span>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-          {price}
-          {!available && (
-            <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">Sold out</span>
+        <div className="min-w-0 flex-1">
+          <span className="font-medium text-slate-900 dark:text-white">{itemName}</span>
+          {dietaryTags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {dietaryTags.map((t) => (
+                <span
+                  key={t}
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                >
+                  {t.replace(/-/g, " ")}
+                </span>
+              ))}
+            </div>
           )}
-        </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            {price}
+            {!available && (
+              <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">Sold out</span>
+            )}
+          </p>
+        </div>
       </div>
       {available ? (
         <button

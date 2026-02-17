@@ -16,12 +16,12 @@ const DEFAULT_COMMISSION = 30;
 const DEFAULT_DELIVERY_COMMISSION = 30;
 
 /** Get commission % for a slug. Returns default if not in map. */
-export function getCommissionPct(config: RestaurantConfigRow | null | undefined): number {
+export function getCommissionPct(config: Pick<RestaurantConfigRow, "commission_pct"> | null | undefined): number {
   return config?.commission_pct ?? DEFAULT_COMMISSION;
 }
 
 /** Get delivery commission % for a slug. */
-export function getDeliveryCommissionPct(config: RestaurantConfigRow | null | undefined): number {
+export function getDeliveryCommissionPct(config: Pick<RestaurantConfigRow, "delivery_commission_pct"> | null | undefined): number {
   return config?.delivery_commission_pct ?? DEFAULT_DELIVERY_COMMISSION;
 }
 

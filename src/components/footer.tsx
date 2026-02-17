@@ -28,6 +28,12 @@ export function Footer() {
             >
               Track order
             </Link>
+            <Link
+              href="/orders/history"
+              className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+            >
+              Order history
+            </Link>
             <a
               href={`https://wa.me/${SUPPORT_WHATSAPP}`}
               target="_blank"

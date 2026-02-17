@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { verifyToken } from "@/lib/auth";
+import { sendNtfy } from "@/lib/ntfy";
 
 function getBearerToken(request: Request): string | null {
   const auth = request.headers.get("authorization");
@@ -89,6 +90,9 @@ export async function GET(
       assignedAt: order.assigned_at,
       pickedAt: order.picked_at,
       deliveredAt: order.delivered_at,
+      estimatedDeliveryAt: order.estimated_delivery_at ?? null,
+      cancelCutoffAt: order.cancel_cutoff_at ?? null,
+      driverArrivedAt: order.driver_arrived_at ?? null,
       items: items || [],
     });
   } catch (err) {
@@ -110,6 +114,7 @@ export async function PATCH(
     const {
       status,
       arrivedAtHub,
+      driverArrived,
       cashReceived,
       cashTurnedIn,
       cashVarianceReason,
@@ -143,10 +148,28 @@ export async function PATCH(
       if (status === "assigned") updatePayload.assigned_at = now;
       if (status === "picked") updatePayload.picked_at = now;
       if (status === "delivered") updatePayload.delivered_at = now;
+
+      // Customer push notification via ntfy
+      const topic = `siargao-order-${id}`;
+      const statusLabels: Record<string, string> = {
+        confirmed: "Order confirmed",
+        preparing: "Restaurant is preparing your order",
+        ready: "Order ready for pickup",
+        assigned: "Driver assigned",
+        picked: "Driver picked up your order",
+        out_for_delivery: "On the way to you!",
+        delivered: "Delivered! Enjoy your meal",
+        cancelled: "Order cancelled",
+      };
+      const msg = statusLabels[status] || status;
+      sendNtfy(topic, msg, { title: "Siargao Delivery", priority: "high", tags: "package" }).catch(() => {});
     }
 
     if (arrivedAtHub === true) {
       updatePayload.arrived_at_hub_at = new Date().toISOString();
+    }
+    if (driverArrived === true) {
+      updatePayload.driver_arrived_at = new Date().toISOString();
     }
     if (typeof cashReceived === "number") updatePayload.cash_received_by_driver = cashReceived;
     if (typeof cashTurnedIn === "number") updatePayload.cash_turned_in = cashTurnedIn;
@@ -190,6 +213,39 @@ export async function PATCH(
     if (error) {
       console.error("Order update error:", error);
       return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
+    }
+
+    // Award loyalty points when delivered
+    if (status === "delivered" && data) {
+      const { data: ord } = await supabase.from("orders").select("customer_phone, customer_id").eq("id", id).single();
+      if (ord?.customer_phone) {
+        const { data: cust } = await supabase
+          .from("customers")
+          .select("id, loyalty_points")
+          .eq("phone", ord.customer_phone.trim())
+          .maybeSingle();
+        if (cust) {
+          await supabase
+            .from("customers")
+            .update({
+              loyalty_points: (cust.loyalty_points ?? 0) + 10,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", cust.id);
+        } else {
+          const { data: inserted } = await supabase
+            .from("customers")
+            .insert({
+              phone: ord.customer_phone.trim(),
+              loyalty_points: 10,
+            })
+            .select("id")
+            .single();
+          if (inserted) {
+            await supabase.from("orders").update({ customer_id: inserted.id }).eq("id", id);
+          }
+        }
+      }
     }
 
     return NextResponse.json(data);

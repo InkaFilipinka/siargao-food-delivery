@@ -75,4 +75,7 @@ export interface CreateOrderInput {
   priorityDelivery?: boolean;
   allowSubstitutions?: boolean;
   paymentMethod?: PaymentMethod;
+  promoCode?: string;
+  discountPhp?: number;
+  referralCode?: string;
 }

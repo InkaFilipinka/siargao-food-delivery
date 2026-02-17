@@ -74,6 +74,10 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [cryptoModalOpen, setCryptoModalOpen] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountPhp: number } | null>(null);
+  const [promoError, setPromoError] = useState("");
+  const [referralCode, setReferralCode] = useState("");
 
   useEffect(() => {
     fetch("/api/restaurants")
@@ -91,7 +95,30 @@ export default function CheckoutPage() {
   const subtotalPhp = items.reduce((sum, i) => sum + i.priceValue * i.quantity, 0);
   const deliveryFeePhp = deliveryLocation?.feePhp ?? 0;
   const priorityFeePhp = priorityDelivery ? PRIORITY_FEE_PHP : 0;
-  const totalPhp = subtotalPhp + deliveryFeePhp + tipPhp + priorityFeePhp;
+  const discountPhp = appliedPromo?.discountPhp ?? 0;
+  const totalPhp = Math.max(0, subtotalPhp - discountPhp + deliveryFeePhp + tipPhp + priorityFeePhp);
+
+  async function handleApplyPromo() {
+    if (!promoCode.trim()) return;
+    setPromoError("");
+    try {
+      const res = await fetch("/api/promo/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: promoCode.trim(), subtotalPhp }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setAppliedPromo({ code: data.code, discountPhp: data.discountPhp });
+      } else {
+        setPromoError(data.error || "Invalid code");
+        setAppliedPromo(null);
+      }
+    } catch {
+      setPromoError("Could not validate code");
+      setAppliedPromo(null);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -199,6 +226,9 @@ export default function CheckoutPage() {
           priorityDelivery,
           allowSubstitutions,
           paymentMethod,
+          promoCode: appliedPromo?.code,
+          discountPhp: appliedPromo?.discountPhp,
+          referralCode: referralCode.trim() || undefined,
         }),
       });
 
@@ -668,6 +698,47 @@ export default function CheckoutPage() {
             />
           </div>
 
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Promo code</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={promoCode}
+                onChange={(e) => {
+                  setPromoCode(e.target.value.toUpperCase());
+                  setPromoError("");
+                  if (appliedPromo) setAppliedPromo(null);
+                }}
+                placeholder="Enter code"
+                className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
+              />
+              <button
+                type="button"
+                onClick={handleApplyPromo}
+                disabled={!promoCode.trim()}
+                className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white font-medium hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Apply
+              </button>
+            </div>
+            {promoError && <p className="text-red-500 text-sm">{promoError}</p>}
+            {appliedPromo && (
+              <p className="text-green-600 dark:text-green-400 text-sm">
+                {appliedPromo.code}: -₱{appliedPromo.discountPhp.toLocaleString()} applied
+              </p>
+            )}
+            <div className="mt-2">
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Referral code (optional)</label>
+              <input
+                type="text"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                placeholder="Friend's code"
+                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary text-sm"
+              />
+            </div>
+          </div>
+
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 space-y-2">
             <h2 className="font-semibold text-slate-900 dark:text-white">Order summary</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">Max 1 restaurant + 1 grocery per order. More = separate order (new ID, new driver).</p>
@@ -682,6 +753,12 @@ export default function CheckoutPage() {
                 <span>Subtotal</span>
                 <span>₱{subtotalPhp.toLocaleString()}</span>
               </div>
+              {discountPhp > 0 && (
+                <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+                  <span>Discount ({appliedPromo?.code})</span>
+                  <span>-₱{discountPhp.toLocaleString()}</span>
+                </div>
+              )}
               {deliveryFeePhp > 0 && (
                 <div className="flex justify-between text-sm">
                   <span>Delivery</span>

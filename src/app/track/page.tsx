@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Search, Loader2, Package, MapPin, ExternalLink, Headphones } from "lucide-react";
+import { Search, Loader2, Package, MapPin, ExternalLink, Headphones, Clock, XCircle, CheckCircle, Star, Bell, MessageCircle, Send } from "lucide-react";
+import { getSlugByRestaurantName } from "@/data/combined";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -58,6 +59,14 @@ function TrackPageContent() {
   }, [idFromUrl]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [messages, setMessages] = useState<{ id: string; sender_type: string; message: string; created_at: string }[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
   const [order, setOrder] = useState<{
     id: string;
     status: string;
@@ -75,7 +84,10 @@ function TrackPageContent() {
     assignedAt: string | null;
     pickedAt: string | null;
     deliveredAt: string | null;
-    items: { item_name: string; quantity: number; price: string; restaurant_name: string }[];
+    estimatedDeliveryAt: string | null;
+    cancelCutoffAt: string | null;
+    driverArrivedAt: string | null;
+    items: { item_name: string; quantity: number; price: string; restaurant_name: string; restaurant_slug?: string }[];
   } | null>(null);
 
   async function handleSearch(e: React.FormEvent) {
@@ -99,10 +111,94 @@ function TrackPageContent() {
       }
 
       setOrder(data);
+      if (data?.id && phone.trim()) {
+        fetch(`/api/orders/${data.id}/messages?phone=${encodeURIComponent(phone.trim())}`)
+          .then((r) => r.json())
+          .then((d) => setMessages(d.messages || []))
+          .catch(() => {});
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not find order");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCancel() {
+    if (!order || !phone.trim()) return;
+    setCancelling(true);
+    try {
+      const res = await fetch("/api/orders/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, phone: phone.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.status === "cancelled") {
+        setOrder({ ...order, status: "cancelled" });
+      } else {
+        setError(data.error || "Could not cancel");
+      }
+    } catch {
+      setError("Could not cancel");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  const canCancel =
+    order &&
+    order.status !== "cancelled" &&
+    order.cancelCutoffAt &&
+    new Date(order.cancelCutoffAt).getTime() > Date.now();
+
+  const restaurantSlug =
+    order && order.items.length > 0
+      ? getSlugByRestaurantName(order.items[0].restaurant_name) ??
+        order.items[0].restaurant_name.toLowerCase().replace(/\s+/g, "-")
+      : null;
+
+  async function handleSendMessage() {
+    if (!order || !phone.trim() || !chatInput.trim()) return;
+    setChatLoading(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim(), message: chatInput.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data) {
+        setMessages((prev) => [...prev, data]);
+        setChatInput("");
+      }
+    } catch {
+      setError("Could not send message");
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  async function handleSubmitReview() {
+    if (!order || !phone.trim() || !restaurantSlug || reviewRating < 1) return;
+    setReviewLoading(true);
+    try {
+      const res = await fetch("/api/reviews/restaurant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          restaurantSlug,
+          orderId: order.id,
+          phone: phone.trim(),
+          rating: reviewRating,
+          comment: reviewComment.trim() || undefined,
+        }),
+      });
+      if (res.ok) setReviewSubmitted(true);
+    } catch {
+      setError("Could not submit review");
+    } finally {
+      setReviewLoading(false);
     }
   }
 
@@ -178,6 +274,57 @@ function TrackPageContent() {
                 <Package className="w-5 h-5 text-primary" />
                 Status: {STATUS_LABELS[order.status] || order.status}
               </h2>
+
+              {order.status !== "delivered" && order.status !== "cancelled" && (
+                <a
+                  href={`https://ntfy.sh/siargao-order-${order.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700"
+                >
+                  <Bell className="w-5 h-5 shrink-0" />
+                  Get push notifications for this order
+                </a>
+              )}
+              {order.estimatedDeliveryAt && order.status !== "delivered" && order.status !== "cancelled" && (
+                <div className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-slate-100 dark:bg-slate-800">
+                  <Clock className="w-5 h-5 text-primary shrink-0" />
+                  <span className="text-slate-700 dark:text-slate-300">
+                    Estimated delivery: {new Date(order.estimatedDeliveryAt).toLocaleString("en-PH", {
+                      timeZone: "Asia/Manila",
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}
+                  </span>
+                </div>
+              )}
+
+              {order.driverArrivedAt && (
+                <div className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
+                  <CheckCircle className="w-5 h-5 shrink-0" />
+                  <span>Driver has arrived at your location</span>
+                </div>
+              )}
+
+              {canCancel && (
+                <div className="mb-4">
+                  <button
+                    onClick={handleCancel}
+                    disabled={cancelling}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 font-medium text-sm"
+                  >
+                    {cancelling ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <XCircle className="w-4 h-4" />
+                    )}
+                    Cancel order
+                  </button>
+                </div>
+              )}
 
               {/* Timeline */}
               <div className="relative pl-6 border-l-2 border-slate-200 dark:border-slate-700 space-y-4">
@@ -269,6 +416,95 @@ function TrackPageContent() {
                 Total: ₱{Number(order.totalPhp).toLocaleString()}
               </p>
             </div>
+
+            {order.status === "delivered" && restaurantSlug && !reviewSubmitted && (
+              <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                  <Star className="w-5 h-5 text-amber-500" />
+                  Rate your experience
+                </h3>
+                <div className="flex gap-1 mb-2">
+                  {[1, 2, 3, 4, 5].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setReviewRating(r)}
+                      className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
+                    >
+                      <Star
+                        className={`w-8 h-8 ${
+                          r <= reviewRating ? "fill-amber-500 text-amber-500" : "text-slate-300 dark:text-slate-600"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Optional comment..."
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm mb-2"
+                />
+                <button
+                  onClick={handleSubmitReview}
+                  disabled={reviewRating < 1 || reviewLoading}
+                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 disabled:opacity-50"
+                >
+                  {reviewLoading ? "Sending..." : "Submit review"}
+                </button>
+              </div>
+            )}
+            {reviewSubmitted && (
+              <p className="text-green-600 dark:text-green-400 text-sm">Thanks for your review!</p>
+            )}
+
+            {order.status !== "cancelled" && (
+              <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5 text-primary" />
+                  Message about this order
+                </h3>
+                {messages.length > 0 && (
+                  <ul className="space-y-2 mb-3 max-h-32 overflow-y-auto">
+                    {messages.map((m) => (
+                      <li
+                        key={m.id}
+                        className={`text-sm p-2 rounded-lg ${
+                          m.sender_type === "customer"
+                            ? "bg-primary/10 text-slate-900 dark:text-white ml-4"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 mr-4"
+                        }`}
+                      >
+                        {m.message}
+                        <span className="block text-xs text-slate-500 mt-0.5">
+                          {new Date(m.created_at).toLocaleTimeString("en-PH", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+                    placeholder="Type a message..."
+                    className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!chatInput.trim() || chatLoading}
+                    className="p-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

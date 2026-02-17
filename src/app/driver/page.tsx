@@ -115,6 +115,7 @@ export default function DriverPage() {
     payload: {
       status?: string;
       arrivedAtHub?: boolean;
+      driverArrived?: boolean;
       cashReceived?: number;
       cashTurnedIn?: number;
       cashVarianceReason?: string;
@@ -420,6 +421,24 @@ export default function DriverPage() {
                           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-sm font-medium disabled:opacity-50"
                         >
                           Picked up
+                        </button>
+                      )}
+                      {o.status === "picked" && (
+                        <button
+                          onClick={() => updateOrder(o.id, { status: "out_for_delivery" })}
+                          disabled={updatingId === o.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-sm font-medium disabled:opacity-50"
+                        >
+                          Out for delivery
+                        </button>
+                      )}
+                      {o.status === "out_for_delivery" && (
+                        <button
+                          onClick={() => updateOrder(o.id, { driverArrived: true })}
+                          disabled={updatingId === o.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                        >
+                          I&apos;m here
                         </button>
                       )}
                       {(o.status === "picked" || o.status === "out_for_delivery") && (

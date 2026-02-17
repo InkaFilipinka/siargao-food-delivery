@@ -165,6 +165,9 @@ export async function POST(request: Request) {
       priorityDelivery,
       allowSubstitutions,
       paymentMethod,
+      promoCode,
+      discountPhp,
+      referralCode,
     } = body;
 
     if (!customerName?.trim() || !customerPhone?.trim()) {
@@ -204,7 +207,20 @@ export async function POST(request: Request) {
     const deliveryFee = deliveryFeePhp ?? 0;
     const tip = tipPhp ?? 0;
     const priorityFee = priorityDelivery ? 50 : 0;
-    const totalPhp = subtotalPhp + deliveryFee + tip + priorityFee;
+    const discount = Math.min(discountPhp ?? 0, subtotalPhp);
+    const totalPhp = Math.max(0, subtotalPhp - discount + deliveryFee + tip + priorityFee);
+
+    const distanceKm = deliveryDistanceKm ?? 3;
+    const prepMins = 20;
+    const deliveryMins = Math.ceil(distanceKm * 5);
+    const etaDate = new Date();
+    etaDate.setMinutes(etaDate.getMinutes() + prepMins + deliveryMins);
+    const estimatedDeliveryAt = timeWindow === "scheduled" && scheduledAt
+      ? scheduledAt
+      : etaDate.toISOString();
+
+    const cancelCutoffDate = new Date();
+    cancelCutoffDate.setMinutes(cancelCutoffDate.getMinutes() + 5);
 
     const supabase = getSupabaseAdmin();
 
@@ -226,13 +242,17 @@ export async function POST(request: Request) {
           delivery_fee_php: deliveryFee,
           tip_php: tip,
           priority_fee_php: priorityFee,
+          discount_php: discount,
           total_php: totalPhp,
+          promo_code: promoCode?.trim() || null,
           status: "pending",
           time_window: timeWindow ?? "asap",
           scheduled_at: scheduledAt ?? null,
           allow_substitutions: allowSubstitutions ?? true,
           payment_method: paymentMethod ?? "cash",
           payment_status: paymentMethod === "cash" ? "pending" : paymentMethod ? "pending" : "pending",
+          estimated_delivery_at: estimatedDeliveryAt,
+          cancel_cutoff_at: cancelCutoffDate.toISOString(),
         })
         .select("id, created_at")
         .single();
@@ -269,6 +289,30 @@ export async function POST(request: Request) {
         console.error("Supabase order_items insert error:", itemsError);
         await supabase.from("orders").delete().eq("id", order.id);
         return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+      }
+
+      if (promoCode?.trim() && discount > 0) {
+        const { data: promoRow } = await supabase.from("promo_codes").select("id, uses_count").eq("code", promoCode.trim().toUpperCase()).maybeSingle();
+        if (promoRow) {
+          await supabase.from("promo_usage").insert({ promo_id: promoRow.id, order_id: order.id, phone: customerPhone.trim() });
+          await supabase.from("promo_codes").update({ uses_count: (promoRow.uses_count ?? 0) + 1 }).eq("id", promoRow.id);
+        }
+      }
+
+      if (referralCode?.trim()) {
+        const { data: referrer } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("referral_code", referralCode.trim().toUpperCase())
+          .maybeSingle();
+        if (referrer) {
+          await supabase.from("referral_credits").insert({
+            referrer_id: referrer.id,
+            referred_order_id: order.id,
+            amount_php: 50,
+            status: "pending",
+          });
+        }
       }
 
       sendOrderNtfy(order.id, items, landmark.trim(), customerPhone.trim());
