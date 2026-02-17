@@ -1,11 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Search, Loader2, Package, Phone, ArrowRight } from "lucide-react";
+import { Search, Loader2, Package, Phone, ArrowRight, MessageSquare, Send, X } from "lucide-react";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
+
+type SupportTicket = {
+  id: string;
+  subject: string;
+  status: string;
+  phone: string | null;
+  email: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type SupportMessage = {
+  id: string;
+  sender_type: string;
+  message: string;
+  created_at: string;
+};
 
 type Order = {
   id: string;
@@ -38,6 +55,38 @@ export default function AdminSupportPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [ticketMessages, setTicketMessages] = useState<SupportMessage[]>([]);
+  const [replyText, setReplyText] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
+
+  const getAuthHeaders = (): HeadersInit => {
+    const token = typeof window !== "undefined" ? sessionStorage.getItem(STAFF_TOKEN_KEY) : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const loadTickets = useCallback(() => {
+    fetch("/api/support/tickets", { headers: getAuthHeaders() })
+      .then((r) => r.json())
+      .then((d) => setTickets(d.tickets || []))
+      .catch(() => setTickets([]));
+  }, []);
+
+  useEffect(() => {
+    loadTickets();
+  }, [loadTickets]);
+
+  useEffect(() => {
+    if (!selectedTicket) {
+      setTicketMessages([]);
+      return;
+    }
+    fetch(`/api/support/tickets/${selectedTicket.id}`, { headers: getAuthHeaders() })
+      .then((r) => r.json())
+      .then((d) => setTicketMessages(d.messages || []))
+      .catch(() => setTicketMessages([]));
+  }, [selectedTicket]);
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -174,6 +223,102 @@ export default function AdminSupportPage() {
           No orders found. Try a different search.
         </p>
       )}
+
+      <div className="pt-6 border-t border-slate-200 dark:border-slate-700">
+        <h2 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+          <MessageSquare className="w-5 h-5" />
+          Support tickets
+        </h2>
+        {tickets.length === 0 ? (
+          <p className="text-sm text-slate-500">No support tickets.</p>
+        ) : (
+          <div className="flex gap-4">
+            <div className="flex-1 space-y-2 max-h-80 overflow-y-auto">
+              {tickets.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedTicket(t)}
+                  className={`w-full text-left p-3 rounded-lg border ${
+                    selectedTicket?.id === t.id
+                      ? "border-primary bg-primary/5"
+                      : "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <p className="font-medium text-slate-900 dark:text-white">{t.subject}</p>
+                  <p className="text-xs text-slate-500">
+                    {t.phone || t.email || "—"} · {t.status} · {formatTime(t.updated_at)}
+                  </p>
+                </button>
+              ))}
+            </div>
+            {selectedTicket && (
+              <div className="flex-1 min-w-0 border border-slate-200 dark:border-slate-700 rounded-xl p-4 bg-white dark:bg-slate-800">
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="font-medium text-slate-900 dark:text-white">{selectedTicket.subject}</h3>
+                  <button onClick={() => setSelectedTicket(null)} className="p-1 text-slate-500">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto mb-4">
+                  {ticketMessages.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`p-2 rounded-lg text-sm ${
+                        m.sender_type === "staff"
+                          ? "bg-primary/20 ml-4"
+                          : "bg-slate-100 dark:bg-slate-700 mr-4"
+                      }`}
+                    >
+                      <span className="text-xs text-slate-500">{m.sender_type} · {formatTime(m.created_at)}</span>
+                      <p className="mt-0.5">{m.message}</p>
+                    </div>
+                  ))}
+                </div>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!replyText.trim()) return;
+                    setSendingReply(true);
+                    try {
+                      const res = await fetch(`/api/support/tickets/${selectedTicket.id}/messages`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                        body: JSON.stringify({ message: replyText.trim() }),
+                      });
+                      if (!res.ok) throw new Error("Failed");
+                      const data = await res.json();
+                      setTicketMessages((prev) => [...prev, data.message]);
+                      setReplyText("");
+                      loadTickets();
+                    } catch {
+                      setError("Failed to send reply");
+                    } finally {
+                      setSendingReply(false);
+                    }
+                  }}
+                  className="flex gap-2"
+                >
+                  <input
+                    type="text"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="Reply..."
+                    className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sendingReply || !replyText.trim()}
+                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <Send className="w-4 h-4" />
+                    Send
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
         <Link

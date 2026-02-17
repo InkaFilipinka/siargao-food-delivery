@@ -3,8 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Search, Loader2, Package, MapPin, ExternalLink, Headphones, Clock, XCircle, CheckCircle, Star, Bell, MessageCircle, Send } from "lucide-react";
-import { getSlugByRestaurantName } from "@/data/combined";
+import { Search, Loader2, Package, MapPin, ExternalLink, Headphones, Clock, XCircle, CheckCircle, Star, Bell, MessageCircle, Send, Edit3 } from "lucide-react";
+import { getSlugByRestaurantName, getRestaurantBySlug } from "@/data/combined";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -67,6 +67,17 @@ function TrackPageContent() {
   const [messages, setMessages] = useState<{ id: string; sender_type: string; message: string; created_at: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [editNotes, setEditNotes] = useState("");
+  const [showEditNotes, setShowEditNotes] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [showEditItems, setShowEditItems] = useState(false);
+  const [editItems, setEditItems] = useState<{ restaurantName: string; restaurantSlug?: string; itemName: string; price: string; priceValue: number; quantity: number }[]>([]);
+  const [editItemsSaving, setEditItemsSaving] = useState(false);
+
+  function parsePrice(p: string): number {
+    const m = (p || "").match(/[\d,.]+/);
+    return m ? parseFloat(m[0].replace(/,/g, "")) : 0;
+  }
   const [order, setOrder] = useState<{
     id: string;
     status: string;
@@ -87,6 +98,8 @@ function TrackPageContent() {
     estimatedDeliveryAt: string | null;
     cancelCutoffAt: string | null;
     driverArrivedAt: string | null;
+    driverLat?: number | null;
+    driverLng?: number | null;
     items: { item_name: string; quantity: number; price: string; restaurant_name: string; restaurant_slug?: string }[];
   } | null>(null);
 
@@ -111,6 +124,16 @@ function TrackPageContent() {
       }
 
       setOrder(data);
+      setEditNotes((data as { notes?: string })?.notes || "");
+      const items = (data as { items?: { restaurant_name: string; restaurant_slug?: string; item_name: string; price: string; price_value?: number; quantity: number }[] })?.items || [];
+      setEditItems(items.map((i) => ({
+        restaurantName: i.restaurant_name,
+        restaurantSlug: i.restaurant_slug,
+        itemName: i.item_name,
+        price: i.price,
+        priceValue: i.price_value ?? parsePrice(i.price),
+        quantity: i.quantity,
+      })));
       if (data?.id && phone.trim()) {
         fetch(`/api/orders/${data.id}/messages?phone=${encodeURIComponent(phone.trim())}`)
           .then((r) => r.json())
@@ -123,6 +146,17 @@ function TrackPageContent() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!order?.id || !phone.trim() || ["delivered", "cancelled"].includes(order.status)) return;
+    const id = setInterval(() => {
+      fetch(`/api/orders/${order.id}?phone=${encodeURIComponent(phone.trim())}`)
+        .then((r) => r.json())
+        .then((d) => setOrder((prev) => (prev ? { ...prev, ...d } : null)))
+        .catch(() => {});
+    }, 15000);
+    return () => clearInterval(id);
+  }, [order?.id, order?.status, phone]);
 
   async function handleCancel() {
     if (!order || !phone.trim()) return;
@@ -310,7 +344,7 @@ function TrackPageContent() {
               )}
 
               {canCancel && (
-                <div className="mb-4">
+                <div className="mb-4 flex flex-wrap gap-2">
                   <button
                     onClick={handleCancel}
                     disabled={cancelling}
@@ -322,6 +356,173 @@ function TrackPageContent() {
                       <XCircle className="w-4 h-4" />
                     )}
                     Cancel order
+                  </button>
+                  <button
+                    onClick={() => setShowEditNotes(!showEditNotes)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-sm"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Edit notes
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEditItems(!showEditItems);
+                      if (!showEditItems && order?.items) {
+                        const items = order.items as { restaurant_name: string; restaurant_slug?: string; item_name: string; price: string; price_value?: number; quantity: number }[];
+                        setEditItems(items.map((i) => ({
+                          restaurantName: i.restaurant_name,
+                          restaurantSlug: i.restaurant_slug,
+                          itemName: i.item_name,
+                          price: i.price,
+                          priceValue: i.price_value ?? parsePrice(i.price),
+                          quantity: i.quantity,
+                        })));
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-sm"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Edit items
+                  </button>
+                </div>
+              )}
+              {showEditItems && canCancel && (
+                <div className="mb-4 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                  <h3 className="font-medium text-slate-900 dark:text-white mb-3">Edit items</h3>
+                  <p className="text-xs text-slate-500 mb-3">Add or remove items (within 5 min of placing)</p>
+                  {editItems.map((it, idx) => (
+                    <div key={`${it.restaurantName}-${it.itemName}-${idx}`} className="flex items-center justify-between py-2 border-b border-slate-200 dark:border-slate-700 last:border-0">
+                      <span className="text-sm text-slate-900 dark:text-white">{it.itemName} × {it.quantity} — {it.price}</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditItems((prev) => prev.map((p, i) => i === idx ? { ...p, quantity: Math.max(1, p.quantity - 1) } : p))}
+                          className="w-7 h-7 rounded border border-slate-300 text-slate-600 flex items-center justify-center"
+                        >
+                          −
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditItems((prev) => prev.map((p, i) => i === idx ? { ...p, quantity: p.quantity + 1 } : p))}
+                          className="w-7 h-7 rounded border border-slate-300 text-slate-600 flex items-center justify-center"
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditItems((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-red-500 text-sm ml-1"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {(() => {
+                    const slugs = [...new Set(editItems.map((i) => i.restaurantSlug ?? getSlugByRestaurantName(i.restaurantName) ?? ""))].filter(Boolean);
+                    const restaurants = slugs.map((s) => getRestaurantBySlug(s!)).filter(Boolean);
+                    return restaurants.length > 0 ? (
+                      <div className="mt-3">
+                        <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">Add item</p>
+                        <select
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (!v) return;
+                            const [restName, itemName, priceStr] = v.split("::");
+                            const rest = restaurants.find((r) => r!.name === restName);
+                            if (!rest) return;
+                            const slug = rest.slug;
+                            const priceVal = parsePrice(priceStr);
+                            setEditItems((prev) => {
+                              const existing = prev.find((i) => (i.restaurantSlug ?? getSlugByRestaurantName(i.restaurantName)) === slug && i.itemName === itemName);
+                              if (existing) {
+                                return prev.map((p) => p === existing ? { ...p, quantity: p.quantity + 1 } : p);
+                              }
+                              return [...prev, { restaurantName: restName, restaurantSlug: slug, itemName, price: priceStr, priceValue: priceVal, quantity: 1 }];
+                            });
+                            e.target.value = "";
+                          }}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"
+                        >
+                          <option value="">Select item to add</option>
+                          {restaurants.flatMap((r) =>
+                            (r?.menuItems || []).map((m) => (
+                              <option key={`${r!.name}-${m.name}`} value={`${r!.name}::${m.name}::${m.price}`}>
+                                {r!.name}: {m.name} — {m.price}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+                    ) : null;
+                  })()}
+                  <button
+                    onClick={async () => {
+                      if (!order || !phone.trim() || editItems.length === 0) return;
+                      setEditItemsSaving(true);
+                      try {
+                        const res = await fetch(`/api/orders/${order.id}/edit`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            phone: phone.trim(),
+                            items: editItems.map((i) => ({
+                              restaurantName: i.restaurantName,
+                              restaurantSlug: i.restaurantSlug ?? getSlugByRestaurantName(i.restaurantName),
+                              itemName: i.itemName,
+                              price: i.price,
+                              priceValue: i.priceValue,
+                              quantity: i.quantity,
+                            })),
+                          }),
+                        });
+                        if (res.ok) {
+                          setShowEditItems(false);
+                          const data = await fetch(`/api/orders/${order.id}?phone=${encodeURIComponent(phone.trim())}`).then((r) => r.json());
+                          setOrder(data);
+                        } else {
+                          const d = await res.json();
+                          setError(d.error || "Failed to update");
+                        }
+                      } finally {
+                        setEditItemsSaving(false);
+                      }
+                    }}
+                    disabled={editItemsSaving}
+                    className="mt-3 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+                  >
+                    {editItemsSaving ? "Saving..." : "Save items"}
+                  </button>
+                </div>
+              )}
+              {showEditNotes && canCancel && (
+                <div className="mb-4">
+                  <textarea
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    rows={3}
+                    placeholder="Special requests, allergies..."
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm mb-2"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!order || !phone.trim()) return;
+                      setEditSaving(true);
+                      try {
+                        const res = await fetch(`/api/orders/${order.id}/edit`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ phone: phone.trim(), notes: editNotes.trim() }),
+                        });
+                        if (res.ok) setShowEditNotes(false);
+                      } finally {
+                        setEditSaving(false);
+                      }
+                    }}
+                    disabled={editSaving}
+                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+                  >
+                    {editSaving ? "Saving..." : "Save"}
                   </button>
                 </div>
               )}
@@ -383,13 +584,17 @@ function TrackPageContent() {
               )}
               {order.deliveryLat != null && order.deliveryLng != null && (
                 <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLat},${order.deliveryLng}`}
+                  href={
+                    order.driverLat != null && order.driverLng != null
+                      ? `https://www.google.com/maps/dir/?api=1&origin=${order.driverLat},${order.driverLng}&destination=${order.deliveryLat},${order.deliveryLng}`
+                      : `https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLat},${order.deliveryLng}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-sm text-orange-600 hover:underline font-medium mt-1"
                 >
                   <ExternalLink className="w-4 h-4" />
-                  Open in Google Maps
+                  {order.driverLat != null ? "View driver & route on map" : "Open in Google Maps"}
                 </a>
               )}
               <a

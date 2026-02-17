@@ -13,7 +13,12 @@ export interface DriverToken {
   driverId: string;
   exp: number;
 }
-export type AuthToken = RestaurantToken | DriverToken;
+export interface CustomerToken {
+  type: "customer";
+  customerId: string;
+  exp: number;
+}
+export type AuthToken = RestaurantToken | DriverToken | CustomerToken;
 
 function base64UrlEncode(buf: Buffer): string {
   return buf.toString("base64url");
@@ -26,8 +31,8 @@ function sign(payload: string): string {
   return createHmac("sha256", JWT_SECRET).update(payload).digest("base64url");
 }
 
-/** Create a signed token for restaurant or driver */
-export function createToken(data: RestaurantToken | DriverToken): string {
+/** Create a signed token for restaurant, driver, or customer */
+export function createToken(data: RestaurantToken | DriverToken | CustomerToken): string {
   const payload = JSON.stringify({
     ...data,
     exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SEC,
@@ -54,6 +59,7 @@ export function verifyToken(token: string): AuthToken | null {
     if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
     if (payload.type === "restaurant" && payload.slug) return { type: "restaurant", slug: payload.slug, exp: payload.exp };
     if (payload.type === "driver" && payload.driverId) return { type: "driver", driverId: payload.driverId, exp: payload.exp };
+    if (payload.type === "customer" && (payload as CustomerToken).customerId) return { type: "customer", customerId: (payload as CustomerToken).customerId, exp: payload.exp };
     return null;
   } catch {
     return null;

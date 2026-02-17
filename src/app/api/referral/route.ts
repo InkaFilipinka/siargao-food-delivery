@@ -50,17 +50,25 @@ export async function GET(request: Request) {
       customer = { ...customer, referral_code: code };
     }
 
-    const { data: credits } = await supabase
+    const { data: appliedCredits } = await supabase
       .from("referral_credits")
-      .select("amount_php, status")
+      .select("amount_php")
       .eq("referrer_id", customer?.id)
       .eq("status", "applied");
+    const { data: pendingCredits } = await supabase
+      .from("referral_credits")
+      .select("id, amount_php")
+      .eq("referrer_id", customer?.id)
+      .eq("status", "pending");
 
-    const totalCredits = (credits || []).reduce((sum, c) => sum + (c.amount_php ?? 0), 0);
+    const totalApplied = (appliedCredits || []).reduce((sum, c) => sum + (c.amount_php ?? 0), 0);
+    const availableCredits = (pendingCredits || []).reduce((sum, c) => sum + (c.amount_php ?? 0), 0);
 
     return NextResponse.json({
       code: customer?.referral_code ?? null,
-      totalCreditsPhp: totalCredits,
+      totalCreditsPhp: totalApplied,
+      availableCreditsPhp: availableCredits,
+      pendingCreditIds: (pendingCredits || []).map((c) => c.id),
     });
   } catch (err) {
     console.error("Referral API:", err);

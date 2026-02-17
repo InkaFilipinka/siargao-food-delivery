@@ -3,6 +3,7 @@ import "./globals.css";
 import { NavigationWrapper } from "@/components/navigation-wrapper";
 import { Footer } from "@/components/footer";
 import { LocaleProvider } from "@/contexts/locale-context";
+import { CustomerAuthProvider } from "@/contexts/customer-auth-context";
 
 export const metadata: Metadata = {
   title: "Siargao Food Delivery | General Luna Restaurants",
@@ -22,9 +23,11 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <body className="font-sans flex flex-col min-h-screen">
         <LocaleProvider>
-          <NavigationWrapper />
-          <div className="flex-1">{children}</div>
-          <Footer />
+          <CustomerAuthProvider>
+            <NavigationWrapper />
+            <div className="flex-1">{children}</div>
+            <Footer />
+          </CustomerAuthProvider>
         </LocaleProvider>
       </body>
     </html>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCartStore } from "@/store/cart-store";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useLastOrderStore } from "@/store/last-order-store";
+import { useCustomerAuth } from "@/contexts/customer-auth-context";
 import { MapPicker } from "@/components/map-picker";
 import { CryptoPaymentModal } from "@/components/crypto-payment-modal";
 import { ArrowLeft, CreditCard, Loader2, MapPin, Banknote, Smartphone, Wallet } from "lucide-react";
@@ -50,6 +51,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, clearCart } = useCartStore();
   const setLastOrder = useLastOrderStore((s) => s.setLastOrder);
+  const { customer, token } = useCustomerAuth();
   const { location: deliveryLocation, setLocation } = useDeliveryStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -78,6 +80,30 @@ export default function CheckoutPage() {
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountPhp: number } | null>(null);
   const [promoError, setPromoError] = useState("");
   const [referralCode, setReferralCode] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState<{
+    id: string;
+    label: string;
+    landmark: string;
+    deliveryLat: number | null;
+    deliveryLng: number | null;
+    deliveryZoneId: string | null;
+    deliveryZoneName: string | null;
+    deliveryDistanceKm: number | null;
+    room: string | null;
+    floor: string | null;
+    guestName: string | null;
+  }[]>([]);
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [savedPaymentMethods, setSavedPaymentMethods] = useState<{ id: string; brand: string; last4: string; isDefault: boolean }[]>([]);
+  const [selectedSavedCardId, setSelectedSavedCardId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (customer) {
+      setName(customer.name || "");
+      setEmail(customer.email || "");
+      setPhone(customer.phone || "");
+    }
+  }, [customer]);
 
   useEffect(() => {
     fetch("/api/restaurants")
@@ -92,11 +118,108 @@ export default function CheckoutPage() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (phone.trim().length >= 4) {
+      fetch(`/api/addresses?phone=${encodeURIComponent(phone.trim())}`)
+        .then((r) => r.json())
+        .then((d) => setSavedAddresses(d.addresses || []))
+        .catch(() => setSavedAddresses([]));
+    } else {
+      setSavedAddresses([]);
+    }
+  }, [phone]);
+
+  useEffect(() => {
+    if (token && paymentMethod === "card") {
+      fetch("/api/payment-methods", { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.json())
+        .then((d) => {
+          setSavedPaymentMethods(d.paymentMethods || []);
+          const def = d.paymentMethods?.find((pm: { isDefault: boolean }) => pm.isDefault);
+          setSelectedSavedCardId(def?.id ?? d.paymentMethods?.[0]?.id ?? null);
+        })
+        .catch(() => setSavedPaymentMethods([]));
+    } else {
+      setSavedPaymentMethods([]);
+      setSelectedSavedCardId(null);
+    }
+  }, [token, paymentMethod]);
+
+  function applySavedAddress(addr: (typeof savedAddresses)[0]) {
+    setLandmark(addr.landmark);
+    setRoom(addr.room || "");
+    setFloor(addr.floor || "");
+    setGuestName(addr.guestName || "");
+    const dist = addr.deliveryDistanceKm ?? 3;
+    if (addr.deliveryLat != null && addr.deliveryLng != null) {
+      setLocation({ lat: addr.deliveryLat, lng: addr.deliveryLng, distance: dist, placeName: addr.landmark });
+    }
+  }
+
+  async function handleSaveAddress() {
+    if (!phone.trim() || !landmark.trim() || !deliveryLocation) return;
+    setSavingAddress(true);
+    try {
+      const res = await fetch("/api/addresses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: phone.trim(),
+          label: landmark.slice(0, 50),
+          landmark: landmark.trim(),
+          deliveryLat: deliveryLocation.lat,
+          deliveryLng: deliveryLocation.lng,
+          deliveryZoneId: deliveryLocation.zoneId,
+          deliveryZoneName: deliveryLocation.zoneName,
+          deliveryDistanceKm: deliveryLocation.distance,
+          room: room.trim() || undefined,
+          floor: floor.trim() || undefined,
+          guestName: guestName.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data) {
+        setSavedAddresses((prev) => [{ ...data, label: data.label || "Saved address" }, ...prev]);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setSavingAddress(false);
+    }
+  }
+
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(0);
+  const [referralCreditsPhp, setReferralCreditsPhp] = useState(0);
+  const [useReferralCredit, setUseReferralCredit] = useState(0);
+
+  useEffect(() => {
+    if (phone.trim().length >= 4) {
+      Promise.all([
+        fetch(`/api/loyalty?phone=${encodeURIComponent(phone.trim())}`),
+        fetch(`/api/referral?phone=${encodeURIComponent(phone.trim())}`),
+      ]).then(async ([lRes, rRes]) => {
+        const lData = await lRes.json();
+        const rData = await rRes.json();
+        setLoyaltyPoints(lData.points ?? 0);
+        setReferralCreditsPhp(rData.availableCreditsPhp ?? 0);
+      }).catch(() => {});
+    } else {
+      setLoyaltyPoints(0);
+      setReferralCreditsPhp(0);
+      setUseLoyaltyPoints(0);
+      setUseReferralCredit(0);
+    }
+  }, [phone]);
+
   const subtotalPhp = items.reduce((sum, i) => sum + i.priceValue * i.quantity, 0);
   const deliveryFeePhp = deliveryLocation?.feePhp ?? 0;
   const priorityFeePhp = priorityDelivery ? PRIORITY_FEE_PHP : 0;
-  const discountPhp = appliedPromo?.discountPhp ?? 0;
-  const totalPhp = Math.max(0, subtotalPhp - discountPhp + deliveryFeePhp + tipPhp + priorityFeePhp);
+  const promoDiscountPhp = appliedPromo?.discountPhp ?? 0;
+  const loyaltyDiscountPhp = Math.min(Math.floor(useLoyaltyPoints / 10) * 5, subtotalPhp - promoDiscountPhp);
+  const referralDiscountPhp = Math.min(useReferralCredit, subtotalPhp - promoDiscountPhp - loyaltyDiscountPhp);
+  const totalDiscountPhp = promoDiscountPhp + loyaltyDiscountPhp + referralDiscountPhp;
+  const totalPhp = Math.max(0, subtotalPhp - totalDiscountPhp + deliveryFeePhp + tipPhp + priorityFeePhp);
 
   async function handleApplyPromo() {
     if (!promoCode.trim()) return;
@@ -192,9 +315,11 @@ export default function CheckoutPage() {
         : undefined;
 
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           customerName: name.trim(),
           customerPhone: phone.trim(),
@@ -229,6 +354,8 @@ export default function CheckoutPage() {
           promoCode: appliedPromo?.code,
           discountPhp: appliedPromo?.discountPhp,
           referralCode: referralCode.trim() || undefined,
+          loyaltyPointsRedeemed: useLoyaltyPoints > 0 ? useLoyaltyPoints : undefined,
+          referralCreditPhp: useReferralCredit > 0 ? useReferralCredit : undefined,
         }),
       });
 
@@ -340,9 +467,51 @@ export default function CheckoutPage() {
       };
 
       if (paymentMethod === "card") {
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        if (selectedSavedCardId && token) {
+          const piRes = await fetch("/api/create-payment-intent", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              amount: totalPhp,
+              orderId,
+              paymentMethodId: selectedSavedCardId,
+            }),
+          });
+          const piData = await piRes.json();
+          if (!piRes.ok) throw new Error(piData.error || "Payment failed");
+          if (piData.status === "succeeded") {
+            await fetch(`/api/orders/${orderId}/confirm-card-payment`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentIntentId: piData.paymentIntentId }),
+            });
+            saveSessionAndRedirect(orderId);
+            return;
+          }
+          if (piData.clientSecret) {
+            const { loadStripe } = await import("@stripe/stripe-js");
+            const pk = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+            if (!pk) throw new Error("Stripe not configured");
+            const stripeJs = await loadStripe(pk);
+            if (!stripeJs) throw new Error("Stripe failed to load");
+            const { error: confirmErr } = await stripeJs.confirmCardPayment(piData.clientSecret);
+            if (confirmErr) throw new Error(confirmErr.message || "Payment failed");
+            await fetch(`/api/orders/${orderId}/confirm-card-payment`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentIntentId: piData.paymentIntentId }),
+            });
+            saveSessionAndRedirect(orderId);
+            return;
+          }
+        }
+
         const stripeRes = await fetch("/api/create-checkout-session", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             amount: totalPhp,
             orderId,
@@ -474,25 +643,58 @@ export default function CheckoutPage() {
             />
           </div>
 
+          {/* Saved addresses */}
+          {savedAddresses.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Saved addresses
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {savedAddresses.map((addr) => (
+                  <button
+                    key={addr.id}
+                    type="button"
+                    onClick={() => applySavedAddress(addr)}
+                    className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    {addr.label} • {addr.landmark}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Delivery location */}
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               Delivery location *
             </label>
-            <button
-              type="button"
-              onClick={() => setMapOpen(true)}
-              className="w-full flex items-center gap-2 px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-left hover:border-primary/50 transition-colors"
-            >
-              <MapPin className="w-5 h-5 text-primary shrink-0" />
-              {deliveryLocation ? (
-                <span className="text-slate-900 dark:text-white">
-                  {deliveryLocation.placeName || `${deliveryLocation.distance}km from hub`} • ₱{deliveryLocation.feePhp} delivery
-                </span>
-              ) : (
-                <span className="text-slate-500">Click to set location on map</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMapOpen(true)}
+                className="flex-1 flex items-center gap-2 px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-left hover:border-primary/50 transition-colors"
+              >
+                <MapPin className="w-5 h-5 text-primary shrink-0" />
+                {deliveryLocation ? (
+                  <span className="text-slate-900 dark:text-white">
+                    {deliveryLocation.placeName || `${deliveryLocation.distance}km from hub`} • ₱{deliveryLocation.feePhp} delivery
+                  </span>
+                ) : (
+                  <span className="text-slate-500">Click to set location on map</span>
+                )}
+              </button>
+              {deliveryLocation && landmark.trim() && (
+                <button
+                  type="button"
+                  onClick={handleSaveAddress}
+                  disabled={savingAddress}
+                  className="px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
+                >
+                  {savingAddress ? "Saving..." : "Save"}
+                </button>
               )}
-            </button>
+            </div>
           </div>
 
           <div>
@@ -586,20 +788,53 @@ export default function CheckoutPage() {
               </label>
             </div>
             {timeWindow === "scheduled" && (
-              <div className="flex gap-3 mt-3">
-                <input
-                  type="date"
-                  value={scheduledDate}
-                  onChange={(e) => setScheduledDate(e.target.value)}
-                  min={minDate}
-                  className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
-                />
-                <input
-                  type="time"
-                  value={scheduledTime}
-                  onChange={(e) => setScheduledTime(e.target.value)}
-                  className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
-                />
+              <div className="mt-3 space-y-3">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Quick select</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "12-1pm", date: 0, time: "12:00" },
+                    { label: "6-7pm", date: 0, time: "18:00" },
+                    { label: "7-8pm", date: 0, time: "19:00" },
+                    { label: "Tomorrow 12pm", date: 1, time: "12:00" },
+                    { label: "Tomorrow 6pm", date: 1, time: "18:00" },
+                  ].map((slot) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + slot.date);
+                    const dateStr = d.toISOString().slice(0, 10);
+                    return (
+                      <button
+                        key={`${slot.date}-${slot.time}`}
+                        type="button"
+                        onClick={() => {
+                          setScheduledDate(dateStr);
+                          setScheduledTime(slot.time);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-sm ${
+                          scheduledDate === dateStr && scheduledTime === slot.time
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
+                        }`}
+                      >
+                        {slot.date === 0 ? `Today ${slot.label}` : slot.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-3">
+                  <input
+                    type="date"
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    min={minDate}
+                    className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                  />
+                  <input
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -634,6 +869,47 @@ export default function CheckoutPage() {
                 </label>
               ))}
             </div>
+            {paymentMethod === "card" && token && savedPaymentMethods.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Saved cards</p>
+                <div className="space-y-2">
+                  {savedPaymentMethods.map((pm) => (
+                    <label
+                      key={pm.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${
+                        selectedSavedCardId === pm.id ? "border-primary bg-primary/5" : "border-slate-200 dark:border-slate-700"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="savedCard"
+                        checked={selectedSavedCardId === pm.id}
+                        onChange={() => setSelectedSavedCardId(pm.id)}
+                        className="text-primary"
+                      />
+                      <CreditCard className="w-5 h-5 text-slate-500" />
+                      <span className="text-slate-900 dark:text-white capitalize">{pm.brand} •••• {pm.last4}</span>
+                      {pm.isDefault && <span className="text-xs text-slate-500">(default)</span>}
+                    </label>
+                  ))}
+                  <label
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${
+                      selectedSavedCardId === null ? "border-primary bg-primary/5" : "border-slate-200 dark:border-slate-700"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="savedCard"
+                      checked={selectedSavedCardId === null}
+                      onChange={() => setSelectedSavedCardId(null)}
+                      className="text-primary"
+                    />
+                    <CreditCard className="w-5 h-5 text-slate-500" />
+                    <span className="text-slate-900 dark:text-white">Use new card</span>
+                  </label>
+                </div>
+              </div>
+            )}
             {paymentMethod === "cash" && (
               <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-200">
                 <strong>Geolocation required.</strong> Order is confirmed by the restaurant or us via a call to you before preparation.
@@ -727,6 +1003,55 @@ export default function CheckoutPage() {
                 {appliedPromo.code}: -₱{appliedPromo.discountPhp.toLocaleString()} applied
               </p>
             )}
+            {loyaltyPoints >= 10 && (
+              <div className="mt-2">
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  Use loyalty points ({loyaltyPoints} available, 10 pts = ₱5)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setUseLoyaltyPoints(0)}
+                    className={`px-3 py-1.5 rounded text-sm ${useLoyaltyPoints === 0 ? "bg-primary text-primary-foreground" : "bg-slate-100 dark:bg-slate-800"}`}
+                  >
+                    None
+                  </button>
+                  {[50, 100, 150, 200].filter((p) => p <= loyaltyPoints).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setUseLoyaltyPoints(p)}
+                      className={`px-3 py-1.5 rounded text-sm ${useLoyaltyPoints === p ? "bg-primary text-primary-foreground" : "bg-slate-100 dark:bg-slate-800"}`}
+                    >
+                      {p} pts (-₱{Math.floor(p / 10) * 5})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {referralCreditsPhp > 0 && (
+              <div className="mt-2">
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  Use referral credit (₱{referralCreditsPhp} available)
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setUseReferralCredit(0)}
+                    className={`px-3 py-1.5 rounded text-sm ${useReferralCredit === 0 ? "bg-primary text-primary-foreground" : "bg-slate-100 dark:bg-slate-800"}`}
+                  >
+                    None
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUseReferralCredit(referralCreditsPhp)}
+                    className={`px-3 py-1.5 rounded text-sm ${useReferralCredit > 0 ? "bg-primary text-primary-foreground" : "bg-slate-100 dark:bg-slate-800"}`}
+                  >
+                    Use ₱{referralCreditsPhp}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="mt-2">
               <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Referral code (optional)</label>
               <input
@@ -753,10 +1078,22 @@ export default function CheckoutPage() {
                 <span>Subtotal</span>
                 <span>₱{subtotalPhp.toLocaleString()}</span>
               </div>
-              {discountPhp > 0 && (
+              {promoDiscountPhp > 0 && (
                 <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
-                  <span>Discount ({appliedPromo?.code})</span>
-                  <span>-₱{discountPhp.toLocaleString()}</span>
+                  <span>Promo ({appliedPromo?.code})</span>
+                  <span>-₱{promoDiscountPhp.toLocaleString()}</span>
+                </div>
+              )}
+              {loyaltyDiscountPhp > 0 && (
+                <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+                  <span>Loyalty points</span>
+                  <span>-₱{loyaltyDiscountPhp.toLocaleString()}</span>
+                </div>
+              )}
+              {referralDiscountPhp > 0 && (
+                <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+                  <span>Referral credit</span>
+                  <span>-₱{referralDiscountPhp.toLocaleString()}</span>
                 </div>
               )}
               {deliveryFeePhp > 0 && (

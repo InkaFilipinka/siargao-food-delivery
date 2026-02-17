@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const orderId = session.metadata?.orderId;
+    const customerId = session.metadata?.customerId;
     if (orderId) {
       const supabase = getSupabaseAdmin();
       if (supabase) {
@@ -35,6 +36,26 @@ export async function POST(request: NextRequest) {
           .update({ payment_status: "paid" })
           .eq("id", orderId)
           .eq("payment_method", "card");
+        if (customerId && session.payment_intent) {
+          const pi = typeof session.payment_intent === "string"
+            ? await stripe.paymentIntents.retrieve(session.payment_intent)
+            : session.payment_intent;
+          const pmId = pi.payment_method;
+          if (pmId && typeof pmId === "string") {
+            const pm = await stripe.paymentMethods.retrieve(pmId);
+            const { count } = await supabase
+              .from("customer_payment_methods")
+              .select("id", { count: "exact", head: true })
+              .eq("customer_id", customerId);
+            await supabase.from("customer_payment_methods").insert({
+              customer_id: customerId,
+              stripe_payment_method_id: pm.id,
+              brand: pm.card?.brand ?? null,
+              last4: pm.card?.last4 ?? null,
+              is_default: (count ?? 0) === 0,
+            });
+          }
+        }
       }
     }
 

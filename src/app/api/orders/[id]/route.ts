@@ -79,6 +79,7 @@ export async function GET(
       customerName: order.customer_name,
       deliveryAddress: order.delivery_address,
       landmark: order.landmark,
+      notes: order.notes ?? null,
       deliveryLat: order.delivery_lat ?? null,
       deliveryLng: order.delivery_lng ?? null,
       totalPhp: order.total_php,
@@ -93,6 +94,8 @@ export async function GET(
       estimatedDeliveryAt: order.estimated_delivery_at ?? null,
       cancelCutoffAt: order.cancel_cutoff_at ?? null,
       driverArrivedAt: order.driver_arrived_at ?? null,
+      driverLat: (order as { driver_lat?: number }).driver_lat ?? null,
+      driverLng: (order as { driver_lng?: number }).driver_lng ?? null,
       items: items || [],
     });
   } catch (err) {

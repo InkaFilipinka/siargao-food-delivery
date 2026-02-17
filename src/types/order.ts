@@ -78,4 +78,6 @@ export interface CreateOrderInput {
   promoCode?: string;
   discountPhp?: number;
   referralCode?: string;
+  loyaltyPointsRedeemed?: number;
+  referralCreditPhp?: number;
 }

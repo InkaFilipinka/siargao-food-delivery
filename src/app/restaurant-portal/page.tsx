@@ -12,7 +12,8 @@ import {
   MapPin,
   Lock,
   UtensilsCrossed,
-  List,
+  BarChart3,
+  Settings,
   ToggleLeft,
   ToggleRight,
 } from "lucide-react";
@@ -64,7 +65,7 @@ export default function RestaurantPortalPage() {
   const [loginMode, setLoginMode] = useState<"restaurant" | "staff">("restaurant");
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [selectedPrep, setSelectedPrep] = useState<Record<string, number>>({});
-  const [tab, setTab] = useState<"orders" | "availability" | "earnings">("orders");
+  const [tab, setTab] = useState<"orders" | "availability" | "earnings" | "analytics" | "settings">("orders");
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [togglingItem, setTogglingItem] = useState<string | null>(null);
   const [earnings, setEarnings] = useState<{
@@ -72,6 +73,13 @@ export default function RestaurantPortalPage() {
     paidTotalPhp: number;
     payouts: { id: string; amountPhp: number; paidAt: string; orderIds: string[] }[];
   } | null>(null);
+  const [analytics, setAnalytics] = useState<{
+    byDay: { date: string; ordersCount: number; revenuePhp: number }[];
+    totalOrders: number;
+    totalRevenuePhp: number;
+  } | null>(null);
+  const [settings, setSettings] = useState<{ hours: string | null; minOrderPhp: number | null } | null>(null);
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
     if (typeof window === "undefined") return {};
@@ -136,11 +144,21 @@ export default function RestaurantPortalPage() {
         .then((d) => setAvailability(d.availability || {}))
         .catch(() => setAvailability({}));
       loadEarnings();
+      fetch(`/api/restaurant/analytics?slug=${encodeURIComponent(slug)}&days=14`, { headers: getAuthHeaders() })
+        .then((res) => res.json())
+        .then((d) => setAnalytics(d.byDay ? { byDay: d.byDay, totalOrders: d.totalOrders ?? 0, totalRevenuePhp: d.totalRevenuePhp ?? 0 } : null))
+        .catch(() => setAnalytics(null));
+      fetch(`/api/restaurant/settings?slug=${encodeURIComponent(slug)}`, { headers: getAuthHeaders() })
+        .then((res) => res.json())
+        .then((d) => setSettings({ hours: d.hours ?? null, minOrderPhp: d.minOrderPhp ?? null }))
+        .catch(() => setSettings(null));
     } else {
       setOrders([]);
       setRestaurant(null);
       setAvailability({});
       setEarnings(null);
+      setAnalytics(null);
+      setSettings(null);
     }
   }, [slug, loadOrders, loadEarnings]);
 
@@ -403,8 +421,124 @@ export default function RestaurantPortalPage() {
                   >
                     Earnings
                   </button>
+                  <button
+                    onClick={() => setTab("analytics")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                      tab === "analytics"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    Analytics
+                  </button>
+                  <button
+                    onClick={() => setTab("settings")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                      tab === "settings"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    Settings
+                  </button>
                 </div>
 
+                {tab === "analytics" && (
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 mb-6">
+                    <h3 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5" />
+                      Analytics (last 14 days)
+                    </h3>
+                    {analytics ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Orders</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">{analytics.totalOrders}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Revenue</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">₱{analytics.totalRevenuePhp?.toLocaleString() ?? "0"}</p>
+                          </div>
+                        </div>
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {analytics.byDay?.filter((d) => d.ordersCount > 0 || d.revenuePhp > 0).map((d) => (
+                            <div key={d.date} className="flex justify-between text-sm py-1 border-b border-slate-100 dark:border-slate-700">
+                              <span className="text-slate-700 dark:text-slate-300">{new Date(d.date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}</span>
+                              <span>{d.ordersCount} orders · ₱{d.revenuePhp.toLocaleString()}</span>
+                            </div>
+                          )) ?? null}
+                          {(!analytics.byDay || analytics.byDay.every((d) => d.ordersCount === 0 && d.revenuePhp === 0)) && (
+                            <p className="text-sm text-slate-500">No orders in this period.</p>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-500">Loading analytics…</p>
+                    )}
+                  </div>
+                )}
+                {tab === "settings" && (
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 mb-6">
+                    <h3 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Settings className="w-5 h-5" />
+                      Restaurant settings
+                    </h3>
+                    <p className="text-xs text-slate-500 mb-3">Override displayed hours and minimum order. Leave blank to use defaults.</p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Hours (e.g. 08:00-22:00)</label>
+                        <input
+                          type="text"
+                          value={settings?.hours ?? ""}
+                          onChange={(e) => setSettings((s) => ({ hours: e.target.value || null, minOrderPhp: s?.minOrderPhp ?? null }))}
+                          placeholder="08:00-22:00"
+                          className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Min order (₱)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={settings?.minOrderPhp ?? ""}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value, 10);
+                            setSettings((s) => ({ hours: s?.hours ?? null, minOrderPhp: e.target.value === "" || isNaN(v) ? null : v }));
+                          }}
+                          placeholder="e.g. 100"
+                          className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                        />
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!slug) return;
+                          setSettingsSaving(true);
+                          try {
+                            const res = await fetch("/api/restaurant/settings", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json", ...getAuthHeaders() } as HeadersInit,
+                              body: JSON.stringify({
+                                slug,
+                                hours: settings?.hours ?? null,
+                                minOrderPhp: settings?.minOrderPhp ?? null,
+                              }),
+                            });
+                            if (!res.ok) throw new Error("Failed");
+                          } catch {
+                            setError("Failed to save settings");
+                          } finally {
+                            setSettingsSaving(false);
+                          }
+                        }}
+                        disabled={settingsSaving}
+                        className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium disabled:opacity-70"
+                      >
+                        {settingsSaving ? "Saving…" : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {tab === "earnings" && (
                   <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 mb-6">
                     <h3 className="font-semibold text-slate-900 dark:text-white mb-4">

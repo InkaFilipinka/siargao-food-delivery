@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { getIsGroceryBySlug } from "@/data/combined";
 import { RestaurantCard } from "@/components/restaurant-card";
 import { MapPicker } from "@/components/map-picker";
-import { MapPin, RotateCcw, EyeOff, Plus } from "lucide-react";
+import { MapPin, RotateCcw, EyeOff, Plus, Search } from "lucide-react";
 import { HomePageSkeleton } from "@/components/skeleton-card";
 import { cn } from "@/lib/utils";
 import { useDeliveryStore } from "@/store/delivery-store";
@@ -30,11 +30,14 @@ type Restaurant = {
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [mapOpen, setMapOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"default" | "rating" | "name">("default");
   const { location: deliveryLocation, setLocation } = useDeliveryStore();
   const router = useRouter();
   const lastOrder = useLastOrderStore((s) => s.items);
   const addItem = useCartStore((s) => s.addItem);
   const [hideClosed, setHideClosed] = useState(false);
+  const [ratings, setRatings] = useState<Record<string, { avg: number; count: number }>>({});
   const [data, setData] = useState<{
     restaurants: Restaurant[];
     categories: string[];
@@ -52,12 +55,21 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (!data?.restaurants?.length) return;
+    const slugs = data.restaurants.map((r) => r.slug).slice(0, 50);
+    fetch(`/api/restaurants/ratings?slugs=${slugs.join(",")}`)
+      .then((r) => r.json())
+      .then((d) => setRatings(d.ratings || {}))
+      .catch(() => {});
+  }, [data?.restaurants]);
+
   const favorites = useFavoritesStore((s) => s.restaurantSlugs);
   const itemFavorites = useFavoritesStore((s) => s.itemFavorites);
 
   const favoriteItemsWithData = useMemo(() => {
     if (!data) return [];
-    return itemFavorites
+    let list = itemFavorites
       .map((fav) => {
         const rest = data.restaurants.find((r) => r.slug === fav.restaurantSlug);
         const item = rest?.menuItems.find((m) => m.name === fav.itemName);
@@ -65,7 +77,16 @@ export default function Home() {
         return { restaurant: rest, item };
       })
       .filter(Boolean) as { restaurant: Restaurant; item: { name: string; price: string } }[];
-  }, [data, itemFavorites]);
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(
+        (f) =>
+          f.item.name.toLowerCase().includes(q) ||
+          f.restaurant.name.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [data, itemFavorites, searchQuery]);
 
   const filteredRestaurants = useMemo(() => {
     if (!data) return [];
@@ -86,8 +107,23 @@ export default function Home() {
         return open === null || open === true;
       });
     }
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.name.toLowerCase().includes(q) ||
+          r.categories.some((c) => c.toLowerCase().includes(q)) ||
+          r.tags?.some((t) => t.toLowerCase().includes(q)) ||
+          r.menuItems?.some((m) => m.name.toLowerCase().includes(q))
+      );
+    }
+    if (sortBy === "rating") {
+      list = [...list].sort((a, b) => (ratings[b.slug]?.avg ?? 0) - (ratings[a.slug]?.avg ?? 0));
+    } else if (sortBy === "name") {
+      list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    }
     return list;
-  }, [data, selectedCategory, favorites, hideClosed]);
+  }, [data, selectedCategory, favorites, hideClosed, searchQuery, sortBy, ratings]);
 
   if (loading) {
     return <HomePageSkeleton />;
@@ -124,6 +160,22 @@ export default function Home() {
               </p>
             </div>
           </button>
+        </div>
+      </section>
+
+      {/* Search */}
+      <section className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search restaurants or menu items..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
         </div>
       </section>
 
@@ -193,7 +245,16 @@ export default function Home() {
                   ? "Your Favorite Items"
                   : selectedCategory}
           </h2>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "default" | "rating" | "name")}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"
+            >
+              <option value="default">Sort: Default</option>
+              <option value="rating">Sort: Rating</option>
+              <option value="name">Sort: Name</option>
+            </select>
             <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
               <input
                 type="checkbox"
@@ -259,7 +320,7 @@ export default function Home() {
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {filteredRestaurants.map((restaurant, i) => (
             <div key={restaurant.name} className="animate-in" style={{ animationDelay: `${i * 30}ms` }}>
-              <RestaurantCard restaurant={restaurant} />
+              <RestaurantCard restaurant={restaurant} rating={ratings[restaurant.slug]} />
             </div>
           ))}
         </div>

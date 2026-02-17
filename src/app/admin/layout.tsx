@@ -13,6 +13,8 @@ import {
   ChevronLeft,
   Search,
   DollarSign,
+  Tag,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +27,8 @@ const navItems = [
   { href: "/admin/orders", label: "Orders", icon: Package },
   { href: "/admin/support", label: "Support", icon: Search },
   { href: "/admin/cash", label: "Cash ledger", icon: DollarSign },
+  { href: "/admin/promos", label: "Promo codes", icon: Tag },
+  { href: "/admin/reviews", label: "Reviews", icon: MessageSquare },
 ];
 
 export default function AdminLayout({

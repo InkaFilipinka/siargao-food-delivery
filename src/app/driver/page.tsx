@@ -13,6 +13,9 @@ import {
   DollarSign,
   Lock,
   Package,
+  Navigation,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
@@ -64,6 +67,9 @@ export default function DriverPage() {
   const [cashReceived, setCashReceived] = useState("");
   const [cashTurnedIn, setCashTurnedIn] = useState("");
   const [cashReason, setCashReason] = useState("");
+  const [sharingLocation, setSharingLocation] = useState<string | null>(null);
+  const [isAvailable, setIsAvailable] = useState(true);
+  const [togglingAvailability, setTogglingAvailability] = useState(false);
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
     if (typeof window === "undefined") return {};
@@ -161,6 +167,33 @@ export default function DriverPage() {
       )
       .catch(() => setEarnings(null));
   }, [needsAuth, getAuthHeaders, orders]);
+
+  useEffect(() => {
+    if (needsAuth) return;
+    fetch("/api/driver/availability", { headers: getAuthHeaders() })
+      .then((r) => r.json())
+      .then((d) => setIsAvailable(d.isAvailable ?? true))
+      .catch(() => setIsAvailable(true));
+  }, [needsAuth, getAuthHeaders]);
+
+  async function toggleAvailability() {
+    setTogglingAvailability(true);
+    try {
+      const res = await fetch("/api/driver/availability", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() } as HeadersInit,
+        body: JSON.stringify({ isAvailable: !isAvailable }),
+      });
+      const data = await res.json();
+      if (res.ok && typeof data.isAvailable === "boolean") {
+        setIsAvailable(data.isAvailable);
+      }
+    } catch {
+      setError("Failed to update availability");
+    } finally {
+      setTogglingAvailability(false);
+    }
+  }
 
   async function handleDriverLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -286,6 +319,31 @@ export default function DriverPage() {
 
         {!needsAuth && (
           <>
+            <div className="mb-6 flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+              <div>
+                <p className="font-medium text-slate-900 dark:text-white">Availability</p>
+                <p className="text-sm text-slate-500">You {isAvailable ? "are" : "are not"} receiving new orders</p>
+              </div>
+              <button
+                onClick={toggleAvailability}
+                disabled={togglingAvailability}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-70"
+              >
+                {togglingAvailability ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : isAvailable ? (
+                  <>
+                    <ToggleRight className="w-6 h-6 text-green-600" />
+                    <span className="text-green-600 dark:text-green-400">Online</span>
+                  </>
+                ) : (
+                  <>
+                    <ToggleLeft className="w-6 h-6 text-slate-400" />
+                    <span className="text-slate-500">Offline</span>
+                  </>
+                )}
+              </button>
+            </div>
             {earnings && (
               <div className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -433,13 +491,50 @@ export default function DriverPage() {
                         </button>
                       )}
                       {o.status === "out_for_delivery" && (
-                        <button
-                          onClick={() => updateOrder(o.id, { driverArrived: true })}
-                          disabled={updatingId === o.id}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
-                        >
-                          I&apos;m here
-                        </button>
+                        <>
+                          <button
+                            onClick={async () => {
+                              if (!navigator.geolocation) return;
+                              setSharingLocation(o.id);
+                              navigator.geolocation.getCurrentPosition(
+                                async (pos) => {
+                                  try {
+                                    await fetch(`/api/orders/${o.id}/driver-location`, {
+                                      method: "PUT",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        ...getAuthHeaders(),
+                                      } as HeadersInit,
+                                      body: JSON.stringify({
+                                        lat: pos.coords.latitude,
+                                        lng: pos.coords.longitude,
+                                      }),
+                                    });
+                                  } finally {
+                                    setSharingLocation(null);
+                                  }
+                                },
+                                () => setSharingLocation(null)
+                              );
+                            }}
+                            disabled={sharingLocation === o.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-sm font-medium disabled:opacity-50"
+                          >
+                            {sharingLocation === o.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Navigation className="w-4 h-4" />
+                            )}
+                            Share location
+                          </button>
+                          <button
+                            onClick={() => updateOrder(o.id, { driverArrived: true })}
+                            disabled={updatingId === o.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                          >
+                            I&apos;m here
+                          </button>
+                        </>
                       )}
                       {(o.status === "picked" || o.status === "out_for_delivery") && (
                         <button

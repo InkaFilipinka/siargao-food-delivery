@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, ChevronRight, UtensilsCrossed, Heart, Clock } from "lucide-react";
+import { MapPin, ChevronRight, UtensilsCrossed, Heart, Clock, Star } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useFavoritesStore } from "@/store/favorites-store";
@@ -23,6 +23,7 @@ type RestaurantWithMenu = {
 interface RestaurantCardProps {
   restaurant: RestaurantWithMenu;
   className?: string;
+  rating?: { avg: number; count: number };
 }
 
 function formatHours(h: string): string {
@@ -37,7 +38,7 @@ function formatHours(h: string): string {
   return `${fmt(open)}–${fmt(close)}`;
 }
 
-export function RestaurantCard({ restaurant, className }: RestaurantCardProps) {
+export function RestaurantCard({ restaurant, className, rating }: RestaurantCardProps) {
   const { isFavorite, toggleRestaurant } = useFavoritesStore();
   const isFav = isFavorite(restaurant.slug);
   const priceDisplay = restaurant.priceRange || "—";
@@ -107,6 +108,12 @@ export function RestaurantCard({ restaurant, className }: RestaurantCardProps) {
           <ChevronRight className="w-5 h-5 text-slate-400 shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-transform duration-200" />
         </div>
         <div className="flex items-center gap-3 mt-3 text-xs text-slate-500 dark:text-slate-400">
+          {rating && rating.count > 0 && (
+            <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+              <Star className="w-3.5 h-3.5 fill-current" />
+              {rating.avg.toFixed(1)} ({rating.count})
+            </span>
+          )}
           <span className="font-medium text-slate-700 dark:text-slate-300">{priceDisplay}</span>
           {restaurant.hours && (
             <span className="flex items-center gap-1">

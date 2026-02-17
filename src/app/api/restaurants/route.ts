@@ -34,13 +34,18 @@ export async function GET() {
   const configBySlug = new Map<string, { commission_pct: number }>();
 
   const supabase = getSupabaseAdmin();
+  const hoursMinOrderBySlug = new Map<string, { hours: string | null; minOrderPhp: number | null }>();
   if (supabase) {
     const { data: configs } = await supabase
       .from("restaurant_config")
-      .select("slug, commission_pct")
+      .select("slug, commission_pct, hours, min_order_php")
       .in("slug", slugs);
     for (const c of configs || []) {
       configBySlug.set(c.slug, { commission_pct: c.commission_pct ?? 30 });
+      hoursMinOrderBySlug.set(c.slug, {
+        hours: c.hours ?? null,
+        minOrderPhp: c.min_order_php != null ? Number(c.min_order_php) : null,
+      });
     }
   }
 
@@ -67,8 +72,8 @@ export async function GET() {
       menuItems,
       imageUrls,
       featuredImage: imageUrls[0] || null,
-      hours: getRestaurantHours(slug) || getRestaurantHours(r.menuUrl),
-      minOrderPhp: getMinOrderPhp(slug) ?? getMinOrderPhp(r.menuUrl),
+      hours: hoursMinOrderBySlug.get(slug)?.hours ?? getRestaurantHours(slug) ?? getRestaurantHours(r.menuUrl) ?? null,
+      minOrderPhp: hoursMinOrderBySlug.get(slug)?.minOrderPhp ?? getMinOrderPhp(slug) ?? getMinOrderPhp(r.menuUrl) ?? null,
     };
   });
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { verifyToken } from "@/lib/auth";
 
 function getStripe() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -18,10 +20,43 @@ export async function POST(request: NextRequest) {
     const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
     const stripe = getStripe();
-    const session = await stripe.checkout.sessions.create({
+    let customerId: string | undefined;
+    let stripeCustomerId: string | undefined;
+    const authHeader = request.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const decoded = verifyToken(authHeader.slice(7));
+      if (decoded?.type === "customer") {
+        customerId = decoded.customerId;
+        const supabase = getSupabaseAdmin();
+        if (supabase) {
+          const { data } = await supabase
+            .from("customers")
+            .select("stripe_customer_id")
+            .eq("id", customerId)
+            .single();
+          if (data?.stripe_customer_id) {
+            stripeCustomerId = data.stripe_customer_id;
+          } else {
+            const c = await stripe.customers.create({
+              email: customerEmail || undefined,
+              metadata: { siargao_customer_id: customerId },
+            });
+            stripeCustomerId = c.id;
+            await supabase
+              .from("customers")
+              .update({ stripe_customer_id: stripeCustomerId })
+              .eq("id", customerId);
+          }
+        }
+      }
+    }
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ["card"],
       mode: "payment",
-      customer_email: customerEmail,
+      ...(stripeCustomerId
+        ? { customer: stripeCustomerId, payment_intent_data: { setup_future_usage: "off_session" } }
+        : { customer_email: customerEmail }),
       line_items:
         lineItems?.length > 0
           ? lineItems.map(
@@ -44,11 +79,12 @@ export async function POST(request: NextRequest) {
                 quantity: 1,
               },
             ],
-      metadata: { orderId, customerName },
+      metadata: { orderId, customerName, ...(customerId ? { customerId } : {}) },
       success_url: `${origin}/order-confirmation?id=${orderId}&stripe=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout?cancel=stripe`,
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
-    });
+    };
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     return NextResponse.json({ sessionId: session.id, url: session.url });
   } catch (err) {

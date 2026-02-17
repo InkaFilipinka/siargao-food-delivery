@@ -145,6 +145,15 @@ ${lines.join("\n")}
 export async function POST(request: Request) {
   try {
     const body: CreateOrderInput = await request.json();
+    let customerId: string | undefined;
+    const authHeader = request.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const { verifyToken } = await import("@/lib/auth");
+      const decoded = verifyToken(authHeader.slice(7));
+      if (decoded?.type === "customer") {
+        customerId = decoded.customerId;
+      }
+    }
 
     const {
       customerName,
@@ -168,6 +177,8 @@ export async function POST(request: Request) {
       promoCode,
       discountPhp,
       referralCode,
+      loyaltyPointsRedeemed,
+      referralCreditPhp,
     } = body;
 
     if (!customerName?.trim() || !customerPhone?.trim()) {
@@ -203,11 +214,55 @@ export async function POST(request: Request) {
       );
     }
 
+    const supabase = getSupabaseAdmin();
     const subtotalPhp = items.reduce((sum, i) => sum + i.priceValue * i.quantity, 0);
     const deliveryFee = deliveryFeePhp ?? 0;
     const tip = tipPhp ?? 0;
     const priorityFee = priorityDelivery ? 50 : 0;
-    const discount = Math.min(discountPhp ?? 0, subtotalPhp);
+    const promoDiscount = Math.min(discountPhp ?? 0, subtotalPhp);
+    let loyaltyDiscount = 0;
+    let loyaltyPointsToDeduct = 0;
+    let referralCreditsToApply: string[] = [];
+    let referralDiscount = 0;
+
+    if (supabase && loyaltyPointsRedeemed && loyaltyPointsRedeemed > 0) {
+      const pointsValue = Math.floor(loyaltyPointsRedeemed / 10) * 5;
+      if (pointsValue > 0) {
+        const { data: cust } = await supabase
+          .from("customers")
+          .select("id, loyalty_points")
+          .eq("phone", customerPhone.trim())
+          .maybeSingle();
+        if (cust && (cust.loyalty_points ?? 0) >= loyaltyPointsRedeemed) {
+          loyaltyPointsToDeduct = loyaltyPointsRedeemed;
+          loyaltyDiscount = Math.min(pointsValue, subtotalPhp - promoDiscount);
+        }
+      }
+    }
+    if (supabase && referralCreditPhp && referralCreditPhp > 0) {
+      const cleanPhone = customerPhone.replace(/\D/g, "");
+      const { data: cust } = await supabase.from("customers").select("id").or(`phone.eq.${customerPhone.trim()},phone.ilike.%${cleanPhone.slice(-6)}`).maybeSingle();
+      if (cust) {
+        const { data: pending } = await supabase
+          .from("referral_credits")
+          .select("id, amount_php")
+          .eq("referrer_id", cust.id)
+          .eq("status", "pending")
+          .order("created_at", { ascending: true });
+        let remaining = Math.min(referralCreditPhp, subtotalPhp - promoDiscount - loyaltyDiscount);
+        for (const c of pending || []) {
+          if (remaining <= 0) break;
+          const amt = Math.min(c.amount_php ?? 0, remaining);
+          if (amt > 0) {
+            referralCreditsToApply.push(c.id);
+            referralDiscount += amt;
+            remaining -= amt;
+          }
+        }
+      }
+    }
+
+    const discount = promoDiscount + loyaltyDiscount + referralDiscount;
     const totalPhp = Math.max(0, subtotalPhp - discount + deliveryFee + tip + priorityFee);
 
     const distanceKm = deliveryDistanceKm ?? 3;
@@ -222,12 +277,11 @@ export async function POST(request: Request) {
     const cancelCutoffDate = new Date();
     cancelCutoffDate.setMinutes(cancelCutoffDate.getMinutes() + 5);
 
-    const supabase = getSupabaseAdmin();
-
     if (supabase) {
       const { data: order, error } = await supabase
         .from("orders")
         .insert({
+          customer_id: customerId ?? null,
           customer_name: customerName.trim(),
           customer_phone: customerPhone.trim(),
           delivery_address: address,
@@ -313,6 +367,16 @@ export async function POST(request: Request) {
             status: "pending",
           });
         }
+      }
+
+      if (loyaltyPointsToDeduct > 0) {
+        const { data: cust } = await supabase.from("customers").select("id, loyalty_points").eq("phone", customerPhone.trim()).maybeSingle();
+        if (cust) {
+          await supabase.from("customers").update({ loyalty_points: Math.max(0, (cust.loyalty_points ?? 0) - loyaltyPointsToDeduct), updated_at: new Date().toISOString() }).eq("id", cust.id);
+        }
+      }
+      for (const credId of referralCreditsToApply) {
+        await supabase.from("referral_credits").update({ status: "applied" }).eq("id", credId);
       }
 
       sendOrderNtfy(order.id, items, landmark.trim(), customerPhone.trim());
