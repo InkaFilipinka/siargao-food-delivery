@@ -11,6 +11,7 @@ interface MenuItemRowProps {
   itemName: string;
   price: string;
   available?: boolean;
+  isGrocery?: boolean;
 }
 
 export function MenuItemRow({
@@ -19,8 +20,10 @@ export function MenuItemRow({
   itemName,
   price,
   available = true,
+  isGrocery = false,
 }: MenuItemRowProps) {
   const addItem = useCartStore((s) => s.addItem);
+  const clearAddItemError = useCartStore((s) => s.clearAddItemError);
   const isItemFav = useFavoritesStore((s) => s.isItemFavorite(restaurantSlug, itemName));
   const toggleItemFav = useFavoritesStore((s) => s.toggleItemFavorite);
 
@@ -54,15 +57,22 @@ export function MenuItemRow({
       </div>
       {available ? (
         <button
-          onClick={() =>
-            addItem({
+          onClick={() => {
+            clearAddItemError();
+            const ok = addItem({
               restaurantName,
               restaurantSlug,
               itemName,
               price,
               quantity: 1,
-            })
-          }
+              isGrocery,
+            });
+            if (!ok && typeof window !== "undefined") {
+              window.alert(
+                "Each order can include items from at most 1 restaurant and 1 grocery. For more, please place a separate order."
+              );
+            }
+          }}
           className="shrink-0 p-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
           aria-label={`Add ${itemName} to cart`}
         >

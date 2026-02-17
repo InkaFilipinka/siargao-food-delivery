@@ -28,6 +28,7 @@ export function RestaurantMenuWithAvailability({ restaurant }: RestaurantMenuWit
           itemName={item.name}
           price={item.price}
           available={availability[item.name] !== false}
+          isGrocery={restaurant.categories?.includes("Groceries")}
         />
       ))}
     </ul>

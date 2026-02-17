@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { getIsGroceryBySlug } from "@/data/combined";
 import { RestaurantCard } from "@/components/restaurant-card";
 import { MapPicker } from "@/components/map-picker";
 import { MapPin, RotateCcw, EyeOff, Plus } from "lucide-react";
@@ -226,14 +227,18 @@ export default function Home() {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => {
-                      addItem({
+                      const ok = addItem({
                         restaurantName: restaurant.name,
                         restaurantSlug: restaurant.slug,
                         itemName: item.name,
                         price: item.price,
                         quantity: 1,
+                        isGrocery: restaurant.categories?.includes("Groceries"),
                       });
-                      router.push("/checkout");
+                      if (ok) router.push("/checkout");
+                      else window.alert(
+                        "Each order can include items from at most 1 restaurant and 1 grocery. For more, please place a separate order."
+                      );
                     }}
                     className="p-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90"
                     aria-label={`Add ${item.name} to cart`}
@@ -285,15 +290,31 @@ export default function Home() {
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
             <button
               onClick={() => {
-                lastOrder.forEach((item) =>
+                const bySlug = new Map<string, boolean>();
+                for (const item of lastOrder) {
+                  const slug = item.restaurantSlug;
+                  if (!bySlug.has(slug)) {
+                    bySlug.set(slug, (item as { isGrocery?: boolean }).isGrocery ?? getIsGroceryBySlug(slug));
+                  }
+                }
+                const groceryCount = [...bySlug.values()].filter(Boolean).length;
+                const restaurantCount = bySlug.size - groceryCount;
+                if (groceryCount > 1 || restaurantCount > 1) {
+                  window.alert(
+                    "Each order can include items from at most 1 restaurant and 1 grocery. Your last order had more — please add items manually or place separate orders."
+                  );
+                  return;
+                }
+                for (const item of lastOrder) {
                   addItem({
                     restaurantName: item.restaurantName,
                     restaurantSlug: item.restaurantSlug,
                     itemName: item.itemName,
                     price: item.price,
                     quantity: item.quantity,
-                  })
-                );
+                    isGrocery: (item as { isGrocery?: boolean }).isGrocery ?? getIsGroceryBySlug(item.restaurantSlug),
+                  });
+                }
                 router.push("/checkout");
               }}
               className="flex items-center gap-3 w-full sm:w-auto justify-center px-6 py-3 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors"

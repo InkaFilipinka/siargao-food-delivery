@@ -5,6 +5,8 @@ export interface CartItem {
   price: string; // e.g. "120 PHP"
   priceValue: number; // numeric for calculations
   quantity: number;
+  /** True if from a grocery (categories include "Groceries"). For max 1 restaurant + 1 grocery per order. */
+  isGrocery?: boolean;
 }
 
 export interface OrderItem {

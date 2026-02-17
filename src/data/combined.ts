@@ -59,6 +59,16 @@ export function getRestaurantBySlug(slug: string): RestaurantWithMenu | undefine
   return combinedRestaurants.find((r) => r.slug === slug);
 }
 
+/** True if venue is a grocery (categories include "Groceries"). Used for max 1 restaurant + 1 grocery per order. */
+export function getIsGroceryBySlug(slug: string): boolean {
+  const r = combinedRestaurants.find((r) => r.slug === slug);
+  return r?.categories?.includes("Groceries") ?? false;
+}
+
+export const slugToIsGrocery = new Map(
+  combinedRestaurants.map((r) => [r.slug, r.categories?.includes("Groceries") ?? false])
+);
+
 export function getRestaurantsByCategory(category: string): RestaurantWithMenu[] {
   if (category === "All") return combinedRestaurants;
   return combinedRestaurants.filter((r) => r.categories.includes(category));

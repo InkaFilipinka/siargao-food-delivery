@@ -93,7 +93,7 @@ export async function GET(request: Request) {
 }
 import { sendNtfy } from "@/lib/ntfy";
 import { getNtfyTopic } from "@/config/restaurant-extras";
-import { getSlugByRestaurantName } from "@/data/combined";
+import { getSlugByRestaurantName, getIsGroceryBySlug } from "@/data/combined";
 import type { CreateOrderInput, OrderItem } from "@/types/order";
 
 function sendOrderNtfy(orderId: string, items: OrderItem[], landmark: string, customerPhone: string) {
@@ -174,6 +174,19 @@ export async function POST(request: Request) {
 
     if (!items?.length) {
       return NextResponse.json({ error: "Order must have at least one item" }, { status: 400 });
+    }
+
+    // Max 1 restaurant + 1 grocery per order
+    const getSlug = (i: OrderItem) =>
+      (i as { restaurantSlug?: string }).restaurantSlug ?? getSlugByRestaurantName(i.restaurantName) ?? i.restaurantName.toLowerCase().replace(/\s+/g, "-");
+    const uniqueSlugs = [...new Set(items.map(getSlug).filter(Boolean))];
+    const grocerySlugs = uniqueSlugs.filter((slug) => getIsGroceryBySlug(slug));
+    const restaurantSlugs = uniqueSlugs.filter((slug) => !getIsGroceryBySlug(slug));
+    if (grocerySlugs.length > 1 || restaurantSlugs.length > 1) {
+      return NextResponse.json(
+        { error: "Each order can include items from at most 1 restaurant and 1 grocery. For more, please place a separate order." },
+        { status: 400 }
+      );
     }
 
     const subtotalPhp = items.reduce((sum, i) => sum + i.priceValue * i.quantity, 0);

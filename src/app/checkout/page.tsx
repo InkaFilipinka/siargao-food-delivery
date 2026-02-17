@@ -10,6 +10,7 @@ import { MapPicker } from "@/components/map-picker";
 import { CryptoPaymentModal } from "@/components/crypto-payment-modal";
 import { ArrowLeft, CreditCard, Loader2, MapPin, Banknote, Smartphone, Wallet } from "lucide-react";
 import type { PaymentMethod } from "@/types/order";
+import { getIsGroceryBySlug } from "@/data/combined";
 
 const TIP_OPTIONS = [0, 20, 50, 100];
 const PRIORITY_FEE_PHP = 50;
@@ -103,6 +104,20 @@ export default function CheckoutPage() {
 
     if (timeWindow === "scheduled" && (!scheduledDate || !scheduledTime)) {
       setError("Please select date and time for scheduled delivery.");
+      setLoading(false);
+      return;
+    }
+
+    // Max 1 restaurant + 1 grocery per order
+    const uniqueSlugs = [...new Set(items.map((i) => i.restaurantSlug))];
+    const isGrocery = (slug: string) => {
+      const item = items.find((i) => i.restaurantSlug === slug);
+      return item?.isGrocery ?? getIsGroceryBySlug(slug);
+    };
+    const grocerySlugs = uniqueSlugs.filter(isGrocery);
+    const restaurantSlugs = uniqueSlugs.filter((slug) => !isGrocery(slug));
+    if (grocerySlugs.length > 1 || restaurantSlugs.length > 1) {
+      setError("Each order can include items from at most 1 restaurant and 1 grocery. For more, please place a separate order (new order ID, new driver).");
       setLoading(false);
       return;
     }
@@ -589,6 +604,7 @@ export default function CheckoutPage() {
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 space-y-2">
             <h2 className="font-semibold text-slate-900 dark:text-white">Order summary</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Max 1 restaurant + 1 grocery per order. More = separate order (new ID, new driver).</p>
             {items.map((item) => (
               <div key={`${item.restaurantSlug}-${item.itemName}`} className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
                 <span>{item.itemName} × {item.quantity}</span>
