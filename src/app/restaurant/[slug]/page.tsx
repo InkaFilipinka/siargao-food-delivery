@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getRestaurantBySlug, combinedRestaurants } from "@/data/combined";
 import { ArrowLeft, ExternalLink, MapPin, MessageCircle } from "lucide-react";
+import { MenuItemRow } from "@/components/menu-item-row";
 
 export function generateStaticParams() {
   return combinedRestaurants.map((r) => ({ slug: r.slug }));
@@ -116,15 +117,13 @@ export default async function RestaurantPage({
             </div>
             <ul className="divide-y divide-slate-200 dark:divide-slate-700">
               {restaurant.menuItems.map((item, i) => (
-                <li
+                <MenuItemRow
                   key={i}
-                  className="flex items-center justify-between gap-4 px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
-                >
-                  <span className="text-slate-900 dark:text-white">{item.name}</span>
-                  <span className="text-amber-600 dark:text-amber-400 font-medium shrink-0">
-                    {item.price}
-                  </span>
-                </li>
+                  restaurantName={restaurant.name}
+                  restaurantSlug={restaurant.slug}
+                  itemName={item.name}
+                  price={item.price}
+                />
               ))}
             </ul>
           </div>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Navigation } from "@/components/navigation";
+import { NavigationWrapper } from "@/components/navigation-wrapper";
 
 export const metadata: Metadata = {
   title: "Siargao Food Delivery | General Luna Restaurants",
@@ -13,7 +13,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <body>
-        <Navigation />
+        <NavigationWrapper />
         {children}
       </body>
     </html>

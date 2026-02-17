@@ -20,12 +20,28 @@ Create `.env.local`:
 ```env
 # Required for map picker (delivery location)
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+
+# Optional: persist orders to database (copy from .env.example)
+NEXT_PUBLIC_SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
+
+### Backend (order persistence)
+
+Orders can be stored in Supabase:
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Run the SQL in `supabase/schema.sql` in the Supabase SQL Editor
+3. Add `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`
+
+Without Supabase, orders still work: the app creates an order ID and opens WhatsApp with a pre-filled message. Staff confirm via WhatsApp.
 
 ### Tech stack
 
 - Next.js 15 + TypeScript
 - Tailwind CSS
+- Zustand (cart state)
+- Supabase (optional order DB)
 - Google Maps (location picker)
 - Restaurant data from siargaodelivery.com
 

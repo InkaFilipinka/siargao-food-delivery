@@ -3,15 +3,21 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
+import { CartButton } from "./cart-button";
 
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/#categories", label: "Categories" },
   { href: "/#restaurants", label: "All Restaurants" },
+  { href: "/checkout", label: "Checkout" },
   { href: "/#order", label: "Order" },
 ];
 
-export function Navigation() {
+interface NavigationProps {
+  onCartClick: () => void;
+}
+
+export function Navigation({ onCartClick }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -39,7 +45,7 @@ export function Navigation() {
             <span>Siargao Delivery</span>
           </Link>
 
-          <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden md:flex items-center space-x-4">
             {navLinks.map((link) =>
               link.href.startsWith("/#") ? (
                 <a
@@ -59,15 +65,19 @@ export function Navigation() {
                 </Link>
               )
             )}
+            <CartButton onClick={onCartClick} />
           </div>
 
-          <button
+          <div className="flex md:hidden items-center gap-2">
+            <CartButton onClick={onCartClick} />
+            <button
             onClick={() => setIsOpen(!isOpen)}
             className="md:hidden text-slate-700 dark:text-slate-300 p-2"
             aria-label={isOpen ? "Close menu" : "Open menu"}
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
+          </div>
         </div>
 
         {isOpen && (

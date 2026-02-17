@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { X, MapPin, AlertCircle } from "lucide-react";
+import { getDeliveryFee } from "@/config/delivery-zones";
 
 interface MapPickerProps {
   onLocationSelect: (location: { lat: number; lng: number; distance: number; placeName?: string }) => void;
@@ -16,7 +17,6 @@ const BASE_LNG = 126.1574;
 const SEARCH_CENTER_LAT = 9.7854;
 const SEARCH_CENTER_LNG = 126.1574;
 const SEARCH_RADIUS_KM = 25;
-const DELIVERY_FEE_PER_KM = 6.5;
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
@@ -218,7 +218,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
 
   if (!isOpen) return null;
 
-  const deliveryCost = distance > 0 ? Math.round(distance * DELIVERY_FEE_PER_KM * 2) : 0;
+  const { feePhp } = distance > 0 ? getDeliveryFee(distance) : { feePhp: 0 };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -274,7 +274,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
                 </div>
                 {distance > 0 && !calculating && (
                   <span className="text-sm text-slate-600 dark:text-slate-400">
-                    Delivery: ₱{deliveryCost} (round trip)
+                    Delivery: ₱{feePhp}
                   </span>
                 )}
               </div>

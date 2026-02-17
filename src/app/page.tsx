@@ -5,6 +5,7 @@ import { RestaurantCard } from "@/components/restaurant-card";
 import { MapPicker } from "@/components/map-picker";
 import { MapPin, UtensilsCrossed } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDeliveryStore } from "@/store/delivery-store";
 
 type Restaurant = {
   name: string;
@@ -21,12 +22,7 @@ type Restaurant = {
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [mapOpen, setMapOpen] = useState(false);
-  const [deliveryLocation, setDeliveryLocation] = useState<{
-    lat: number;
-    lng: number;
-    distance: number;
-    placeName?: string;
-  } | null>(null);
+  const { location: deliveryLocation, setLocation } = useDeliveryStore();
   const [data, setData] = useState<{
     restaurants: Restaurant[];
     categories: string[];
@@ -85,7 +81,7 @@ export default function Home() {
             >
               <MapPin className="w-5 h-5" />
               {deliveryLocation
-                ? `${deliveryLocation.placeName || "Location set"} • ${deliveryLocation.distance}km`
+                ? `${deliveryLocation.placeName || "Location set"} • ${deliveryLocation.distance}km • ₱${deliveryLocation.feePhp} delivery`
                 : "Set delivery location"}
             </button>
           </div>
@@ -198,7 +194,7 @@ export default function Home() {
         isOpen={mapOpen}
         onClose={() => setMapOpen(false)}
         onLocationSelect={(loc) => {
-          setDeliveryLocation(loc);
+          setLocation(loc);
           setMapOpen(false);
         }}
       />
