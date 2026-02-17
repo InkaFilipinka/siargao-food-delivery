@@ -66,6 +66,8 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
   const [calculating, setCalculating] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState<string>("");
+  const [geoAttemptDone, setGeoAttemptDone] = useState(false);
+  const geoResultRef = useRef<{ lat: number; lng: number } | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
@@ -96,12 +98,56 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           position: { lat, lng },
           map,
           title: "Your Delivery Address",
+          draggable: true,
+        });
+        m.addListener("dragend", async () => {
+          const pos = m.getPosition();
+          if (!pos || calculating) return;
+          const newLat = pos.lat();
+          const newLng = pos.lng();
+          setPlaceName("");
+          setSelectedLocation({ lat: newLat, lng: newLng });
+          setCalculating(true);
+          try {
+            const dist = await calculateRoadDistance(BASE_LAT, BASE_LNG, newLat, newLng);
+            setDistance(dist);
+          } catch {
+            setMapError("Could not calculate road distance.");
+          } finally {
+            setCalculating(false);
+          }
         });
         selectedMarkerRef.current = m;
       }
     },
     []
   );
+
+  const tryGeolocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGeoError("Geolocation is not supported by your browser.");
+      setGeoAttemptDone(true);
+      return;
+    }
+    setGeoError("");
+    setGeoLoading(true);
+    setGeoAttemptDone(false);
+    geoResultRef.current = null;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        geoResultRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setGeoLoading(false);
+        setGeoAttemptDone(true);
+      },
+      () => {
+        geoResultRef.current = null;
+        setGeoLoading(false);
+        setGeoAttemptDone(true);
+        setGeoError("Could not get your location. Pick on the map or search below.");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }, []);
 
   const handleUseMyLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -110,6 +156,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
     }
     setGeoError("");
     setGeoLoading(true);
+    geoResultRef.current = null;
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const lat = pos.coords.latitude;
@@ -129,6 +176,20 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
     );
   }, [applyLocationToMap]);
 
+  // When modal opens: try geolocation immediately (default flow)
+  useEffect(() => {
+    if (!isOpen) return;
+    tryGeolocation();
+  }, [isOpen, tryGeolocation]);
+
+  // When map becomes ready and we have geolocation result, apply it
+  useEffect(() => {
+    if (!mapReady || !geoResultRef.current || geoLoading || calculating) return;
+    const { lat, lng } = geoResultRef.current;
+    geoResultRef.current = null;
+    applyLocationToMap(lat, lng, "Current location");
+  }, [mapReady, geoLoading, calculating, applyLocationToMap]);
+
   useEffect(() => {
     if (!isOpen) return;
     setMapError("");
@@ -137,7 +198,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
     setDistance(0);
     setPlaceName("");
     setGeoError("");
-    setGeoLoading(false);
+    setGeoAttemptDone(false);
 
     if (!GOOGLE_MAPS_API_KEY) {
       setMapError("Google Maps API key is missing. Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to .env.local");
@@ -167,11 +228,30 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           const lat = e.latLng.lat();
           const lng = e.latLng.lng();
           if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
-          selectedMarkerRef.current = new window.google.maps.Marker({
+          const m = new window.google.maps.Marker({
             position: { lat, lng },
             map,
             title: "Your Delivery Address",
+            draggable: true,
           });
+          m.addListener("dragend", async () => {
+            const pos = m.getPosition();
+            if (!pos || calculating) return;
+            const newLat = pos.lat();
+            const newLng = pos.lng();
+            setPlaceName("");
+            setSelectedLocation({ lat: newLat, lng: newLng });
+            setCalculating(true);
+            try {
+              const dist = await calculateRoadDistance(BASE_LAT, BASE_LNG, newLat, newLng);
+              setDistance(dist);
+            } catch {
+              setMapError("Could not calculate road distance.");
+            } finally {
+              setCalculating(false);
+            }
+          });
+          selectedMarkerRef.current = m;
           setMapError("");
           setDistance(0);
           setPlaceName("");
@@ -213,11 +293,30 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               map.setCenter({ lat, lng });
               map.setZoom(15);
               if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
-              selectedMarkerRef.current = new window.google.maps.Marker({
+              const searchMarker = new window.google.maps.Marker({
                 position: { lat, lng },
                 map,
                 title: place.name || "Selected Location",
+                draggable: true,
               });
+              searchMarker.addListener("dragend", async () => {
+                const pos = searchMarker.getPosition();
+                if (!pos || calculating) return;
+                const newLat = pos.lat();
+                const newLng = pos.lng();
+                setPlaceName("");
+                setSelectedLocation({ lat: newLat, lng: newLng });
+                setCalculating(true);
+                try {
+                  const dist = await calculateRoadDistance(BASE_LAT, BASE_LNG, newLat, newLng);
+                  setDistance(dist);
+                } catch {
+                  setMapError("Could not calculate road distance.");
+                } finally {
+                  setCalculating(false);
+                }
+              });
+              selectedMarkerRef.current = searchMarker;
               setMapError("");
               setDistance(0);
               setSelectedLocation({ lat, lng });
@@ -292,7 +391,9 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Select Delivery Location</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Search or click on the map</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+              {selectedLocation ? "Drag marker or search to adjust • Add room/guest on checkout" : "Locating you… or pick on map / search below"}
+            </p>
             </div>
             <button onClick={onClose} aria-label="Close" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
               <X className="w-6 h-6" />
@@ -324,8 +425,10 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               <span className="hidden sm:inline">Use my location</span>
             </button>
           </div>
-          {geoError ? (
-            <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">{geoError}</p>
+          {(geoError || (geoLoading && mapReady)) ? (
+            <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+              {geoLoading && mapReady ? "Getting your location..." : geoError}
+            </p>
           ) : null}
         </div>
         <div className="flex-1 relative min-h-[400px]">
@@ -338,8 +441,11 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               </div>
             </div>
           ) : !mapReady ? (
-            <div className="w-full h-full flex items-center justify-center">
+            <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-8">
               <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-slate-600 dark:text-slate-400 text-center">
+                {geoLoading ? "Getting your location..." : "Loading map..."}
+              </p>
             </div>
           ) : null}
           <div ref={mapRef} className="w-full h-full absolute inset-0" />

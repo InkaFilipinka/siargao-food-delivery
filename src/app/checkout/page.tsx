@@ -15,6 +15,19 @@ import { getIsGroceryBySlug } from "@/data/combined";
 const TIP_OPTIONS = [0, 20, 50, 100];
 const PRIORITY_FEE_PHP = 50;
 
+function buildDeliveryAddress(
+  base: string,
+  room?: string,
+  floor?: string,
+  guestName?: string
+): string {
+  const parts = [base];
+  if (room?.trim()) parts.push(`Room ${room.trim()}`);
+  if (floor?.trim()) parts.push(/^floor\s/i.test(floor.trim()) ? floor.trim() : `Floor ${floor.trim()}`);
+  if (guestName?.trim()) parts.push(`Guest: ${guestName.trim()}`);
+  return parts.join(" • ");
+}
+
 function formatOrderForWhatsApp(
   orderId: string,
   items: { restaurantName: string; itemName: string; price: string; quantity: number }[],
@@ -47,6 +60,9 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [landmark, setLandmark] = useState("");
+  const [room, setRoom] = useState("");
+  const [floor, setFloor] = useState("");
+  const [guestName, setGuestName] = useState("");
   const [notes, setNotes] = useState("");
   const [timeWindow, setTimeWindow] = useState<"asap" | "scheduled">("asap");
   const [scheduledDate, setScheduledDate] = useState("");
@@ -155,7 +171,12 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           customerName: name.trim(),
           customerPhone: phone.trim(),
-          deliveryAddress: address.trim() || deliveryLocation.placeName || `${deliveryLocation.lat}, ${deliveryLocation.lng}`,
+          deliveryAddress: buildDeliveryAddress(
+            address.trim() || deliveryLocation.placeName || `${deliveryLocation.lat}, ${deliveryLocation.lng}`,
+            room.trim() || undefined,
+            floor.trim() || undefined,
+            guestName.trim() || undefined
+          ),
           landmark: landmark.trim(),
           deliveryLat: deliveryLocation.lat,
           deliveryLng: deliveryLocation.lng,
@@ -189,11 +210,17 @@ export default function CheckoutPage() {
 
       const orderId = data.id;
       const displayScheduled = scheduledAt ? new Date(scheduledAt).toLocaleString() : undefined;
+      const fullAddress = buildDeliveryAddress(
+        address.trim() || deliveryLocation.placeName || "See landmark",
+        room.trim() || undefined,
+        floor.trim() || undefined,
+        guestName.trim() || undefined
+      );
       const whatsappMessage = formatOrderForWhatsApp(
         orderId,
         items,
         totalPhp,
-        address.trim() || deliveryLocation.placeName || "See landmark",
+        fullAddress,
         landmark.trim(),
         notes.trim(),
         timeWindow,
@@ -226,7 +253,7 @@ export default function CheckoutPage() {
                     priorityFee: priorityFeePhp.toLocaleString(),
                     total: totalPhp.toLocaleString(),
                     landmark: landmark.trim(),
-                    address: address.trim() || deliveryLocation.placeName || "See landmark",
+                    address: fullAddress,
                     timeWindow: timeWindow === "scheduled" && scheduledAt ? scheduledAt : "ASAP",
                   }
                 : undefined,
@@ -245,7 +272,7 @@ export default function CheckoutPage() {
               orderId,
               items,
               totalPhp,
-              address.trim() || deliveryLocation.placeName || "See landmark",
+              fullAddress,
               landmark.trim(),
               notes.trim(),
               timeWindow,
@@ -273,7 +300,7 @@ export default function CheckoutPage() {
                     priorityFee: priorityFeePhp.toLocaleString(),
                     total: totalPhp.toLocaleString(),
                     landmark: landmark.trim(),
-                    address: address.trim() || deliveryLocation.placeName || "See landmark",
+                    address: fullAddress,
                     timeWindow: timeWindow === "scheduled" && scheduledAt ? scheduledAt : "ASAP",
                   }
                 : undefined,
@@ -463,6 +490,45 @@ export default function CheckoutPage() {
               className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
               placeholder="Resort name, street, barangay"
             />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Room <span className="font-normal text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="e.g. 5"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Floor <span className="font-normal text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={floor}
+                onChange={(e) => setFloor(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="e.g. 2nd floor"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Guest name <span className="font-normal text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="Name for reception"
+              />
+            </div>
           </div>
 
           <div>
@@ -689,11 +755,17 @@ export default function CheckoutPage() {
             const displayScheduled = timeWindow === "scheduled" && scheduledDate && scheduledTime
               ? `${scheduledDate}T${scheduledTime}:00`
               : undefined;
+            const cryptoAddress = buildDeliveryAddress(
+              address.trim() || deliveryLocation?.placeName || "See landmark",
+              room.trim() || undefined,
+              floor.trim() || undefined,
+              guestName.trim() || undefined
+            );
             const wa = formatOrderForWhatsApp(
               pendingOrderId!,
               items,
               totalPhp,
-              address.trim() || deliveryLocation?.placeName || "See landmark",
+              cryptoAddress,
               landmark.trim(),
               notes.trim(),
               timeWindow,
