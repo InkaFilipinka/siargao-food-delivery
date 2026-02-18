@@ -4,6 +4,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Google Places Autocomplete dropdown must appear above modals (z-50) */
+.pac-container {
+  z-index: 99999 !important;
+}
+
 @layer base {
   :root {
     --background: 0 0% 99%;

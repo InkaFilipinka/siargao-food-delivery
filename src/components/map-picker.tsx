@@ -84,6 +84,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState<string>("");
   const [geoAttemptDone, setGeoAttemptDone] = useState(false);
+  const [pendingGeoResult, setPendingGeoResult] = useState<{ lat: number; lng: number } | null>(null);
   const geoResultRef = useRef<{ lat: number; lng: number } | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -150,11 +151,11 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
 
   const geoOptions: PositionOptions = {
     enableHighAccuracy: true,
-    timeout: 15000,
+    timeout: 30000,
     maximumAge: 0,
   };
 
-  /** Use watchPosition for up to 5s to get the most accurate fix (GPS improves over time) */
+  /** Use watchPosition for up to 15s to get the most accurate fix; waits for user to grant permission */
   const tryGeolocation = useCallback(() => {
     if (!navigator.geolocation) {
       setGeoError("Geolocation is not supported by your browser.");
@@ -181,6 +182,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
       }
       if (best) {
         geoResultRef.current = { lat: best.lat, lng: best.lng };
+        setPendingGeoResult({ lat: best.lat, lng: best.lng });
       }
       setGeoLoading(false);
       setGeoAttemptDone(true);
@@ -199,14 +201,17 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
 
     const onError = () => {
       if (watchId != null) navigator.geolocation.clearWatch(watchId);
-      geoResultRef.current = best ? { lat: best.lat, lng: best.lng } : null;
+      if (best) {
+        geoResultRef.current = { lat: best.lat, lng: best.lng };
+        setPendingGeoResult({ lat: best.lat, lng: best.lng });
+      }
       setGeoLoading(false);
       setGeoAttemptDone(true);
       if (!best) setGeoError("Could not get your location. Pick on the map or search below.");
     };
 
     watchId = navigator.geolocation.watchPosition(onSuccess, onError, geoOptions);
-    timeoutId = setTimeout(applyBest, 5000);
+    timeoutId = setTimeout(applyBest, 15000);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -252,11 +257,11 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
 
   // When map becomes ready and we have geolocation result, apply it
   useEffect(() => {
-    if (!mapReady || !geoResultRef.current || geoLoading || calculating) return;
-    const { lat, lng } = geoResultRef.current;
-    geoResultRef.current = null;
+    if (!mapReady || !pendingGeoResult || geoLoading || calculating) return;
+    const { lat, lng } = pendingGeoResult;
+    setPendingGeoResult(null);
     applyLocationToMap(lat, lng, "Current location");
-  }, [mapReady, geoLoading, calculating, applyLocationToMap]);
+  }, [mapReady, pendingGeoResult, geoLoading, calculating, applyLocationToMap]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -267,6 +272,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
     setPlaceName("");
     setGeoError("");
     setGeoAttemptDone(false);
+    setPendingGeoResult(null);
 
     if (!GOOGLE_MAPS_API_KEY) {
       setMapError("Google Maps API key is missing. Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to .env.local");
