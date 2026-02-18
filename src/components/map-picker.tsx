@@ -348,16 +348,31 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
             bounds: searchBounds!,
             strictBounds: false,
             componentRestrictions: { country: "ph" },
-            fields: ["geometry", "name", "formatted_address"],
             types: ["establishment", "geocode", "address"],
           });
           autocomplete.addListener("place_changed", async () => {
             if (calculating) return;
             const place = autocomplete.getPlace();
+            const locationName = place.name ? `${place.name} - ${place.formatted_address || ""}` : (place.formatted_address || "");
+            let lat: number | null = null;
+            let lng: number | null = null;
             if (place.geometry?.location) {
-              const lat = place.geometry.location.lat();
-              const lng = place.geometry.location.lng();
-              const locationName = place.name ? `${place.name} - ${place.formatted_address || ""}` : (place.formatted_address || "");
+              lat = place.geometry.location.lat();
+              lng = place.geometry.location.lng();
+            } else if ((place.formatted_address || place.name) && window.google?.maps?.Geocoder) {
+              const geocoder = new window.google.maps.Geocoder();
+              const res = await new Promise<google.maps.GeocoderResult[] | null>((resolve) => {
+                geocoder.geocode(
+                  { address: place.formatted_address || place.name || "" },
+                  (results, status) => resolve(status === "OK" && results ? results : null)
+                );
+              });
+              if (res?.[0]?.geometry?.location) {
+                lat = res[0].geometry!.location!.lat();
+                lng = res[0].geometry!.location!.lng();
+              }
+            }
+            if (lat != null && lng != null) {
               setPlaceName(locationName);
               map.setCenter({ lat, lng });
               map.setZoom(18);
@@ -402,6 +417,8 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               } finally {
                 setCalculating(false);
               }
+            } else {
+              setMapError("Could not get coordinates for this place. Try another search or click on the map.");
             }
           });
         }
@@ -415,22 +432,27 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
       googleMapsLoading = false;
     };
 
-    if (window.google?.maps) {
+    const hasPlaces = !!(window.google?.maps?.places);
+    if (window.google?.maps && hasPlaces) {
       googleMapsLoaded = true;
       setTimeout(initializeMap, 100);
     } else if (!googleMapsLoading) {
       googleMapsLoading = true;
-      document.querySelectorAll('script[src*="maps.googleapis.com"]').forEach((s) => s.remove());
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=Function.prototype`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
+      const cbName = "__siargaoMapPickerLoaded";
+      (window as unknown as Record<string, () => void>)[cbName] = () => {
+        delete (window as unknown as Record<string, unknown>)[cbName];
         googleMapsLoaded = true;
         googleMapsLoading = false;
         setTimeout(initializeMap, 100);
       };
+      document.querySelectorAll('script[src*="maps.googleapis.com"]').forEach((s) => s.remove());
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=${cbName}`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {};
       script.onerror = () => {
+        delete (window as unknown as Record<string, unknown>)[cbName];
         googleMapsLoading = false;
         setMapError("Failed to load Google Maps.");
       };

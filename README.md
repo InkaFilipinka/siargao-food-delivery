@@ -26,7 +26,7 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/) → create or select a project
 2. Enable **Billing** (required; Google provides free monthly credit)
-3. In **APIs & Services** → **Library**, enable: **Maps JavaScript API**, **Places API**, **Geocoding API**, **Distance Matrix API**
+3. In **APIs & Services** → **Library**, enable: **Maps JavaScript API**, **Places API** (required for search bar), **Geocoding API**, **Distance Matrix API**
 4. Create an API key under **Credentials**
 5. Under **Application restrictions** → HTTP referrers, add: `http://localhost:*/*`, `http://127.0.0.1:*/*`, and your production domain (e.g. `https://yoursite.com/*`)
 6. Put the key in `.env.local` and restart `npm run dev`
