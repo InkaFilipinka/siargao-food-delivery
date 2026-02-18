@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { verifyToken } from "@/lib/auth";
 import { sendNtfy } from "@/lib/ntfy";
+import { getSlugByRestaurantName, getIsGroceryBySlug } from "@/data/combined";
 
 function getBearerToken(request: Request): string | null {
   const auth = request.headers.get("authorization");
@@ -73,6 +74,35 @@ export async function GET(
       .eq("order_id", id)
       .order("id");
 
+    // Restaurant location for map (when order is pending/preparing)
+    let restaurantLat: number | null = null;
+    let restaurantLng: number | null = null;
+    let restaurantSlug: string | null = null;
+    const { data: restaurantStatus } = await supabase
+      .from("order_restaurant_status")
+      .select("restaurant_slug")
+      .eq("order_id", id)
+      .limit(1)
+      .maybeSingle();
+    if (restaurantStatus?.restaurant_slug) {
+      restaurantSlug = restaurantStatus.restaurant_slug;
+    } else if (items?.length) {
+      const first = items[0] as { restaurant_name?: string };
+      const slug = getSlugByRestaurantName(first.restaurant_name || "") ?? first.restaurant_name?.toLowerCase().replace(/\s+/g, "-");
+      if (slug && !getIsGroceryBySlug(slug)) restaurantSlug = slug;
+    }
+    if (restaurantSlug) {
+      const { data: config } = await supabase
+        .from("restaurant_config")
+        .select("lat, lng")
+        .eq("slug", restaurantSlug)
+        .maybeSingle();
+      if (config?.lat != null && config?.lng != null) {
+        restaurantLat = Number(config.lat);
+        restaurantLng = Number(config.lng);
+      }
+    }
+
     return NextResponse.json({
       id: order.id,
       status: order.status,
@@ -97,6 +127,8 @@ export async function GET(
       driverLat: (order as { driver_lat?: number }).driver_lat ?? null,
       driverLng: (order as { driver_lng?: number }).driver_lng ?? null,
       driverLocationUpdatedAt: (order as { driver_location_updated_at?: string }).driver_location_updated_at ?? null,
+      restaurantLat,
+      restaurantLng,
       items: items || [],
     });
   } catch (err) {

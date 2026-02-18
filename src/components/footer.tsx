@@ -1,11 +1,45 @@
 import Link from "next/link";
-import { MapPin, MessageCircle, Phone } from "lucide-react";
+import { MapPin, MessageCircle, Phone, UtensilsCrossed, Car } from "lucide-react";
 import { SUPPORT_PHONE, SUPPORT_WHATSAPP } from "@/config/support";
 
 export function Footer() {
   return (
     <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 mt-auto">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
+        {/* Driver & Restaurant Portals at bottom */}
+        <div className="grid sm:grid-cols-2 gap-4 mb-8 pb-8 border-b border-slate-200 dark:border-slate-800">
+          <Link
+            href="/driver"
+            className="flex flex-col gap-2 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <span className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+              <Car className="w-5 h-5 text-primary" />
+              Driver Portal
+            </span>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              If you&apos;re interested to become our driver, please{" "}
+              <a
+                href={`https://wa.me/${SUPPORT_WHATSAPP}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-primary hover:underline font-medium"
+              >
+                contact us on WhatsApp
+              </a>
+              .
+            </p>
+          </Link>
+          <Link
+            href="/restaurant-portal"
+            className="flex flex-col gap-2 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <span className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+              <UtensilsCrossed className="w-5 h-5 text-primary" />
+              Restaurant Portal
+            </span>
+          </Link>
+        </div>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
           <div>
             <p className="text-lg font-semibold text-slate-900 dark:text-white">

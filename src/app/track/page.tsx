@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Search, Loader2, Package, MapPin, ExternalLink, Headphones, Clock, XCircle, CheckCircle, Star, Bell, MessageCircle, Send, Edit3 } from "lucide-react";
 import { DeliveryMap } from "@/components/delivery-map";
+import { AddToAppModal } from "@/components/add-to-app-modal";
 import { getSlugByRestaurantName, getRestaurantBySlug } from "@/data/combined";
+import { getNotificationPlatform } from "@/lib/platform";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -74,6 +76,7 @@ function TrackPageContent() {
   const [showEditItems, setShowEditItems] = useState(false);
   const [editItems, setEditItems] = useState<{ restaurantName: string; restaurantSlug?: string; itemName: string; price: string; priceValue: number; quantity: number }[]>([]);
   const [editItemsSaving, setEditItemsSaving] = useState(false);
+  const [showAddToAppModal, setShowAddToAppModal] = useState(false);
 
   function parsePrice(p: string): number {
     const m = (p || "").match(/[\d,.]+/);
@@ -102,6 +105,8 @@ function TrackPageContent() {
     driverLat?: number | null;
     driverLng?: number | null;
     driverLocationUpdatedAt?: string | null;
+    restaurantLat?: number | null;
+    restaurantLng?: number | null;
     items: { item_name: string; quantity: number; price: string; restaurant_name: string; restaurant_slug?: string }[];
   } | null>(null);
 
@@ -312,16 +317,27 @@ function TrackPageContent() {
               </h2>
 
               {order.status !== "delivered" && order.status !== "cancelled" && (
-                <a
-                  href={`https://ntfy.sh/siargao-order-${order.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700"
+                <button
+                  type="button"
+                  onClick={() => {
+                    const platform = getNotificationPlatform();
+                    if (platform === "ios" || platform === "macos-safari") {
+                      setShowAddToAppModal(true);
+                    } else {
+                      window.open(`https://ntfy.sh/siargao-order-${order.id}`, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                  className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700 w-full text-left"
                 >
                   <Bell className="w-5 h-5 shrink-0" />
                   Get push notifications for this order
-                </a>
+                </button>
               )}
+              <AddToAppModal
+                isOpen={showAddToAppModal}
+                onClose={() => setShowAddToAppModal(false)}
+                platform={getNotificationPlatform()}
+              />
               {order.estimatedDeliveryAt && order.status !== "delivered" && order.status !== "cancelled" && (
                 <div className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-slate-100 dark:bg-slate-800">
                   <Clock className="w-5 h-5 text-primary shrink-0" />
@@ -584,28 +600,45 @@ function TrackPageContent() {
                   {order.deliveryAddress}
                 </p>
               )}
-              {order.deliveryLat != null && order.deliveryLng != null && order.driverLat != null && order.driverLng != null && (
-                <DeliveryMap
-                  driverLat={order.driverLat}
-                  driverLng={order.driverLng}
-                  deliveryLat={order.deliveryLat}
-                  deliveryLng={order.deliveryLng}
-                  landmark={order.landmark}
-                  lastUpdatedAt={order.driverLocationUpdatedAt}
-                  showNavigateButton={true}
-                  className="mt-3"
-                />
-              )}
-              {order.deliveryLat != null && order.deliveryLng != null && (order.driverLat == null || order.driverLng == null) && (
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLat},${order.deliveryLng}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-orange-600 hover:underline font-medium mt-1"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Open in Google Maps
-                </a>
+              {order.deliveryLat != null && order.deliveryLng != null && (order.driverLat != null && order.driverLng != null
+                ? (
+                    <DeliveryMap
+                      driverLat={order.driverLat}
+                      driverLng={order.driverLng}
+                      deliveryLat={order.deliveryLat}
+                      deliveryLng={order.deliveryLng}
+                      landmark={order.landmark}
+                      lastUpdatedAt={order.driverLocationUpdatedAt}
+                      showNavigateButton={true}
+                      className="mt-3"
+                    />
+                  )
+                : ["pending", "confirmed", "preparing"].includes(order.status) && (order.restaurantLat != null && order.restaurantLng != null)
+                  ? (
+                      <DeliveryMap
+                        driverLat={null}
+                        driverLng={null}
+                        deliveryLat={order.deliveryLat}
+                        deliveryLng={order.deliveryLng}
+                        landmark={order.landmark}
+                        restaurantLat={order.restaurantLat}
+                        restaurantLng={order.restaurantLng}
+                        restaurantName={order.items?.[0]?.restaurant_name}
+                        showNavigateButton={true}
+                        className="mt-3"
+                      />
+                    )
+                  : (
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLat},${order.deliveryLng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-orange-600 hover:underline font-medium mt-1"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Open in Google Maps
+                      </a>
+                    )
               )}
               <a
                 href={`https://wa.me/${SUPPORT_WHATSAPP}`}

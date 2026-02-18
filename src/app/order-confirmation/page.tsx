@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, MessageCircle, Clock, Package, Headphones, Mail } from "lucide-react";
+import { CheckCircle2, Clock, Package, Headphones, Mail } from "lucide-react";
 import { getEtaRange, formatEtaRange } from "@/lib/eta";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 import { sendOrderReceipt } from "@/lib/emailjs";
@@ -11,7 +11,6 @@ import { sendOrderReceipt } from "@/lib/emailjs";
 function OrderConfirmationContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("id");
-  const [waMessage, setWaMessage] = useState("");
   const [etaRange, setEtaRange] = useState<{ min: number; max: number } | null>(null);
   const [emailSent, setEmailSent] = useState<boolean | null>(null);
 
@@ -39,11 +38,6 @@ function OrderConfirmationContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("order-confirmation-wa");
-    if (stored) {
-      setWaMessage(stored);
-      sessionStorage.removeItem("order-confirmation-wa");
-    }
     const etaData = sessionStorage.getItem("order-confirmation-eta");
     if (etaData) {
       try {
@@ -86,11 +80,6 @@ function OrderConfirmationContent() {
     }
   }, []);
 
-  const whatsappUrl =
-    waMessage && typeof window !== "undefined"
-      ? `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(waMessage)}`
-      : `https://wa.me/${SUPPORT_WHATSAPP}`;
-
   return (
     <main className="pt-14 min-h-screen bg-slate-50 dark:bg-slate-900/50">
       <div className="container mx-auto px-4 py-16 text-center max-w-lg">
@@ -102,7 +91,7 @@ function OrderConfirmationContent() {
         </h1>
         {orderId && (
           <p className="text-slate-600 dark:text-slate-400 mb-2">
-            Order ID: <code className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">{orderId}</code>
+            Order #<code className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">{orderId.replace(/-/g, "").slice(0, 8).toUpperCase()}</code>
           </p>
         )}
         {etaRange && (
@@ -118,18 +107,9 @@ function OrderConfirmationContent() {
           </p>
         )}
         <p className="text-slate-600 dark:text-slate-400 mb-8">
-          Complete your order by sending it to us on WhatsApp. We&apos;ll confirm and start preparing.
+          We&apos;ve received your order and will confirm and start preparing shortly.
         </p>
-        <a
-          href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-medium px-6 py-3 rounded-lg hover:opacity-90 transition-opacity"
-        >
-          <MessageCircle className="w-5 h-5" />
-          Open WhatsApp to confirm
-        </a>
-        <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
           {orderId && (
             <Link
               href={`/track?id=${orderId}`}

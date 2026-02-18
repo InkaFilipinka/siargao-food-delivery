@@ -353,6 +353,7 @@ export default function CheckoutPage() {
           customerName: name.trim(),
           customerPhone: (phone.trim() || whatsapp.trim()) || "",
           customerWhatsapp: whatsapp.trim() || undefined,
+          customerEmail: email.trim() || undefined,
           deliveryAddress: buildDeliveryAddress(
             address.trim() || deliveryLocation.placeName || `${deliveryLocation.lat}, ${deliveryLocation.lng}`,
             room.trim() || undefined,

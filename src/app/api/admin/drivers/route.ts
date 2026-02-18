@@ -41,6 +41,48 @@ export async function GET(request: Request) {
   return Response.json({ drivers: data || [] });
 }
 
+/** POST /api/admin/drivers - Create new driver */
+export async function POST(request: Request) {
+  const authErr = requireStaffAuth(request);
+  if (authErr) return authErr;
+
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const { name, phone, email, password } = body;
+
+  if (!name?.trim() || !phone?.trim()) {
+    return NextResponse.json({ error: "Name and phone are required" }, { status: 400 });
+  }
+
+  const insert: Record<string, unknown> = {
+    name: name.trim(),
+    phone: phone.trim(),
+  };
+  if (typeof email === "string" && email.trim()) {
+    insert.email = email.trim();
+  }
+  if (typeof password === "string" && password.length > 0) {
+    insert.password_hash = hashPassword(password);
+  }
+
+  const { data, error } = await supabase
+    .from("drivers")
+    .insert(insert)
+    .select("id, name, phone, email, gcash_number, is_available, payout_method, crypto_wallet_address")
+    .single();
+
+  if (error) {
+    console.error("drivers POST:", error);
+    return NextResponse.json({ error: "Failed to create driver" }, { status: 500 });
+  }
+
+  return Response.json({ driver: data });
+}
+
 /** PATCH /api/admin/drivers - Update driver (email, password, gcash) */
 export async function PATCH(request: Request) {
   const authErr = requireStaffAuth(request);

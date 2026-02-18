@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { verifyPassword, createToken } from "@/lib/auth";
+import { createToken } from "@/lib/auth";
 
-/** POST /api/auth/customer/login - Email or phone + password */
+/** POST /api/auth/customer/login - Phone number only */
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { email, phone, password } = body;
-    const identifier = email?.trim() || phone?.trim();
-    if (!identifier || !password) {
-      return NextResponse.json({ error: "Email/phone and password required" }, { status: 400 });
+    const { phone } = body;
+    const phoneTrim = phone?.trim();
+    if (!phoneTrim) {
+      return NextResponse.json({ error: "Phone number required" }, { status: 400 });
     }
 
     const supabase = getSupabaseAdmin();
@@ -17,26 +17,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const isEmail = identifier.includes("@");
-    let query = supabase.from("customers").select("id, email, phone, name, password_hash");
-    if (isEmail) {
-      query = query.eq("email", identifier.toLowerCase());
-    } else {
-      const normalized = identifier.replace(/\D/g, "");
-      if (normalized.length >= 10) {
-        query = query.or(`phone.eq.${identifier.trim()},phone.eq.${normalized}`);
-      } else {
-        query = query.eq("phone", identifier.trim());
-      }
-    }
-    const { data, error } = await query.maybeSingle();
-
-    if (error || !data?.id || !data?.password_hash) {
-      return NextResponse.json({ error: "Invalid email/phone or password" }, { status: 401 });
+    const normalized = phoneTrim.replace(/\D/g, "");
+    let { data, error } = await supabase
+      .from("customers")
+      .select("id, email, phone, name")
+      .eq("phone", phoneTrim)
+      .maybeSingle();
+    if ((error || !data) && normalized !== phoneTrim) {
+      const res = await supabase
+        .from("customers")
+        .select("id, email, phone, name")
+        .eq("phone", normalized)
+        .maybeSingle();
+      data = res.data;
+      error = res.error;
     }
 
-    if (!verifyPassword(password, data.password_hash)) {
-      return NextResponse.json({ error: "Invalid email/phone or password" }, { status: 401 });
+    if (error || !data?.id) {
+      return NextResponse.json({ error: "No account found. Place an order first to create your account." }, { status: 401 });
     }
 
     const token = createToken({ type: "customer", customerId: data.id, exp: 0 });

@@ -174,6 +174,7 @@ export async function POST(request: Request) {
       customerName,
       customerPhone,
       customerWhatsapp,
+      customerEmail,
       deliveryAddress,
       landmark,
       deliveryLat,
@@ -300,6 +301,25 @@ export async function POST(request: Request) {
     cancelCutoffDate.setMinutes(cancelCutoffDate.getMinutes() + 5);
 
     if (supabase) {
+      // Upsert customer account: primary = WhatsApp if provided, else phone
+      const primaryPhone = (customerWhatsapp?.trim() || customerPhone.trim()) || "";
+      if (primaryPhone && !customerId) {
+        const { data: upserted } = await supabase
+          .from("customers")
+          .upsert(
+            {
+              phone: primaryPhone,
+              name: customerName.trim(),
+              email: customerEmail?.trim() || null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "phone" }
+          )
+          .select("id")
+          .single();
+        if (upserted?.id) customerId = upserted.id;
+      }
+
       const { data: order, error } = await supabase
         .from("orders")
         .insert({

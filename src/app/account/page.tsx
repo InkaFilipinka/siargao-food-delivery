@@ -10,11 +10,8 @@ import { AddCardModal } from "@/components/add-card-modal";
 export default function AccountPage() {
   const { customer, token, isLoaded, login, logout } = useCustomerAuth();
   const router = useRouter();
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [phone, setPhone] = useState("");
-  const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<{ id: string; brand: string; last4: string; isDefault: boolean }[]>([]);
@@ -34,15 +31,16 @@ export default function AccountPage() {
     setError("");
     setLoading(true);
     try {
-      const identifier = email.trim() || phone.trim();
+      const identifier = whatsapp.trim() || phone.trim();
+      if (!identifier) {
+        setError("Enter your WhatsApp or phone number");
+        setLoading(false);
+        return;
+      }
       const res = await fetch("/api/auth/customer/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim() || undefined,
-          phone: phone.trim() || undefined,
-          password,
-        }),
+        body: JSON.stringify({ phone: identifier }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Login failed");
@@ -50,32 +48,6 @@ export default function AccountPage() {
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleSignup(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/customer/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim() || undefined,
-          phone: phone.trim() || undefined,
-          name: name.trim() || undefined,
-          password,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Signup failed");
-      login(data.token, data.customer);
-      router.push("/");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
       setLoading(false);
     }
@@ -194,137 +166,44 @@ export default function AccountPage() {
           Back
         </Link>
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
-          <div className="flex gap-2 mb-6">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+            Enter the WhatsApp or phone number you used when placing an order.
+          </p>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                WhatsApp number <span className="font-normal text-slate-500">(Only one required)</span>
+              </label>
+              <input
+                type="tel"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="+63 912 345 6789 or 09171234567"
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Phone number <span className="font-normal text-slate-500">(Only one required)</span>
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="09171234567"
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+              />
+            </div>
+            {error && <p className="text-red-500 text-sm">{error}</p>}
             <button
-              onClick={() => setMode("login")}
-              className={`flex-1 py-2 rounded-lg font-medium ${
-                mode === "login"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-              }`}
+              type="submit"
+              disabled={loading || (!whatsapp.trim() && !phone.trim())}
+              className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg hover:opacity-90 disabled:opacity-70 flex items-center justify-center gap-2"
             >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
               Log in
             </button>
-            <button
-              onClick={() => setMode("signup")}
-              className={`flex-1 py-2 rounded-lg font-medium ${
-                mode === "signup"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-              }`}
-            >
-              Sign up
-            </button>
-          </div>
-
-          {mode === "login" ? (
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Email or phone
-                </label>
-                <input
-                  type="text"
-                  value={email || phone}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v.includes("@")) {
-                      setEmail(v);
-                      setPhone("");
-                    } else {
-                      setPhone(v);
-                      setEmail("");
-                    }
-                  }}
-                  placeholder="you@example.com or 09171234567"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                  required
-                />
-              </div>
-              {error && <p className="text-red-500 text-sm">{error}</p>}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg hover:opacity-90 disabled:opacity-70 flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                Log in
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleSignup} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Name <span className="text-slate-500">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Juan Dela Cruz"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Email <span className="text-slate-500">(optional if phone)</span>
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Phone <span className="text-slate-500">(optional if email)</span>
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="09171234567"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Password <span className="text-slate-500">(min 6 chars)</span>
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  minLength={6}
-                  className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                  required
-                />
-              </div>
-              {error && <p className="text-red-500 text-sm">{error}</p>}
-              <button
-                type="submit"
-                disabled={loading || (!email.trim() && !phone.trim())}
-                className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg hover:opacity-90 disabled:opacity-70 flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                Sign up
-              </button>
-            </form>
-          )}
+          </form>
         </div>
       </div>
     </main>

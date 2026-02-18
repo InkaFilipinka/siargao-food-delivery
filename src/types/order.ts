@@ -61,6 +61,7 @@ export interface CreateOrderInput {
   customerName: string;
   customerPhone: string;
   customerWhatsapp?: string;
+  customerEmail?: string;
   deliveryAddress: string;
   landmark: string;
   deliveryLat?: number;

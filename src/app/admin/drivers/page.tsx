@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Truck, Settings2, X } from "lucide-react";
+import { Truck, Settings2, X, Plus } from "lucide-react";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
 
@@ -25,6 +25,11 @@ export default function AdminDriversPage() {
   const [editGcashNumber, setEditGcashNumber] = useState("");
   const [editCryptoWallet, setEditCryptoWallet] = useState("");
   const [saving, setSaving] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addPhone, setAddPhone] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addPassword, setAddPassword] = useState("");
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
     const token = typeof window !== "undefined" ? sessionStorage.getItem(STAFF_TOKEN_KEY) : null;
@@ -56,6 +61,40 @@ export default function AdminDriversPage() {
     setEditPayoutMethod(pm);
     setEditGcashNumber(d.gcash_number || "");
     setEditCryptoWallet(d.crypto_wallet_address || "");
+  };
+
+  const createDriver = async () => {
+    if (!addName.trim() || !addPhone.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/drivers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          name: addName.trim(),
+          phone: addPhone.trim(),
+          email: addEmail.trim() || undefined,
+          password: addPassword || undefined,
+        }),
+      });
+      if (res.ok) {
+        const { driver } = await res.json();
+        setDrivers((prev) => [...prev, driver].sort((a, b) => a.name.localeCompare(b.name)));
+        setAddOpen(false);
+        setAddName("");
+        setAddPhone("");
+        setAddEmail("");
+        setAddPassword("");
+      } else {
+        const d = await res.json();
+        alert(d.error || "Failed to add driver");
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const saveDriver = async () => {
@@ -97,13 +136,22 @@ export default function AdminDriversPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
-          Drivers
-        </h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
-          {drivers.length} driver{drivers.length !== 1 ? "s" : ""} • Login & payout
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
+            Drivers
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1">
+            {drivers.length} driver{drivers.length !== 1 ? "s" : ""} • Login & payout
+          </p>
+        </div>
+        <button
+          onClick={() => setAddOpen(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90"
+        >
+          <Plus className="w-4 h-4" />
+          Add driver
+        </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -232,6 +280,92 @@ export default function AdminDriversPage() {
                 className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 max-w-sm w-full shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-slate-900 dark:text-white">
+                Add driver
+              </h3>
+              <button
+                onClick={() => setAddOpen(false)}
+                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  placeholder="Driver name"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Phone *
+                </label>
+                <input
+                  type="tel"
+                  value={addPhone}
+                  onChange={(e) => setAddPhone(e.target.value)}
+                  placeholder="09XX XXX XXXX"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Email (for login)
+                </label>
+                <input
+                  type="email"
+                  value={addEmail}
+                  onChange={(e) => setAddEmail(e.target.value)}
+                  placeholder="driver@example.com"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Password (for login)
+                </label>
+                <input
+                  type="password"
+                  value={addPassword}
+                  onChange={(e) => setAddPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  You can set login credentials now or later via the settings icon.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setAddOpen(false)}
+                className="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createDriver}
+                disabled={saving || !addName.trim() || !addPhone.trim()}
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {saving ? "Adding…" : "Add driver"}
               </button>
             </div>
           </div>

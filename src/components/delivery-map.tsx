@@ -12,6 +12,9 @@ interface DeliveryMapProps {
   deliveryLat: number;
   deliveryLng: number;
   landmark?: string;
+  restaurantLat?: number | null;
+  restaurantLng?: number | null;
+  restaurantName?: string;
   className?: string;
   showNavigateButton?: boolean;
   lastUpdatedAt?: string | null;
@@ -23,6 +26,9 @@ export function DeliveryMap({
   deliveryLat,
   deliveryLng,
   landmark,
+  restaurantLat,
+  restaurantLng,
+  restaurantName,
   className = "",
   showNavigateButton = true,
   lastUpdatedAt,
@@ -41,6 +47,7 @@ export function DeliveryMap({
         const map = new window.google.maps.Map(mapRef.current, {
           center: SIARGAO_CENTER,
           zoom: 14,
+          minZoom: 10,
           clickableIcons: false,
         });
         mapInstanceRef.current = map;
@@ -52,6 +59,15 @@ export function DeliveryMap({
           title: landmark || "Delivery address",
           icon: { url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" },
         });
+
+        if (restaurantLat != null && restaurantLng != null) {
+          new window.google.maps.Marker({
+            position: new window.google.maps.LatLng(restaurantLat, restaurantLng),
+            map,
+            title: restaurantName || "Restaurant",
+            icon: { url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png" },
+          });
+        }
 
         if (driverLat != null && driverLng != null) {
           const driverPos = new window.google.maps.LatLng(driverLat, driverLng);
@@ -80,13 +96,46 @@ export function DeliveryMap({
                 const bounds = new window.google.maps.LatLngBounds();
                 bounds.extend(driverPos);
                 bounds.extend(dest);
-                map.fitBounds(bounds, 60);
+                // Avoid world view: if driver/delivery are too far apart (>~50km), center on delivery instead
+                const latDiff = Math.abs(driverLat - deliveryLat);
+                const lngDiff = Math.abs(driverLng - deliveryLng);
+                const approxKm = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111;
+                if (approxKm <= 60) {
+                  map.fitBounds(bounds, 60);
+                  const listener = window.google.maps.event.addListener(map, "idle", () => {
+                    window.google.maps.event.removeListener(listener);
+                    const z = map.getZoom();
+                    if (z != null && z < 10) map.setZoom(10);
+                  });
+                } else {
+                  map.setCenter(dest);
+                  map.setZoom(15);
+                }
               } else {
                 map.setCenter(dest);
                 map.setZoom(14);
               }
             }
           );
+        } else if (restaurantLat != null && restaurantLng != null) {
+          const restPos = new window.google.maps.LatLng(restaurantLat, restaurantLng);
+          const bounds = new window.google.maps.LatLngBounds();
+          bounds.extend(dest);
+          bounds.extend(restPos);
+          const latDiff = Math.abs(restaurantLat - deliveryLat);
+          const lngDiff = Math.abs(restaurantLng - deliveryLng);
+          const approxKm = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111;
+          if (approxKm <= 60) {
+            map.fitBounds(bounds, 60);
+            const listener = window.google.maps.event.addListener(map, "idle", () => {
+              window.google.maps.event.removeListener(listener);
+              const z = map.getZoom();
+              if (z != null && z < 10) map.setZoom(10);
+            });
+          } else {
+            map.setCenter(dest);
+            map.setZoom(15);
+          }
         } else {
           map.setCenter(dest);
           map.setZoom(15);
@@ -126,7 +175,7 @@ export function DeliveryMap({
     return () => {
       mapInstanceRef.current = null;
     };
-  }, [driverLat, driverLng, deliveryLat, deliveryLng]);
+  }, [driverLat, driverLng, deliveryLat, deliveryLng, restaurantLat, restaurantLng]);
 
   const navUrl =
     driverLat != null && driverLng != null
