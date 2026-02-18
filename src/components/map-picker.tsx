@@ -66,6 +66,8 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
   const [calculating, setCalculating] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState<string>("");
+  const [pendingGeoResult, setPendingGeoResult] = useState<{ lat: number; lng: number } | null>(null);
+  const geoResultRef = useRef<{ lat: number; lng: number } | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -95,7 +97,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           const m = new window.google!.maps.Marker({
             position: { lat, lng },
             map,
-            title: "Your Delivery Address",
+            title: "Your Delivery Address — drag to adjust",
             draggable: true,
             icon: { url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" },
           });
@@ -145,6 +147,115 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
     );
   }, []);
 
+  const tryGeolocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setGeoError("");
+    setGeoLoading(true);
+    geoResultRef.current = null;
+
+    let best: { lat: number; lng: number; accuracy: number } | null = null;
+    let watchId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const applyBest = () => {
+      if (watchId != null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+      if (timeoutId != null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      if (best) {
+        geoResultRef.current = { lat: best.lat, lng: best.lng };
+        setPendingGeoResult({ lat: best.lat, lng: best.lng });
+      }
+      setGeoLoading(false);
+    };
+
+    const onSuccess = (pos: GeolocationPosition) => {
+      const acc = pos.coords.accuracy ?? 999;
+      if (!best || acc < best.accuracy) {
+        best = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc };
+      }
+    };
+
+    const onError = () => {
+      if (watchId != null) navigator.geolocation.clearWatch(watchId);
+      if (best) {
+        geoResultRef.current = { lat: best.lat, lng: best.lng };
+        setPendingGeoResult({ lat: best.lat, lng: best.lng });
+      }
+      setGeoLoading(false);
+      if (!best) setGeoError("Could not get your location. Pick on the map or search below.");
+    };
+
+    watchId = navigator.geolocation.watchPosition(onSuccess, onError, geoOptions);
+    timeoutId = setTimeout(applyBest, 15000);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { onSuccess(pos); applyBest(); },
+      () => {},
+      geoOptions
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    tryGeolocation();
+  }, [isOpen, tryGeolocation]);
+
+  useEffect(() => {
+    if (!mapReady || !pendingGeoResult || geoLoading || calculating) return;
+    const { lat, lng } = pendingGeoResult;
+    setPendingGeoResult(null);
+    const map = mapInstanceRef.current;
+    if (map) {
+      if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
+      const m = new window.google!.maps.Marker({
+        position: { lat, lng },
+        map,
+        title: "Your Delivery Address — drag to adjust",
+        draggable: true,
+        icon: { url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" },
+      });
+      m.addListener("dragend", async () => {
+        const pos = m.getPosition();
+        if (!pos) return;
+        const newLat = pos.lat();
+        const newLng = pos.lng();
+        setPlaceName("");
+        setSelectedLocation({ lat: newLat, lng: newLng });
+        setCalculating(true);
+        try {
+          const dist = await calculateRoadDistance(BASE_LAT, BASE_LNG, newLat, newLng);
+          setDistance(dist);
+        } catch {
+          setMapError("Could not calculate road distance.");
+        } finally {
+          setCalculating(false);
+        }
+      });
+      selectedMarkerRef.current = m;
+      map.setCenter({ lat, lng });
+      map.setZoom(18);
+    }
+    setPlaceName("");
+    setSelectedLocation({ lat, lng });
+    setCalculating(true);
+    (async () => {
+      try {
+        const dist = await calculateRoadDistance(BASE_LAT, BASE_LNG, lat, lng);
+        setDistance(dist);
+      } catch {
+        setMapError("Could not calculate road distance.");
+        setSelectedLocation(null);
+      } finally {
+        setCalculating(false);
+      }
+    })();
+  }, [mapReady, pendingGeoResult, geoLoading, calculating]);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -154,6 +265,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
     setDistance(0);
     setPlaceName("");
     setGeoError("");
+    setPendingGeoResult(null);
 
     if (!GOOGLE_MAPS_API_KEY) {
       setMapError("Google Maps API key is missing. Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to .env.local");
@@ -182,7 +294,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           selectedMarker = new window.google.maps.Marker({
             position: { lat, lng },
             map,
-            title: "Your Delivery Address",
+            title: "Your Delivery Address — drag to adjust",
             draggable: true,
             icon: { url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" },
           });
@@ -264,7 +376,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               selectedMarker = new window.google.maps.Marker({
                 position: { lat, lng },
                 map,
-                title: "Your Delivery Address",
+                title: "Your Delivery Address — drag to adjust",
                 draggable: true,
                 icon: { url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" },
               });
@@ -375,7 +487,9 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Select Delivery Location</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Search or click on the map</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {selectedLocation ? "Drag the pin or search to fine-tune" : "Locating you… or click the map, drag the pin, or search"}
+              </p>
             </div>
             <button onClick={onClose} aria-label="Close" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
               <X className="w-6 h-6" />
@@ -407,7 +521,11 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               <span className="hidden sm:inline">Update my location</span>
             </button>
           </div>
-          {geoError && <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">{geoError}</p>}
+          {(geoError || (geoLoading && mapReady)) && (
+            <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+              {geoLoading && mapReady ? "Getting your location..." : geoError}
+            </p>
+          )}
         </div>
         <div className="flex-1 relative min-h-[400px]">
           {mapError ? (
@@ -421,7 +539,9 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           ) : !mapReady ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-8">
               <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-slate-600 dark:text-slate-400">Loading map...</p>
+              <p className="text-slate-600 dark:text-slate-400">
+                {geoLoading ? "Getting your location..." : "Loading map..."}
+              </p>
             </div>
           ) : null}
           <div ref={mapRef} className="w-full h-full absolute inset-0" />
