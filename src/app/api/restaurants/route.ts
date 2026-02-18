@@ -15,6 +15,15 @@ interface MenuItemJson {
 }
 
 export async function GET(request: Request) {
+  try {
+    return await getRestaurantsData(request);
+  } catch (err) {
+    console.error("Restaurants API error:", err);
+    return getStaticFallback();
+  }
+}
+
+async function getRestaurantsData(request: Request) {
   const { searchParams } = new URL(request.url);
   let includeHidden = searchParams.get("includeHidden") === "1" || searchParams.get("includeHidden") === "true";
   if (includeHidden) {
@@ -49,7 +58,12 @@ export async function GET(request: Request) {
   const menuExtrasBySlug = new Map<string, { name: string; price: string }[]>();
   let hiddenSlugs = new Set<string>();
   let adminRestaurants: { slug: string; name: string; categories: string[]; price_range: string | null; tags: string[]; menu_url: string | null }[] = [];
-  const supabase = getSupabaseAdmin();
+  let supabase: ReturnType<typeof getSupabaseAdmin> = null;
+  try {
+    supabase = getSupabaseAdmin();
+  } catch {
+    supabase = null;
+  }
   if (supabase) {
     let mediaData: { slug: string; logo_url: string | null; image_urls: string[] }[] = [];
     let extrasData: { slug: string; item_name: string; price: string }[] = [];
@@ -158,6 +172,49 @@ export async function GET(request: Request) {
 
   const restaurants = [...staticList, ...adminList];
 
+  return Response.json({
+    restaurants,
+    categories: restaurantData.categories,
+    cravingCategories: restaurantData.cravingCategories,
+    tagline: restaurantData.tagline,
+    description: restaurantData.description,
+  });
+}
+
+/** Fallback when DB fails - return static data only */
+function getStaticFallback() {
+  const menuByRestaurant = new Map(
+    menuItemsData.restaurants.map((r: { name: string; menuItems?: MenuItemJson[] }) => [
+      r.name,
+      r.menuItems || [],
+    ])
+  );
+  const imagesByRestaurant = new Map(
+    menuItemsData.restaurants.map((r: { name: string; imageUrls?: string[] }) => [r.name, r.imageUrls || []])
+  );
+  const getSlug = (url: string) => {
+    const m = url.match(/siargaodelivery\.com\/([^/]+)\/?$/);
+    return m ? m[1] : url;
+  };
+  const restaurants = restaurantData.restaurants.map((r) => {
+    const slug = getSlug(r.menuUrl);
+    const menuItems = menuByRestaurant.get(r.name) || [];
+    const imageUrls = imagesByRestaurant.get(r.name) || [];
+    return {
+      ...r,
+      slug,
+      menuItems,
+      imageUrls,
+      featuredImage: imageUrls[0] || null,
+      logoUrl: null,
+      hours: null,
+      minOrderPhp: null,
+      lat: null,
+      lng: null,
+      isAdminRestaurant: false,
+      isHidden: false,
+    };
+  });
   return Response.json({
     restaurants,
     categories: restaurantData.categories,

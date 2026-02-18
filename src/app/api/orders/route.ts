@@ -33,10 +33,16 @@ export async function GET(request: Request) {
     const authResult = await checkOrdersAuth(request);
     if (authResult instanceof Response) return authResult;
 
-    const supabase = getSupabaseAdmin();
+    let supabase;
+    try {
+      supabase = getSupabaseAdmin();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Database connection failed";
+      return NextResponse.json({ error: msg }, { status: 503 });
+    }
     if (!supabase) {
       return NextResponse.json(
-        { error: "Order list requires database" },
+        { error: "Order list requires database. Add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY." },
         { status: 503 }
       );
     }
@@ -102,7 +108,8 @@ export async function GET(request: Request) {
     return Response.json({ orders: list });
   } catch (err) {
     console.error("Orders GET error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Internal server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 import { sendNtfy } from "@/lib/ntfy";
