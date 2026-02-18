@@ -96,6 +96,7 @@ export async function GET(
       driverArrivedAt: order.driver_arrived_at ?? null,
       driverLat: (order as { driver_lat?: number }).driver_lat ?? null,
       driverLng: (order as { driver_lng?: number }).driver_lng ?? null,
+      driverLocationUpdatedAt: (order as { driver_location_updated_at?: string }).driver_location_updated_at ?? null,
       items: items || [],
     });
   } catch (err) {

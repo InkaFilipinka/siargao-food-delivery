@@ -92,6 +92,9 @@ export async function GET(request: Request) {
       assignedAt: o.assigned_at,
       pickedAt: o.picked_at,
       deliveredAt: o.delivered_at,
+      driverLat: (o as { driver_lat?: number }).driver_lat ?? null,
+      driverLng: (o as { driver_lng?: number }).driver_lng ?? null,
+      driverLocationUpdatedAt: (o as { driver_location_updated_at?: string }).driver_location_updated_at ?? null,
       items: itemsByOrder.get(o.id) || [],
     }));
 

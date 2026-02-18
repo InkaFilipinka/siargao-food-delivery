@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -17,6 +17,7 @@ import {
   ToggleLeft,
   ToggleRight,
 } from "lucide-react";
+import { DeliveryMap } from "@/components/delivery-map";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
 const DRIVER_TOKEN_KEY = "siargao-driver-token";
@@ -37,6 +38,9 @@ type Order = {
   arrivedAtHubAt?: string | null;
   cashReceivedByDriver?: number | null;
   cashTurnedIn?: number | null;
+  driverLat?: number | null;
+  driverLng?: number | null;
+  driverLocationUpdatedAt?: string | null;
   createdAt: string;
   items: { item_name: string; price: string; quantity: number }[];
 };
@@ -70,6 +74,10 @@ export default function DriverPage() {
   const [sharingLocation, setSharingLocation] = useState<string | null>(null);
   const [isAvailable, setIsAvailable] = useState(true);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
+  const [liveDriverPos, setLiveDriverPos] = useState<{ lat: number; lng: number } | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const lastSendRef = useRef<number>(0);
+  const LOCATION_SEND_INTERVAL_MS = 15000;
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
     if (typeof window === "undefined") return {};
@@ -115,6 +123,51 @@ export default function DriverPage() {
     const id = setInterval(loadOrders, POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [needsAuth, loadOrders]);
+
+  const outForDeliveryOrders = useMemo(
+    () => orders.filter((o) => o.status === "out_for_delivery"),
+    [orders]
+  );
+  const outForDeliveryIds = useMemo(
+    () => outForDeliveryOrders.map((o) => o.id).sort().join(","),
+    [outForDeliveryOrders]
+  );
+  useEffect(() => {
+    if (needsAuth || outForDeliveryOrders.length === 0 || !navigator.geolocation) return;
+    const ofdOrders = [...outForDeliveryOrders];
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setLiveDriverPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const now = Date.now();
+        if (now - lastSendRef.current < LOCATION_SEND_INTERVAL_MS) return;
+        lastSendRef.current = now;
+        const headers = getAuthHeaders();
+        ofdOrders.forEach((o) => {
+          fetch(`/api/orders/${o.id}/driver-location`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              ...headers,
+            } as HeadersInit,
+            body: JSON.stringify({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+            }),
+          }).catch(() => {});
+        });
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+    );
+    watchIdRef.current = watchId;
+    return () => {
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setLiveDriverPos(null);
+    };
+  }, [needsAuth, getAuthHeaders, outForDeliveryIds]);
 
   async function updateOrder(
     orderId: string,
@@ -558,6 +611,19 @@ export default function DriverPage() {
                         Cash
                       </button>
                     </div>
+                    {o.status === "out_for_delivery" && o.deliveryLat != null && o.deliveryLng != null && (
+                      <div className="mt-4">
+                        <DeliveryMap
+                          driverLat={liveDriverPos?.lat ?? o.driverLat ?? null}
+                          driverLng={liveDriverPos?.lng ?? o.driverLng ?? null}
+                          deliveryLat={o.deliveryLat}
+                          deliveryLng={o.deliveryLng}
+                          landmark={o.landmark}
+                          lastUpdatedAt={o.driverLocationUpdatedAt}
+                          showNavigateButton={true}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

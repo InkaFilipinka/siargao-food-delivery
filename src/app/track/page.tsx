@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Search, Loader2, Package, MapPin, ExternalLink, Headphones, Clock, XCircle, CheckCircle, Star, Bell, MessageCircle, Send, Edit3 } from "lucide-react";
+import { DeliveryMap } from "@/components/delivery-map";
 import { getSlugByRestaurantName, getRestaurantBySlug } from "@/data/combined";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 
@@ -100,6 +101,7 @@ function TrackPageContent() {
     driverArrivedAt: string | null;
     driverLat?: number | null;
     driverLng?: number | null;
+    driverLocationUpdatedAt?: string | null;
     items: { item_name: string; quantity: number; price: string; restaurant_name: string; restaurant_slug?: string }[];
   } | null>(null);
 
@@ -582,19 +584,27 @@ function TrackPageContent() {
                   {order.deliveryAddress}
                 </p>
               )}
-              {order.deliveryLat != null && order.deliveryLng != null && (
+              {order.deliveryLat != null && order.deliveryLng != null && order.driverLat != null && order.driverLng != null && (
+                <DeliveryMap
+                  driverLat={order.driverLat}
+                  driverLng={order.driverLng}
+                  deliveryLat={order.deliveryLat}
+                  deliveryLng={order.deliveryLng}
+                  landmark={order.landmark}
+                  lastUpdatedAt={order.driverLocationUpdatedAt}
+                  showNavigateButton={true}
+                  className="mt-3"
+                />
+              )}
+              {order.deliveryLat != null && order.deliveryLng != null && (order.driverLat == null || order.driverLng == null) && (
                 <a
-                  href={
-                    order.driverLat != null && order.driverLng != null
-                      ? `https://www.google.com/maps/dir/?api=1&origin=${order.driverLat},${order.driverLng}&destination=${order.deliveryLat},${order.deliveryLng}`
-                      : `https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLat},${order.deliveryLng}`
-                  }
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLat},${order.deliveryLng}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-sm text-orange-600 hover:underline font-medium mt-1"
                 >
                   <ExternalLink className="w-4 h-4" />
-                  {order.driverLat != null ? "View driver & route on map" : "Open in Google Maps"}
+                  Open in Google Maps
                 </a>
               )}
               <a
