@@ -284,13 +284,6 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
         });
         mapInstanceRef.current = map;
 
-        new window.google.maps.Marker({
-          position: { lat: BASE_LAT, lng: BASE_LNG },
-          map,
-          title: "Delivery Hub - General Luna",
-          icon: { url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" },
-        });
-
         map.addListener("click", async (e: google.maps.MapMouseEvent) => {
           if (!e.latLng || calculating) return;
           const lat = e.latLng.lat();
