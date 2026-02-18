@@ -224,6 +224,12 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Database not configured. Add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to Netlify environment variables, then redeploy." },
+        { status: 503 }
+      );
+    }
     const subtotalPhp = items.reduce((sum, i) => sum + i.priceValue * i.quantity, 0);
     const deliveryFee = deliveryFeePhp ?? 0;
     const tip = tipPhp ?? 0;
@@ -405,6 +411,7 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("Order API error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Internal server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
