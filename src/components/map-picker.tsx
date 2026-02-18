@@ -117,12 +117,13 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
       }
       if (map) {
         map.setCenter({ lat, lng });
-        map.setZoom(15);
+        map.setZoom(18);
         const m = new window.google!.maps.Marker({
           position: { lat, lng },
           map,
-          title: "Your Delivery Address",
+          title: "Your Delivery Address — drag to adjust",
           draggable: true,
+          icon: { url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" },
         });
         m.addListener("dragend", async () => {
           const pos = m.getPosition();
@@ -278,7 +279,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
       try {
         const map = new window.google.maps.Map(mapRef.current, {
           center: { lat: BASE_LAT, lng: BASE_LNG },
-          zoom: 12,
+          zoom: 18,
           clickableIcons: false,
         });
         mapInstanceRef.current = map;
@@ -298,8 +299,9 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           const m = new window.google.maps.Marker({
             position: { lat, lng },
             map,
-            title: "Your Delivery Address",
+            title: "Your Delivery Address — drag to adjust",
             draggable: true,
+            icon: { url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" },
           });
           m.addListener("dragend", async () => {
             const pos = m.getPosition();
@@ -359,13 +361,14 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               const locationName = place.name ? `${place.name} - ${place.formatted_address || ""}` : (place.formatted_address || "");
               setPlaceName(locationName);
               map.setCenter({ lat, lng });
-              map.setZoom(15);
+              map.setZoom(18);
               if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
               const searchMarker = new window.google.maps.Marker({
                 position: { lat, lng },
                 map,
-                title: place.name || "Selected Location",
+                title: "Your Delivery Address — drag to adjust",
                 draggable: true,
+                icon: { url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" },
               });
               searchMarker.addListener("dragend", async () => {
                 const pos = searchMarker.getPosition();
@@ -485,14 +488,14 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               onClick={handleUseMyLocation}
               disabled={!mapReady || geoLoading || calculating}
               className="flex items-center gap-2 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 shrink-0"
-              title="Use my current location"
+              title="Update my current location"
             >
               {geoLoading ? (
                 <span className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
               ) : (
                 <Locate className="w-5 h-5" />
               )}
-              <span className="hidden sm:inline">Use my location</span>
+              <span className="hidden sm:inline">Update my location</span>
             </button>
           </div>
           {(geoError || (geoLoading && mapReady)) ? (
