@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { MapPin, MessageCircle, Phone, UtensilsCrossed, Car } from "lucide-react";
 import { SUPPORT_PHONE, SUPPORT_WHATSAPP } from "@/config/support";
