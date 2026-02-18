@@ -72,6 +72,7 @@ export async function GET(request: Request) {
       status: o.status,
       customerName: o.customer_name,
       customerPhone: o.customer_phone,
+      customerWhatsapp: o.customer_whatsapp ?? null,
       landmark: o.landmark,
       deliveryAddress: o.delivery_address,
       deliveryLat: o.delivery_lat ?? null,
@@ -110,7 +111,7 @@ import { getSlugByRestaurantName, getIsGroceryBySlug } from "@/data/combined";
 import { costFromDisplay, getCommissionPct } from "@/lib/restaurant-config";
 import type { CreateOrderInput, OrderItem } from "@/types/order";
 
-function sendOrderNtfy(orderId: string, items: OrderItem[], landmark: string, customerPhone: string) {
+function sendOrderNtfy(orderId: string, items: OrderItem[], landmark: string, customerPhone: string, customerWhatsapp?: string | null) {
   const byRestaurant = new Map<string, { slug: string; items: OrderItem[] }>();
   for (const item of items) {
     const slug =
@@ -134,13 +135,17 @@ function sendOrderNtfy(orderId: string, items: OrderItem[], landmark: string, cu
   for (const [restaurantName, { slug, items: restItems }] of byRestaurant) {
     const topic = getNtfyTopic(slug);
     const lines = restItems.map((i) => `• ${i.itemName} x${i.quantity} - ${i.price}`);
+    const contactLines: string[] = [];
+    if (customerWhatsapp?.trim()) contactLines.push(`📱 WhatsApp: ${customerWhatsapp.trim()}`);
+    if (customerPhone?.trim()) contactLines.push(`📞 Phone: ${customerPhone.trim()}`);
+    const contactBlock = contactLines.length ? `\n${contactLines.join("\n")}` : `\n📞 ${customerPhone}`;
+
     const msg = `🍽️ New order #${String(orderId).slice(0, 8)}
 
 ${lines.join("\n")}
 
 📍 ${landmark}
-🕐 ${phTime}
-📞 ${customerPhone}`;
+🕐 ${phTime}${contactBlock}`;
     sendNtfy(topic, msg, { title: `${restaurantName} - Order`, priority: "high", tags: "plate_with_cutlery" }).catch(() => {});
   }
 }
@@ -161,6 +166,7 @@ export async function POST(request: Request) {
     const {
       customerName,
       customerPhone,
+      customerWhatsapp,
       deliveryAddress,
       landmark,
       deliveryLat,
@@ -186,7 +192,7 @@ export async function POST(request: Request) {
 
     if (!customerName?.trim() || !customerPhone?.trim()) {
       return NextResponse.json(
-        { error: "Name and phone are required" },
+        { error: "Name and WhatsApp number are required" },
         { status: 400 }
       );
     }
@@ -287,6 +293,7 @@ export async function POST(request: Request) {
           customer_id: customerId ?? null,
           customer_name: customerName.trim(),
           customer_phone: customerPhone.trim(),
+          customer_whatsapp: (customerWhatsapp?.trim() || customerPhone.trim()) || null,
           delivery_address: address,
           landmark: landmark.trim(),
           delivery_lat: deliveryLat ?? null,
@@ -382,7 +389,7 @@ export async function POST(request: Request) {
         await supabase.from("referral_credits").update({ status: "applied" }).eq("id", credId);
       }
 
-      sendOrderNtfy(order.id, items, landmark.trim(), customerPhone.trim());
+      sendOrderNtfy(order.id, items, landmark.trim(), customerPhone.trim(), customerWhatsapp?.trim() || null);
 
       return NextResponse.json({
         id: order.id,
@@ -391,7 +398,7 @@ export async function POST(request: Request) {
     }
 
     const id = crypto.randomUUID();
-    sendOrderNtfy(id, items, landmark.trim(), customerPhone.trim());
+    sendOrderNtfy(id, items, landmark.trim(), customerPhone.trim(), customerWhatsapp?.trim() || null);
     return NextResponse.json({
       id,
       createdAt: new Date().toISOString(),

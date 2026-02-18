@@ -33,6 +33,7 @@ export interface Order {
   id: string;
   customerName: string;
   customerPhone: string;
+  customerWhatsapp?: string;
   deliveryAddress: string;
   landmark?: string;
   deliveryLat?: number;
@@ -59,6 +60,7 @@ export type PaymentMethod = "cash" | "card" | "gcash" | "crypto" | "paypal";
 export interface CreateOrderInput {
   customerName: string;
   customerPhone: string;
+  customerWhatsapp?: string;
   deliveryAddress: string;
   landmark: string;
   deliveryLat?: number;

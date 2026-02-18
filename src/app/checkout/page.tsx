@@ -12,6 +12,7 @@ import { CryptoPaymentModal } from "@/components/crypto-payment-modal";
 import { ArrowLeft, CreditCard, Loader2, MapPin, Banknote, Smartphone, Wallet } from "lucide-react";
 import type { PaymentMethod } from "@/types/order";
 import { getIsGroceryBySlug } from "@/data/combined";
+import { getDistanceAndFee } from "@/config/delivery-zones";
 
 const TIP_OPTIONS = [0, 20, 50, 100];
 const PRIORITY_FEE_PHP = 50;
@@ -37,13 +38,20 @@ function formatOrderForWhatsApp(
   landmark: string,
   notes: string,
   timeWindow: "asap" | "scheduled",
-  scheduledAt?: string
+  scheduledAt?: string,
+  customerWhatsapp?: string,
+  customerPhone?: string
 ) {
   const lines = items.map((i) => `• ${i.itemName} x${i.quantity} - ${i.price}`);
   let text = `Hi! I'd like to place an order.\n\nOrder ID: ${orderId}\n\n${lines.join("\n")}\n\nTotal: ₱${totalPhp.toLocaleString()}\n\nDelivery: ${address.trim()}\nLandmark: ${landmark.trim()}`;
   if (notes.trim()) text += `\nNotes: ${notes.trim()}`;
   if (timeWindow === "scheduled" && scheduledAt) text += `\nDeliver at: ${scheduledAt}`;
   else text += `\nASAP`;
+  if (customerWhatsapp?.trim() || customerPhone?.trim()) {
+    text += `\n\nContact me:`;
+    if (customerWhatsapp?.trim()) text += `\nWhatsApp: ${customerWhatsapp.trim()}`;
+    if (customerPhone?.trim() && customerPhone.trim() !== customerWhatsapp?.trim()) text += `\nPhone: ${customerPhone.trim()}`;
+  }
   return text;
 }
 
@@ -58,6 +66,7 @@ export default function CheckoutPage() {
   const [mapOpen, setMapOpen] = useState(false);
 
   const [name, setName] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
@@ -73,6 +82,7 @@ export default function CheckoutPage() {
   const [priorityDelivery, setPriorityDelivery] = useState(false);
   const [allowSubstitutions, setAllowSubstitutions] = useState(true);
   const [minOrderMap, setMinOrderMap] = useState<Record<string, number>>({});
+  const [restaurants, setRestaurants] = useState<{ slug: string; name: string; lat?: number | null; lng?: number | null }[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [cryptoModalOpen, setCryptoModalOpen] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
@@ -102,32 +112,37 @@ export default function CheckoutPage() {
       setName(customer.name || "");
       setEmail(customer.email || "");
       setPhone(customer.phone || "");
+      setWhatsapp(customer.phone || "");
     }
   }, [customer]);
 
   useEffect(() => {
     fetch("/api/restaurants")
       .then((res) => res.json())
-      .then((data: { restaurants: { slug: string; minOrderPhp?: number | null }[] }) => {
+      .then((data: { restaurants: { slug: string; name: string; minOrderPhp?: number | null; lat?: number | null; lng?: number | null }[] }) => {
         const map: Record<string, number> = {};
+        const list: { slug: string; name: string; lat?: number | null; lng?: number | null }[] = [];
         for (const r of data.restaurants || []) {
           if (r.minOrderPhp != null && r.minOrderPhp > 0) map[r.slug] = r.minOrderPhp;
+          list.push({ slug: r.slug, name: r.name, lat: r.lat ?? null, lng: r.lng ?? null });
         }
         setMinOrderMap(map);
+        setRestaurants(list);
       })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (phone.trim().length >= 4) {
-      fetch(`/api/addresses?phone=${encodeURIComponent(phone.trim())}`)
+    const lookupPhone = phone.trim() || whatsapp.trim();
+    if (lookupPhone.length >= 4) {
+      fetch(`/api/addresses?phone=${encodeURIComponent(lookupPhone)}`)
         .then((r) => r.json())
         .then((d) => setSavedAddresses(d.addresses || []))
         .catch(() => setSavedAddresses([]));
     } else {
       setSavedAddresses([]);
     }
-  }, [phone]);
+  }, [phone, whatsapp]);
 
   useEffect(() => {
     if (token && paymentMethod === "card") {
@@ -157,21 +172,22 @@ export default function CheckoutPage() {
   }
 
   async function handleSaveAddress() {
-    if (!phone.trim() || !landmark.trim() || !deliveryLocation) return;
+    const contactPhone = phone.trim() || whatsapp.trim();
+    if (!contactPhone || !landmark.trim() || !deliveryLocation) return;
     setSavingAddress(true);
     try {
       const res = await fetch("/api/addresses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: phone.trim(),
+          phone: contactPhone,
           label: landmark.slice(0, 50),
           landmark: landmark.trim(),
           deliveryLat: deliveryLocation.lat,
           deliveryLng: deliveryLocation.lng,
           deliveryZoneId: deliveryLocation.zoneId,
           deliveryZoneName: deliveryLocation.zoneName,
-          deliveryDistanceKm: deliveryLocation.distance,
+          deliveryDistanceKm,
           room: room.trim() || undefined,
           floor: floor.trim() || undefined,
           guestName: guestName.trim() || undefined,
@@ -194,10 +210,11 @@ export default function CheckoutPage() {
   const [useReferralCredit, setUseReferralCredit] = useState(0);
 
   useEffect(() => {
-    if (phone.trim().length >= 4) {
+    const lookupPhone = phone.trim() || whatsapp.trim();
+    if (lookupPhone.length >= 4) {
       Promise.all([
-        fetch(`/api/loyalty?phone=${encodeURIComponent(phone.trim())}`),
-        fetch(`/api/referral?phone=${encodeURIComponent(phone.trim())}`),
+        fetch(`/api/loyalty?phone=${encodeURIComponent(lookupPhone)}`),
+        fetch(`/api/referral?phone=${encodeURIComponent(lookupPhone)}`),
       ]).then(async ([lRes, rRes]) => {
         const lData = await lRes.json();
         const rData = await rRes.json();
@@ -210,10 +227,16 @@ export default function CheckoutPage() {
       setUseLoyaltyPoints(0);
       setUseReferralCredit(0);
     }
-  }, [phone]);
+  }, [phone, whatsapp]);
 
   const subtotalPhp = items.reduce((sum, i) => sum + i.priceValue * i.quantity, 0);
-  const deliveryFeePhp = deliveryLocation?.feePhp ?? 0;
+  const primaryRestaurant = items.length ? items.find((i) => !(i.isGrocery ?? getIsGroceryBySlug(i.restaurantSlug))) ?? items[0] : null;
+  const restaurantData = primaryRestaurant ? restaurants.find((r) => r.slug === primaryRestaurant.restaurantSlug) : null;
+  const computedDelivery = deliveryLocation && restaurantData
+    ? getDistanceAndFee(deliveryLocation.lat, deliveryLocation.lng, restaurantData.lat, restaurantData.lng)
+    : null;
+  const deliveryFeePhp = computedDelivery?.feePhp ?? deliveryLocation?.feePhp ?? 0;
+  const deliveryDistanceKm = computedDelivery?.distanceKm ?? deliveryLocation?.distance ?? 0;
   const priorityFeePhp = priorityDelivery ? PRIORITY_FEE_PHP : 0;
   const promoDiscountPhp = appliedPromo?.discountPhp ?? 0;
   const loyaltyDiscountPhp = Math.min(Math.floor(useLoyaltyPoints / 10) * 5, subtotalPhp - promoDiscountPhp);
@@ -247,6 +270,12 @@ export default function CheckoutPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    if (!whatsapp.trim()) {
+      setError("WhatsApp number is required so we can contact you.");
+      setLoading(false);
+      return;
+    }
 
     if (!landmark.trim()) {
       setError("Landmark is required (e.g. near Bravo, beside...)");
@@ -322,7 +351,8 @@ export default function CheckoutPage() {
         headers,
         body: JSON.stringify({
           customerName: name.trim(),
-          customerPhone: phone.trim(),
+          customerPhone: (phone.trim() || whatsapp.trim()) || "",
+          customerWhatsapp: whatsapp.trim() || undefined,
           deliveryAddress: buildDeliveryAddress(
             address.trim() || deliveryLocation.placeName || `${deliveryLocation.lat}, ${deliveryLocation.lng}`,
             room.trim() || undefined,
@@ -334,8 +364,8 @@ export default function CheckoutPage() {
           deliveryLng: deliveryLocation.lng,
           deliveryZoneId: deliveryLocation.zoneId,
           deliveryZoneName: deliveryLocation.zoneName,
-          deliveryFeePhp: deliveryLocation.feePhp,
-          deliveryDistanceKm: deliveryLocation.distance,
+          deliveryFeePhp,
+          deliveryDistanceKm,
           notes: notes.trim() || undefined,
           items: items.map((i) => ({
             restaurantName: i.restaurantName,
@@ -381,7 +411,9 @@ export default function CheckoutPage() {
         landmark.trim(),
         notes.trim(),
         timeWindow,
-        displayScheduled
+        displayScheduled,
+        whatsapp.trim() || undefined,
+        phone.trim() || undefined
       );
 
       const saveSessionAndRedirect = (id: string) => {
@@ -391,7 +423,7 @@ export default function CheckoutPage() {
           sessionStorage.setItem("order-confirmation-wa", whatsappMessage);
           sessionStorage.setItem(
             "order-confirmation-eta",
-            JSON.stringify({ distanceKm: deliveryLocation.distance, priority: priorityDelivery })
+            JSON.stringify({ distanceKm: deliveryDistanceKm, priority: priorityDelivery })
           );
           sessionStorage.setItem(
             "order-confirmation-meta",
@@ -433,12 +465,14 @@ export default function CheckoutPage() {
               landmark.trim(),
               notes.trim(),
               timeWindow,
-              displayScheduled
+              displayScheduled,
+              whatsapp.trim() || undefined,
+              phone.trim() || undefined
             )
           );
           sessionStorage.setItem(
             "order-confirmation-eta",
-            JSON.stringify({ distanceKm: deliveryLocation.distance, priority: priorityDelivery })
+            JSON.stringify({ distanceKm: deliveryDistanceKm, priority: priorityDelivery })
           );
           sessionStorage.setItem(
             "order-confirmation-meta",
@@ -619,10 +653,22 @@ export default function CheckoutPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Phone number *</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">WhatsApp number *</label>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Best way to reach you — tourists often use foreign SIMs</p>
             <input
               type="tel"
               required
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="+63 9XX XXX XXXX or 09XX XXX XXXX"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Phone number <span className="font-normal text-slate-500">(optional, for calls)</span></label>
+            <input
+              type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -678,7 +724,7 @@ export default function CheckoutPage() {
                 <MapPin className="w-5 h-5 text-primary shrink-0" />
                 {deliveryLocation ? (
                   <span className="text-slate-900 dark:text-white">
-                    {deliveryLocation.placeName || `${deliveryLocation.distance}km from hub`} • ₱{deliveryLocation.feePhp} delivery
+                    {deliveryLocation.placeName || (primaryRestaurant && deliveryDistanceKm > 0 ? `${deliveryDistanceKm}km from ${primaryRestaurant.restaurantName}` : "Location set")} • ₱{deliveryFeePhp} delivery
                   </span>
                 ) : (
                   <span className="text-slate-500">Click to set location on map</span>
@@ -1183,7 +1229,9 @@ export default function CheckoutPage() {
               landmark.trim(),
               notes.trim(),
               timeWindow,
-              displayScheduled ? new Date(displayScheduled).toLocaleString() : undefined
+              displayScheduled ? new Date(displayScheduled).toLocaleString() : undefined,
+              whatsapp.trim() || undefined,
+              phone.trim() || undefined
             );
             setLastOrder(items);
             clearCart();
@@ -1191,7 +1239,7 @@ export default function CheckoutPage() {
               sessionStorage.setItem("order-confirmation-wa", wa);
               sessionStorage.setItem(
                 "order-confirmation-eta",
-                JSON.stringify({ distanceKm: deliveryLocation?.distance, priority: priorityDelivery })
+                JSON.stringify({ distanceKm: deliveryDistanceKm, priority: priorityDelivery })
               );
               sessionStorage.setItem(
                 "order-confirmation-meta",

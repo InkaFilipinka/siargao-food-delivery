@@ -25,6 +25,8 @@ type Config = {
   email?: string | null;
   payout_method?: string | null;
   crypto_wallet_address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 };
 
 export default function AdminRestaurantsPage() {
@@ -42,6 +44,8 @@ export default function AdminRestaurantsPage() {
   const [editPayoutMethod, setEditPayoutMethod] = useState<"cash" | "gcash" | "crypto">("cash");
   const [editGcashNumber, setEditGcashNumber] = useState("");
   const [editCryptoWallet, setEditCryptoWallet] = useState("");
+  const [editLat, setEditLat] = useState<string>("");
+  const [editLng, setEditLng] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
@@ -83,6 +87,8 @@ export default function AdminRestaurantsPage() {
     setEditPayoutMethod(pm);
     setEditGcashNumber(c?.gcash_number ?? "");
     setEditCryptoWallet(c?.crypto_wallet_address ?? "");
+    setEditLat(c?.lat != null ? String(c.lat) : "");
+    setEditLng(c?.lng != null ? String(c.lng) : "");
   };
   const saveConfig = async () => {
     if (!editSlug) return;
@@ -102,6 +108,8 @@ export default function AdminRestaurantsPage() {
           payout_method: editPayoutMethod,
           gcash_number: editPayoutMethod === "gcash" ? editGcashNumber.trim() : "",
           crypto_wallet_address: editPayoutMethod === "crypto" ? editCryptoWallet.trim() : "",
+          lat: editLat.trim() ? parseFloat(editLat) : null,
+          lng: editLng.trim() ? parseFloat(editLng) : null,
           ...(editPassword ? { password: editPassword } : {}),
         }),
       });
@@ -313,6 +321,37 @@ export default function AdminRestaurantsPage() {
                   />
                 </div>
               )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Latitude
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={editLat}
+                    onChange={(e) => setEditLat(e.target.value)}
+                    placeholder="9.7854"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Longitude
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={editLng}
+                    onChange={(e) => setEditLng(e.target.value)}
+                    placeholder="126.1574"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 -mt-1">
+                Used to show distance from user to restaurant. Leave blank to use hub for delivery fee.
+              </p>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   New password (leave blank to keep)

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { MapPin, Phone, Loader2, Package } from "lucide-react";
+import { MapPin, Phone, MessageCircle, Loader2, Package } from "lucide-react";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 import { cn } from "@/lib/utils";
 
@@ -25,11 +25,18 @@ const NEXT_STATUS: Record<string, string> = {
   out_for_delivery: "delivered",
 };
 
+function toWhatsAppUrl(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const num = digits.startsWith("0") ? `63${digits.slice(1)}` : digits.startsWith("63") ? digits : `63${digits}`;
+  return `https://wa.me/${num}`;
+}
+
 export type DispatchOrder = {
   id: string;
   status: string;
   customerName: string;
   customerPhone: string;
+  customerWhatsapp?: string | null;
   landmark: string;
   deliveryAddress: string;
   deliveryLat?: number | null;
@@ -116,6 +123,15 @@ export function DispatchBoard({
                         ₱{Number(o.totalPhp).toLocaleString()} · {formatTime(o.createdAt)}
                       </p>
                       <div className="flex flex-wrap gap-1 mt-2">
+                        <a
+                          href={toWhatsAppUrl(o.customerWhatsapp || o.customerPhone)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-green-600 hover:underline font-medium"
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                          WA
+                        </a>
                         <a
                           href={`tel:${o.customerPhone}`}
                           className="inline-flex items-center gap-1 text-xs text-orange-600 hover:underline"

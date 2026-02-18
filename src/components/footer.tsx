@@ -54,11 +54,18 @@ export function Footer() {
         </div>
         <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            © {new Date().getFullYear()} Siargao Delivery. General Luna, Siargao.
+            <Link
+              href="/admin"
+              className="hover:text-slate-900 dark:hover:text-slate-300 transition-colors"
+              title="Admin"
+            >
+              ©
+            </Link>
+            {" "}{new Date().getFullYear()} Siargao Delivery. General Luna, Siargao.
           </p>
           <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <MapPin className="w-3.5 h-3.5" />
-            Delivering to General Luna area
+            Delivering to Siargao del Norte island
           </div>
         </div>
       </div>

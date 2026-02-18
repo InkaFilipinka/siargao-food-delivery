@@ -4,7 +4,9 @@ import { MapPin, ChevronRight, UtensilsCrossed, Heart, Clock, Star } from "lucid
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useFavoritesStore } from "@/store/favorites-store";
+import { useDeliveryStore } from "@/store/delivery-store";
 import { isOpenNow } from "@/config/restaurant-extras";
+import { haversineKm } from "@/config/delivery-zones";
 
 type RestaurantWithMenu = {
   name: string;
@@ -18,6 +20,8 @@ type RestaurantWithMenu = {
   featuredImage: string | null;
   hours?: string | null;
   minOrderPhp?: number | null;
+  lat?: number | null;
+  lng?: number | null;
 };
 
 interface RestaurantCardProps {
@@ -40,9 +44,16 @@ function formatHours(h: string): string {
 
 export function RestaurantCard({ restaurant, className, rating }: RestaurantCardProps) {
   const { isFavorite, toggleRestaurant } = useFavoritesStore();
+  const deliveryLocation = useDeliveryStore((s) => s.location);
   const isFav = isFavorite(restaurant.slug);
   const priceDisplay = restaurant.priceRange || "—";
   const openStatus = restaurant.hours ? isOpenNow(restaurant.hours) : null;
+  const distanceKm =
+    deliveryLocation &&
+    restaurant.lat != null &&
+    restaurant.lng != null
+      ? haversineKm(deliveryLocation.lat, deliveryLocation.lng, restaurant.lat, restaurant.lng)
+      : null;
 
   return (
     <Link
@@ -115,6 +126,12 @@ export function RestaurantCard({ restaurant, className, rating }: RestaurantCard
             </span>
           )}
           <span className="font-medium text-slate-700 dark:text-slate-300">{priceDisplay}</span>
+          {distanceKm != null && (
+            <span className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+              <MapPin className="w-3.5 h-3.5" />
+              {distanceKm} km away
+            </span>
+          )}
           {restaurant.hours && (
             <span className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" />

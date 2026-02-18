@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Search, Loader2, Package, Phone, ArrowRight, MessageSquare, Send, X } from "lucide-react";
+import { Search, Loader2, Package, Phone, MessageCircle, ArrowRight, MessageSquare, Send, X } from "lucide-react";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
@@ -24,11 +24,18 @@ type SupportMessage = {
   created_at: string;
 };
 
+function toWhatsAppUrl(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const num = digits.startsWith("0") ? `63${digits.slice(1)}` : digits.startsWith("63") ? digits : `63${digits}`;
+  return `https://wa.me/${num}`;
+}
+
 type Order = {
   id: string;
   status: string;
   customerName: string;
   customerPhone: string;
+  customerWhatsapp?: string | null;
   landmark: string;
   deliveryAddress: string;
   totalPhp: number;
@@ -189,6 +196,15 @@ export default function AdminSupportPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <a
+                    href={toWhatsAppUrl(o.customerWhatsapp || o.customerPhone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-green-600 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    WhatsApp
+                  </a>
                   <a
                     href={`tel:${o.customerPhone}`}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600"

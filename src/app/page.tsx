@@ -25,6 +25,8 @@ type Restaurant = {
   imageUrls: string[];
   featuredImage: string | null;
   hours?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 };
 
 export default function Home() {
@@ -155,7 +157,7 @@ export default function Home() {
               </p>
               <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
                 {deliveryLocation
-                  ? `${deliveryLocation.placeName || "Location set"} • ${deliveryLocation.distance}km • ₱${deliveryLocation.feePhp} delivery`
+                  ? deliveryLocation.placeName || "Location set"
                   : "Set delivery location"}
               </p>
             </div>

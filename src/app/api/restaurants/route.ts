@@ -33,12 +33,13 @@ export async function GET() {
   const slugs = restaurantData.restaurants.map((r) => getSlug(r.menuUrl));
   const configBySlug = new Map<string, { commission_pct: number }>();
 
-  const supabase = getSupabaseAdmin();
   const hoursMinOrderBySlug = new Map<string, { hours: string | null; minOrderPhp: number | null }>();
+  const latLngBySlug = new Map<string, { lat: number; lng: number }>();
+  const supabase = getSupabaseAdmin();
   if (supabase) {
     const { data: configs } = await supabase
       .from("restaurant_config")
-      .select("slug, commission_pct, hours, min_order_php")
+      .select("slug, commission_pct, hours, min_order_php, lat, lng")
       .in("slug", slugs);
     for (const c of configs || []) {
       configBySlug.set(c.slug, { commission_pct: c.commission_pct ?? 30 });
@@ -46,6 +47,9 @@ export async function GET() {
         hours: c.hours ?? null,
         minOrderPhp: c.min_order_php != null ? Number(c.min_order_php) : null,
       });
+      if (c.lat != null && c.lng != null) {
+        latLngBySlug.set(c.slug, { lat: Number(c.lat), lng: Number(c.lng) });
+      }
     }
   }
 
@@ -74,6 +78,8 @@ export async function GET() {
       featuredImage: imageUrls[0] || null,
       hours: hoursMinOrderBySlug.get(slug)?.hours ?? getRestaurantHours(slug) ?? getRestaurantHours(r.menuUrl) ?? null,
       minOrderPhp: hoursMinOrderBySlug.get(slug)?.minOrderPhp ?? getMinOrderPhp(slug) ?? getMinOrderPhp(r.menuUrl) ?? null,
+      lat: latLngBySlug.get(slug)?.lat ?? null,
+      lng: latLngBySlug.get(slug)?.lng ?? null,
     };
   });
 

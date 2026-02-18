@@ -81,6 +81,7 @@ export async function GET(request: Request) {
       status: o.status,
       customerName: o.customer_name,
       customerPhone: o.customer_phone,
+      customerWhatsapp: (o as { customer_whatsapp?: string }).customer_whatsapp ?? null,
       landmark: o.landmark,
       deliveryAddress: o.delivery_address,
       totalPhp: o.total_php,

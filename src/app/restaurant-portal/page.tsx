@@ -16,6 +16,8 @@ import {
   Settings,
   ToggleLeft,
   ToggleRight,
+  MessageCircle,
+  Phone,
 } from "lucide-react";
 import { combinedRestaurants, getRestaurantBySlug } from "@/data/combined";
 import { cn } from "@/lib/utils";
@@ -30,6 +32,7 @@ type Order = {
   status: string;
   customerName: string;
   customerPhone: string;
+  customerWhatsapp: string | null;
   landmark: string;
   deliveryAddress: string;
   totalPhp: number;
@@ -40,6 +43,12 @@ type Order = {
   restaurantStatus: string;
   prepMins: number | null;
 };
+
+function toWhatsAppUrl(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const num = digits.startsWith("0") ? `63${digits.slice(1)}` : digits.startsWith("63") ? digits : `63${digits}`;
+  return `https://wa.me/${num}`;
+}
 
 function formatTime(s: string) {
   return new Date(s).toLocaleString("en-PH", {
@@ -660,6 +669,32 @@ export default function RestaurantPortalPage() {
                               {" · "}
                               {formatTime(o.createdAt)}
                             </p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {(o.customerWhatsapp || o.customerPhone) && (
+                                <>
+                                  {o.customerWhatsapp && (
+                                    <a
+                                      href={toWhatsAppUrl(o.customerWhatsapp)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-600 text-white text-xs font-medium hover:bg-green-700"
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5" />
+                                      WhatsApp: {o.customerWhatsapp}
+                                    </a>
+                                  )}
+                                  {o.customerPhone && (
+                                    <a
+                                      href={`tel:${o.customerPhone}`}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700"
+                                    >
+                                      <Phone className="w-3.5 h-3.5" />
+                                      Call: {o.customerPhone}
+                                    </a>
+                                  )}
+                                </>
+                              )}
+                            </div>
                           </div>
                           <span
                             className={cn(

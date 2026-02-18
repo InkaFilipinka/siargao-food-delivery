@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("restaurant_config")
-    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address")
+    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng")
     .order("slug");
 
   if (error) {
@@ -52,7 +52,7 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const { slug, commission_pct, delivery_commission_pct, gcash_number, email, password, payout_method, crypto_wallet_address } = body;
+  const { slug, commission_pct, delivery_commission_pct, gcash_number, email, password, payout_method, crypto_wallet_address, lat, lng } = body;
 
   if (!slug || typeof slug !== "string" || !slug.trim()) {
     return NextResponse.json({ error: "slug is required" }, { status: 400 });
@@ -70,6 +70,14 @@ export async function PATCH(request: Request) {
   if (typeof payout_method === "string" && ["cash", "gcash", "crypto"].includes(payout_method))
     updates.payout_method = payout_method;
   if (typeof crypto_wallet_address === "string") updates.crypto_wallet_address = crypto_wallet_address.trim() || null;
+  if (lat !== undefined) {
+    const latNum = typeof lat === "string" ? parseFloat(lat) : lat;
+    updates.lat = typeof latNum === "number" && !isNaN(latNum) && latNum >= -90 && latNum <= 90 ? latNum : null;
+  }
+  if (lng !== undefined) {
+    const lngNum = typeof lng === "string" ? parseFloat(lng) : lng;
+    updates.lng = typeof lngNum === "number" && !isNaN(lngNum) && lngNum >= -180 && lngNum <= 180 ? lngNum : null;
+  }
   if (typeof password === "string" && password.length > 0) {
     updates.password_hash = hashPassword(password);
   }
@@ -77,7 +85,7 @@ export async function PATCH(request: Request) {
   const { data, error } = await supabase
     .from("restaurant_config")
     .upsert(updates, { onConflict: "slug" })
-    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address")
+    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng")
     .single();
 
   if (error) {

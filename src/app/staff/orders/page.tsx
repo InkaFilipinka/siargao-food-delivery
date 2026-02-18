@@ -10,6 +10,7 @@ import {
   PenLine,
   MapPin,
   Phone,
+  MessageCircle,
   ChevronDown,
   Lock,
   ExternalLink,
@@ -34,11 +35,18 @@ const STATUS_OPTIONS = [
   "cancelled",
 ];
 
+function toWhatsAppUrl(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const num = digits.startsWith("0") ? `63${digits.slice(1)}` : digits.startsWith("63") ? digits : `63${digits}`;
+  return `https://wa.me/${num}`;
+}
+
 type Order = {
   id: string;
   status: string;
   customerName: string;
   customerPhone: string;
+  customerWhatsapp?: string | null;
   landmark: string;
   deliveryAddress: string;
   deliveryLat?: number | null;
@@ -405,13 +413,28 @@ export default function StaffOrdersPage() {
                           )}
                         </div>
                         <div className="flex flex-wrap gap-3 text-sm">
-                          <a
-                            href={`tel:${o.customerPhone}`}
-                            className="flex items-center gap-2 text-orange-600 hover:underline"
-                          >
-                            <Phone className="w-4 h-4" />
-                            Call customer
-                          </a>
+                          {(o.customerWhatsapp || o.customerPhone) && (
+                            <>
+                              <a
+                                href={toWhatsAppUrl(o.customerWhatsapp || o.customerPhone)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-green-600 hover:underline font-medium"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                                WhatsApp
+                              </a>
+                              {o.customerPhone && (
+                                <a
+                                  href={`tel:${o.customerPhone}`}
+                                  className="flex items-center gap-2 text-orange-600 hover:underline"
+                                >
+                                  <Phone className="w-4 h-4" />
+                                  Call: {o.customerPhone}
+                                </a>
+                              )}
+                            </>
+                          )}
                           {o.deliveryLat != null && o.deliveryLng != null && (
                             <a
                               href={`https://www.google.com/maps/dir/?api=1&destination=${o.deliveryLat},${o.deliveryLng}`}

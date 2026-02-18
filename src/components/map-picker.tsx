@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X, MapPin, AlertCircle, Locate } from "lucide-react";
-import { getDeliveryFee } from "@/config/delivery-zones";
 
 interface MapPickerProps {
   onLocationSelect: (location: { lat: number; lng: number; distance: number; placeName?: string }) => void;
@@ -17,6 +16,14 @@ const BASE_LNG = 126.1574;
 const SEARCH_CENTER_LAT = 9.7854;
 const SEARCH_CENTER_LNG = 126.1574;
 const SEARCH_RADIUS_KM = 25;
+
+/** Siargao island bounds - restrict Places search to island only */
+const SIARGAO_BOUNDS = {
+  south: 9.45,
+  west: 125.7,
+  north: 10.05,
+  east: 126.55,
+};
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
@@ -341,13 +348,14 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
         setMapError("");
 
         if (searchInputRef.current && window.google.maps.places) {
-          const searchCenter = new window.google.maps.LatLng(SEARCH_CENTER_LAT, SEARCH_CENTER_LNG);
-          const searchCircle = new window.google.maps.Circle({ center: searchCenter, radius: SEARCH_RADIUS_KM * 1000 });
-          const searchBounds = searchCircle.getBounds();
+          const siargaoBounds = new window.google.maps.LatLngBounds(
+            new window.google.maps.LatLng(SIARGAO_BOUNDS.south, SIARGAO_BOUNDS.west),
+            new window.google.maps.LatLng(SIARGAO_BOUNDS.north, SIARGAO_BOUNDS.east)
+          );
 
           const autocomplete = new window.google.maps.places.Autocomplete(searchInputRef.current, {
-            bounds: searchBounds!,
-            strictBounds: false,
+            bounds: siargaoBounds,
+            strictBounds: true,
             componentRestrictions: { country: "ph" },
             fields: ["geometry", "name", "formatted_address"],
           });
@@ -480,8 +488,6 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
 
   if (!isOpen) return null;
 
-  const { feePhp } = distance > 0 ? getDeliveryFee(distance) : { feePhp: 0 };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
@@ -550,28 +556,14 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
         </div>
         <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
           {selectedLocation && !mapError ? (
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                  <MapPin className="w-5 h-5 text-orange-500" />
-                  {calculating || distance === 0 ? (
-                    <span className="font-semibold">Calculating...</span>
-                  ) : (
-                    <span className="font-semibold">Distance: {distance} km</span>
-                  )}
-                </div>
-                {distance > 0 && !calculating && (
-                  <span className="text-sm text-slate-600 dark:text-slate-400">Delivery: ₱{feePhp}</span>
-                )}
-              </div>
-              {distance > 0 && !calculating && (
-                <button
-                  onClick={handleConfirm}
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg transition-colors"
-                >
-                  Confirm Location
-                </button>
-              )}
+            <div className="flex items-center justify-end">
+              <button
+                onClick={handleConfirm}
+                disabled={calculating}
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {calculating ? "Calculating…" : "Confirm Location"}
+              </button>
             </div>
           ) : !mapError ? (
             <p className="text-center text-slate-500">Click on the map or search for your delivery location</p>

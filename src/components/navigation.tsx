@@ -19,7 +19,6 @@ const navLinkKeys: { href: string; key: string }[] = [
   { href: "/staff/orders", key: "nav.staff" },
   { href: "/restaurant-portal", key: "nav.restaurant" },
   { href: "/driver", key: "nav.driver" },
-  { href: "/admin", key: "nav.admin" },
 ];
 
 interface NavigationProps {
