@@ -102,7 +102,7 @@ export default function AdminDriversPage() {
           Drivers
         </h1>
         <p className="text-slate-600 dark:text-slate-400 mt-1">
-          Set email and password for driver portal login
+          {drivers.length} driver{drivers.length !== 1 ? "s" : ""} • Login & payout
         </p>
       </div>
 

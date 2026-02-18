@@ -91,7 +91,7 @@ export default function AdminLayout({
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex">
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 h-full bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-all",
+          "fixed left-0 top-14 z-40 h-[calc(100vh-3.5rem)] bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-all",
           sidebarOpen ? "w-64" : "w-16"
         )}
       >
@@ -146,7 +146,7 @@ export default function AdminLayout({
       </aside>
       <main
         className={cn(
-          "flex-1 transition-all",
+          "flex-1 transition-all pt-14",
           sidebarOpen ? "ml-64" : "ml-16"
         )}
       >

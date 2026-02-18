@@ -49,8 +49,6 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    const token = sessionStorage.getItem(STAFF_TOKEN_KEY);
-    if (!token) return;
     const headers = getAuthHeaders();
     Promise.all([
       fetch("/api/orders", { headers }).then(async (res) => {

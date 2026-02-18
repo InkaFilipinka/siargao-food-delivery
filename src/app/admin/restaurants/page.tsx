@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ExternalLink, Clock, Settings2, X } from "lucide-react";
+import { ExternalLink, Clock, Settings2, Image, X, Plus, Trash2 } from "lucide-react";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
 
@@ -15,6 +15,8 @@ type Restaurant = {
   menuItems: { name: string; price: string }[];
   hours?: string | null;
   minOrderPhp?: number | null;
+  isAdminRestaurant?: boolean;
+  isHidden?: boolean;
 };
 
 type Config = {
@@ -47,6 +49,22 @@ export default function AdminRestaurantsPage() {
   const [editLat, setEditLat] = useState<string>("");
   const [editLng, setEditLng] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [mediaSlug, setMediaSlug] = useState<string | null>(null);
+  const [mediaLogoUrl, setMediaLogoUrl] = useState("");
+  const [mediaImageUrls, setMediaImageUrls] = useState<string[]>([]);
+  const [mediaNewImageUrl, setMediaNewImageUrl] = useState("");
+  const [mediaExtras, setMediaExtras] = useState<{ id?: string; itemName: string; price: string }[]>([]);
+  const [mediaNewItemName, setMediaNewItemName] = useState("");
+  const [mediaNewItemPrice, setMediaNewItemPrice] = useState("");
+  const [mediaSaving, setMediaSaving] = useState(false);
+  const [deleteSlug, setDeleteSlug] = useState<{ slug: string; name: string; isAdmin: boolean } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addSlug, setAddSlug] = useState("");
+  const [addCategories, setAddCategories] = useState("");
+  const [addPriceRange, setAddPriceRange] = useState("$$");
+  const [addSaving, setAddSaving] = useState(false);
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
     const token = typeof window !== "undefined" ? sessionStorage.getItem(STAFF_TOKEN_KEY) : null;
@@ -56,9 +74,10 @@ export default function AdminRestaurantsPage() {
 
   const load = useCallback(() => {
     setLoading(true);
+    const headers = getAuthHeaders();
     Promise.all([
-      fetch("/api/restaurants").then((r) => r.json()),
-      fetch("/api/admin/restaurant-config", { headers: getAuthHeaders() }).then(async (r) => {
+      fetch("/api/restaurants?includeHidden=1", { headers }).then((r) => r.json()),
+      fetch("/api/admin/restaurant-config", { headers }).then(async (r) => {
         if (r.status === 401) return { configs: [] };
         return r.json();
       }),
@@ -76,6 +95,160 @@ export default function AdminRestaurantsPage() {
   }, [load]);
 
   const getConfig = (slug: string) => configs.find((c) => c.slug === slug);
+
+  const openMediaEdit = useCallback(
+    async (r: Restaurant) => {
+      setMediaSlug(r.slug);
+      setMediaLogoUrl("");
+      setMediaImageUrls([]);
+      setMediaNewImageUrl("");
+      setMediaExtras([]);
+      setMediaNewItemName("");
+      setMediaNewItemPrice("");
+      try {
+        const [mediaRes, extrasRes] = await Promise.all([
+          fetch(`/api/admin/restaurant-media?slug=${encodeURIComponent(r.slug)}`, { headers: getAuthHeaders() }),
+          fetch(`/api/admin/restaurant-menu-extras?slug=${encodeURIComponent(r.slug)}`, { headers: getAuthHeaders() }),
+        ]);
+        const mediaData = await mediaRes.json();
+        const extrasData = await extrasRes.json();
+        setMediaLogoUrl(mediaData.logoUrl || "");
+        setMediaImageUrls(Array.isArray(mediaData.imageUrls) ? mediaData.imageUrls : []);
+        setMediaExtras((extrasData.items || []).map((i: { id: string; item_name: string; price: string }) => ({ id: i.id, itemName: i.item_name, price: i.price })));
+      } catch {
+        setMediaSlug(r.slug);
+      }
+    },
+    [getAuthHeaders]
+  );
+
+  const saveMedia = async () => {
+    if (!mediaSlug) return;
+    setMediaSaving(true);
+    try {
+      await fetch("/api/admin/restaurant-media", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          slug: mediaSlug,
+          logoUrl: mediaLogoUrl.trim() || null,
+          imageUrls: mediaImageUrls.filter(Boolean),
+        }),
+      });
+      setMediaSlug(null);
+      load();
+    } catch {
+      /* ignore */
+    } finally {
+      setMediaSaving(false);
+    }
+  };
+
+  const addMenuExtra = async () => {
+    if (!mediaSlug || !mediaNewItemName.trim()) return;
+    try {
+      const res = await fetch("/api/admin/restaurant-menu-extras", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          slug: mediaSlug,
+          itemName: mediaNewItemName.trim(),
+          price: mediaNewItemPrice.trim() || "0 PHP",
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data) {
+        setMediaExtras((prev) => [...prev, { id: data.id, itemName: data.item_name, price: data.price }]);
+        setMediaNewItemName("");
+        setMediaNewItemPrice("");
+        load();
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const deleteMenuExtra = async (id: string) => {
+    try {
+      await fetch(`/api/admin/restaurant-menu-extras?id=${id}`, { method: "DELETE", headers: getAuthHeaders() });
+      setMediaExtras((prev) => prev.filter((e) => e.id !== id));
+      load();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const performDelete = async () => {
+    if (!deleteSlug) return;
+    setDeleting(true);
+    try {
+      if (deleteSlug.isAdmin) {
+        const res = await fetch(`/api/admin/restaurants?slug=${encodeURIComponent(deleteSlug.slug)}`, {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+        });
+        if (!res.ok) throw new Error("Failed");
+      } else {
+        const res = await fetch("/api/admin/restaurants", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          body: JSON.stringify({ action: "hide", slug: deleteSlug.slug }),
+        });
+        if (!res.ok) throw new Error("Failed");
+      }
+      setDeleteSlug(null);
+      load();
+    } catch {
+      setDeleteSlug(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const performUnhide = async (slug: string) => {
+    try {
+      const res = await fetch("/api/admin/restaurants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ action: "unhide", slug }),
+      });
+      if (res.ok) load();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const saveAdd = async () => {
+    const name = addName.trim();
+    const slug = addSlug.trim().toLowerCase().replace(/\s+/g, "-") || name.toLowerCase().replace(/\s+/g, "-");
+    if (!name) return;
+    setAddSaving(true);
+    try {
+      const res = await fetch("/api/admin/restaurants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          action: "add",
+          name,
+          slug,
+          categories: addCategories.split(",").map((c) => c.trim()).filter(Boolean),
+          priceRange: addPriceRange,
+          tags: [],
+        }),
+      });
+      if (res.ok) {
+        setAddOpen(false);
+        setAddName("");
+        setAddSlug("");
+        setAddCategories("");
+        setAddPriceRange("$$");
+        load();
+      }
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
   const openEdit = (r: Restaurant) => {
     const c = getConfig(r.slug);
     const pm = (c?.payout_method as "cash" | "gcash" | "crypto") || "cash";
@@ -144,13 +317,22 @@ export default function AdminRestaurantsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
-          Restaurants
-        </h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
-          {data.restaurants.length} venues • Commission % per venue
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
+            Restaurants
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1">
+            {data.restaurants.length} venues • Commission % per venue
+          </p>
+        </div>
+        <button
+          onClick={() => setAddOpen(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90"
+        >
+          <Plus className="w-4 h-4" />
+          Add
+        </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -162,7 +344,7 @@ export default function AdminRestaurantsPage() {
           return (
             <div
               key={r.slug}
-              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden"
+              className={`rounded-xl border overflow-hidden ${r.isHidden ? "border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"}`}
             >
               <div className="p-6">
                 <div className="flex items-start justify-between gap-2">
@@ -177,6 +359,13 @@ export default function AdminRestaurantsPage() {
                     >
                       <Settings2 className="w-4 h-4" />
                     </button>
+                    <button
+                      onClick={() => openMediaEdit(r)}
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-primary"
+                      title="Logo, images & menu"
+                    >
+                      <Image className="w-4 h-4" />
+                    </button>
                     <Link
                       href={`/restaurant/${r.slug}`}
                       target="_blank"
@@ -186,6 +375,23 @@ export default function AdminRestaurantsPage() {
                     >
                       <ExternalLink className="w-4 h-4" />
                     </Link>
+                    {r.isHidden ? (
+                      <button
+                        onClick={() => performUnhide(r.slug)}
+                        className="p-1.5 rounded-lg text-amber-600 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                        title="Unhide"
+                      >
+                        Unhide
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteSlug({ slug: r.slug, name: r.name, isAdmin: !!r.isAdminRestaurant })}
+                        className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-2">
@@ -378,6 +584,238 @@ export default function AdminRestaurantsPage() {
                 className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mediaSlug && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-slate-900 dark:text-white">
+                Logo, images & menu — {data.restaurants.find((r) => r.slug === mediaSlug)?.name}
+              </h3>
+              <button onClick={() => setMediaSlug(null)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Logo URL</label>
+                <input
+                  type="url"
+                  value={mediaLogoUrl}
+                  onChange={(e) => setMediaLogoUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Food images (URLs)</label>
+                <div className="space-y-2">
+                  {mediaImageUrls.map((url, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input
+                        type="url"
+                        value={url}
+                        onChange={(e) => setMediaImageUrls((u) => u.map((x, j) => (j === i ? e.target.value : x)))}
+                        className="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMediaImageUrls((u) => u.filter((_, j) => j !== i))}
+                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={mediaNewImageUrl}
+                      onChange={(e) => setMediaNewImageUrl(e.target.value)}
+                      placeholder="Add image URL..."
+                      className="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (mediaNewImageUrl.trim()) {
+                          setMediaImageUrls((u) => [...u, mediaNewImageUrl.trim()]);
+                          setMediaNewImageUrl("");
+                        }
+                      }}
+                      className="p-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Add menu item</label>
+                {mediaExtras.length > 0 && (
+                  <ul className="mb-3 space-y-1">
+                    {mediaExtras.map((e) => (
+                      <li key={e.id || e.itemName} className="flex items-center justify-between gap-2 text-sm py-1">
+                        <span>{e.itemName} — {e.price}</span>
+                        {e.id && (
+                          <button
+                            type="button"
+                            onClick={() => deleteMenuExtra(e.id!)}
+                            className="text-red-500 hover:underline"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={mediaNewItemName}
+                    onChange={(e) => setMediaNewItemName(e.target.value)}
+                    placeholder="Item name"
+                    className="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm"
+                  />
+                  <input
+                    type="text"
+                    value={mediaNewItemPrice}
+                    onChange={(e) => setMediaNewItemPrice(e.target.value)}
+                    placeholder="150 PHP"
+                    className="w-24 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={addMenuExtra}
+                    className="p-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setMediaSlug(null)}
+                className="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveMedia}
+                disabled={mediaSaving}
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {mediaSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteSlug && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 max-w-sm w-full shadow-xl">
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Are you sure?</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">
+              {deleteSlug.isAdmin
+                ? `Permanently remove "${deleteSlug.name}"? This cannot be undone.`
+                : `Hide "${deleteSlug.name}" from the site?`}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteSlug(null)}
+                className="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={performDelete}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? "…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 max-w-sm w-full shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-slate-900 dark:text-white">Add restaurant</h3>
+              <button
+                onClick={() => setAddOpen(false)}
+                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  placeholder="Restaurant name"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Slug (URL)</label>
+                <input
+                  type="text"
+                  value={addSlug}
+                  onChange={(e) => setAddSlug(e.target.value)}
+                  placeholder="auto-generated from name"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Categories (comma-separated)</label>
+                <input
+                  type="text"
+                  value={addCategories}
+                  onChange={(e) => setAddCategories(e.target.value)}
+                  placeholder="Filipino, Seafood"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Price range</label>
+                <select
+                  value={addPriceRange}
+                  onChange={(e) => setAddPriceRange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                >
+                  <option value="$">$</option>
+                  <option value="$$">$$</option>
+                  <option value="$$$">$$$</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setAddOpen(false)}
+                className="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveAdd}
+                disabled={addSaving || !addName.trim()}
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {addSaving ? "Adding…" : "Add"}
               </button>
             </div>
           </div>
