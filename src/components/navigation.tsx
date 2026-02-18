@@ -16,7 +16,6 @@ const navLinkKeys: { href: string; key: string }[] = [
   { href: "/account", key: "nav.account" },
   { href: "/support", key: "nav.support" },
   { href: "/checkout", key: "nav.checkout" },
-  { href: "/staff/orders", key: "nav.staff" },
   { href: "/restaurant-portal", key: "nav.restaurant" },
   { href: "/driver", key: "nav.driver" },
 ];
