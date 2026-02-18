@@ -290,7 +290,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           const lat = e.latLng.lat();
           const lng = e.latLng.lng();
 
-          if (selectedMarker) selectedMarker.setMap(null);
+          if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
           selectedMarker = new window.google.maps.Marker({
             position: { lat, lng },
             map,
@@ -327,7 +327,8 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
             setDistance(dist);
           } catch {
             setMapError("Could not calculate road distance. Try another location.");
-            if (selectedMarker) selectedMarker.setMap(null);
+            if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
+            selectedMarker = null;
             selectedMarkerRef.current = null;
             setSelectedLocation(null);
           } finally {
@@ -372,7 +373,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               map.setCenter({ lat, lng });
               map.setZoom(18);
 
-              if (selectedMarker) selectedMarker.setMap(null);
+              if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
               selectedMarker = new window.google.maps.Marker({
                 position: { lat, lng },
                 map,
@@ -408,7 +409,8 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
                 setDistance(dist);
               } catch {
                 setMapError("Could not calculate road distance.");
-                if (selectedMarker) selectedMarker.setMap(null);
+                if (selectedMarkerRef.current) selectedMarkerRef.current.setMap(null);
+                selectedMarker = null;
                 selectedMarkerRef.current = null;
                 setSelectedLocation(null);
               } finally {
