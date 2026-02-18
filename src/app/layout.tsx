@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { NavigationWrapper } from "@/components/navigation-wrapper";
-import { GoogleMapsLoader } from "@/components/google-maps-loader";
 import { Footer } from "@/components/footer";
 import { LocaleProvider } from "@/contexts/locale-context";
 import { CustomerAuthProvider } from "@/contexts/customer-auth-context";
@@ -23,7 +22,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <body className="font-sans flex flex-col min-h-screen">
-        <GoogleMapsLoader />
         <LocaleProvider>
           <CustomerAuthProvider>
             <NavigationWrapper />
