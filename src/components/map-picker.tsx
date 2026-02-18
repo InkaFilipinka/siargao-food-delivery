@@ -432,31 +432,52 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
       googleMapsLoading = false;
     };
 
-    const hasPlaces = !!(window.google?.maps?.places);
-    if (window.google?.maps && hasPlaces) {
-      googleMapsLoaded = true;
-      setTimeout(initializeMap, 100);
-    } else if (!googleMapsLoading) {
+    const initWhenReady = () => {
+      if (window.google?.maps && window.google.maps.places) {
+        googleMapsLoaded = true;
+        googleMapsLoading = false;
+        setTimeout(initializeMap, 100);
+        return true;
+      }
+      return false;
+    };
+
+    if (initWhenReady()) return;
+
+    if (!googleMapsLoading) {
       googleMapsLoading = true;
       const cbName = "__siargaoMapPickerLoaded";
       (window as unknown as Record<string, () => void>)[cbName] = () => {
         delete (window as unknown as Record<string, unknown>)[cbName];
-        googleMapsLoaded = true;
-        googleMapsLoading = false;
-        setTimeout(initializeMap, 100);
+        initWhenReady();
       };
-      document.querySelectorAll('script[src*="maps.googleapis.com"]').forEach((s) => s.remove());
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=${cbName}`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {};
-      script.onerror = () => {
-        delete (window as unknown as Record<string, unknown>)[cbName];
-        googleMapsLoading = false;
-        setMapError("Failed to load Google Maps.");
-      };
-      document.head.appendChild(script);
+      const existing = document.querySelector('script[src*="maps.googleapis.com"]');
+      if (!existing) {
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=${cbName}`;
+        script.async = true;
+        script.defer = true;
+        script.onerror = () => {
+          delete (window as unknown as Record<string, unknown>)[cbName];
+          googleMapsLoading = false;
+          setMapError("Failed to load Google Maps.");
+        };
+        document.head.appendChild(script);
+      } else {
+        const check = setInterval(() => {
+          if (initWhenReady()) {
+            clearInterval(check);
+            clearTimeout(timeout);
+          }
+        }, 300);
+        const timeout = setTimeout(() => {
+          clearInterval(check);
+          if (!window.google?.maps?.places) {
+            googleMapsLoading = false;
+            setMapError("Google Maps is still loading. Please refresh the page.");
+          }
+        }, 15000);
+      }
     }
   }, [isOpen]);
 
