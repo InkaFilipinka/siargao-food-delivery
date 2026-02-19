@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X, MapPin, AlertCircle, Locate } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface MapPickerProps {
   onLocationSelect: (location: { lat: number; lng: number; distance: number; placeName?: string }) => void;
@@ -495,7 +496,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Select Delivery Location</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className={cn("text-sm font-medium", selectedLocation ? "text-green-500 dark:text-green-400" : "text-slate-600 dark:text-slate-400")}>
                 {selectedLocation ? "Drag the pin or search to fine-tune" : "Locating you… or click the map, drag the pin, or search"}
               </p>
             </div>

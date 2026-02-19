@@ -183,15 +183,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Categories - horizontal scroll */}
+      {/* Categories - wrap to multiple rows by window width */}
       <section id="categories" className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-14 z-40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3">
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+          <div className="flex flex-wrap gap-2">
             {favorites.length > 0 && (
               <button
                 onClick={() => setSelectedCategory("Favorites")}
                 className={cn(
-                  "shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
                   selectedCategory === "Favorites"
                     ? "bg-primary text-primary-foreground"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
@@ -204,7 +204,7 @@ export default function Home() {
               <button
                 onClick={() => setSelectedCategory("Favorite items")}
                 className={cn(
-                  "shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
                   selectedCategory === "Favorite items"
                     ? "bg-primary text-primary-foreground"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
@@ -223,7 +223,7 @@ export default function Home() {
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    "shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                    "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
                     selectedCategory === cat
                       ? "bg-primary text-primary-foreground"
                       : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
