@@ -81,6 +81,9 @@ export default function AdminRestaurantsPage() {
   const [addEmail, setAddEmail] = useState("");
   const [addPassword, setAddPassword] = useState("");
   const [addSaving, setAddSaving] = useState(false);
+  const [addType, setAddType] = useState<"restaurant" | "groceries" | "drinks">("restaurant");
+  const [autoCreating, setAutoCreating] = useState(false);
+  const [autoCreateResult, setAutoCreateResult] = useState<string | null>(null);
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
     const token = typeof window !== "undefined" ? sessionStorage.getItem(STAFF_TOKEN_KEY) : null;
@@ -410,14 +413,74 @@ export default function AdminRestaurantsPage() {
             {data.restaurants.length} venues • Commission % per venue
           </p>
         </div>
-        <button
-          onClick={() => setAddOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90"
-        >
-          <Plus className="w-4 h-4" />
-          Add
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => {
+              setAddType("restaurant");
+              setAddCategories("Local Favorites");
+              setAddOpen(true);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90"
+          >
+            <Plus className="w-4 h-4" />
+            Add new restaurant
+          </button>
+          <button
+            onClick={() => {
+              setAddType("groceries");
+              setAddCategories("Groceries");
+              setAddOpen(true);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600"
+          >
+            <Plus className="w-4 h-4" />
+            Add new groceries
+          </button>
+          <button
+            onClick={() => {
+              setAddType("drinks");
+              setAddCategories("Alcohol & Drinks");
+              setAddOpen(true);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600"
+          >
+            <Plus className="w-4 h-4" />
+            Add new drinks
+          </button>
+          <button
+            onClick={async () => {
+              setAutoCreating(true);
+              setAutoCreateResult(null);
+              try {
+                const res = await fetch("/api/admin/restaurants/auto-create-logins", {
+                  method: "POST",
+                  headers: getAuthHeaders(),
+                });
+                const data = await res.json();
+                if (res.ok) {
+                  setAutoCreateResult(data.message || `Created ${data.created} logins`);
+                  load();
+                } else {
+                  setAutoCreateResult(data.error || "Failed");
+                }
+              } catch {
+                setAutoCreateResult("Failed");
+              } finally {
+                setAutoCreating(false);
+              }
+            }}
+            disabled={autoCreating}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+          >
+            {autoCreating ? "..." : "Create portal logins for all"}
+          </button>
+        </div>
       </div>
+      {autoCreateResult && (
+        <p className="text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg">
+          {autoCreateResult}
+        </p>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {data.restaurants.map((r) => {
@@ -561,9 +624,13 @@ export default function AdminRestaurantsPage() {
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
                 />
               </div>
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Portal login</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Restaurant portal: view orders, set availability, earnings</p>
+              </div>
               <div>
                 <label htmlFor="admin-edit-email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Login email
+                  Email (login)
                 </label>
                 <input
                   id="admin-edit-email"
@@ -571,7 +638,7 @@ export default function AdminRestaurantsPage() {
                   type="email"
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
-                  placeholder="restaurant@example.com"
+                  placeholder="restaurant@example.com or slug@portal.siargaodelivery.com"
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
                 />
               </div>
@@ -652,7 +719,7 @@ export default function AdminRestaurantsPage() {
               </p>
               <div>
                 <label htmlFor="admin-edit-password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  New password (leave blank to keep)
+                  Password (leave blank to keep current)
                 </label>
                 <input
                   id="admin-edit-password"
@@ -926,7 +993,9 @@ export default function AdminRestaurantsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 max-w-md w-full shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-slate-900 dark:text-white">Add restaurant</h3>
+              <h3 className="font-semibold text-slate-900 dark:text-white">
+                Add new {addType === "restaurant" ? "restaurant" : addType === "groceries" ? "groceries" : "drinks"}
+              </h3>
               <button
                 onClick={() => setAddOpen(false)}
                 className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
