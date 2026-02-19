@@ -9,11 +9,11 @@ import { getSlugByRestaurantName, getIsGroceryBySlug } from "@/data/combined";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Order received",
-  confirmed: "Confirmed",
-  preparing: "Preparing",
-  ready: "Ready for pickup",
-  assigned: "Driver assigned",
-  picked: "Picked up",
+  confirmed: "Confirmed & preparing",
+  preparing: "Confirmed & preparing",
+  ready: "Confirmed & preparing",
+  assigned: "Confirmed & preparing",
+  picked: "Confirmed & preparing",
   out_for_delivery: "On the way",
   delivered: "Delivered",
   cancelled: "Cancelled",
@@ -45,7 +45,7 @@ export default function OrderHistoryPage() {
     e.preventDefault();
     setError("");
     if (!phone.trim() || phone.replace(/\D/g, "").length < 4) {
-      setError("Enter a valid phone number");
+      setError("Enter a valid phone or WhatsApp number");
       return;
     }
     setLoading(true);
@@ -109,19 +109,19 @@ export default function OrderHistoryPage() {
           Order history
         </h1>
         <p className="text-slate-600 dark:text-slate-400 mb-8">
-          Enter your phone number to see past orders and reorder.
+          Enter your phone or WhatsApp number to see past orders and reorder.
         </p>
 
         <form onSubmit={handleLookup} className="space-y-4 mb-8">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Phone number
+              Phone number or WhatsApp number <span className="font-normal text-slate-500">(Only one required)</span>
             </label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="09XX XXX XXXX"
+              placeholder="+63 9XX XXX XXXX or 09XX XXX XXXX"
               className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
             />
           </div>
@@ -242,7 +242,7 @@ export default function OrderHistoryPage() {
 
         {!loading && orders.length === 0 && phone.length >= 4 && (
           <p className="text-slate-500 dark:text-slate-400 text-center py-8">
-            No orders found for this phone number.
+            No orders found for this phone or WhatsApp number.
           </p>
         )}
       </div>

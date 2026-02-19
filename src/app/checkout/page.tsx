@@ -39,18 +39,15 @@ function formatOrderForWhatsApp(
   notes: string,
   timeWindow: "asap" | "scheduled",
   scheduledAt?: string,
-  customerWhatsapp?: string,
-  customerPhone?: string
+  customerWhatsapp?: string
 ) {
   const lines = items.map((i) => `• ${i.itemName} x${i.quantity} - ${i.price}`);
   let text = `Hi! I'd like to place an order.\n\nOrder ID: ${orderId}\n\n${lines.join("\n")}\n\nTotal: ₱${totalPhp.toLocaleString()}\n\nDelivery: ${address.trim()}\nLandmark: ${landmark.trim()}`;
   if (notes.trim()) text += `\nNotes: ${notes.trim()}`;
   if (timeWindow === "scheduled" && scheduledAt) text += `\nDeliver at: ${scheduledAt}`;
   else text += `\nASAP`;
-  if (customerWhatsapp?.trim() || customerPhone?.trim()) {
-    text += `\n\nContact me:`;
-    if (customerWhatsapp?.trim()) text += `\nWhatsApp: ${customerWhatsapp.trim()}`;
-    if (customerPhone?.trim() && customerPhone.trim() !== customerWhatsapp?.trim()) text += `\nPhone: ${customerPhone.trim()}`;
+  if (customerWhatsapp?.trim()) {
+    text += `\n\nContact me:\nWhatsApp: ${customerWhatsapp.trim()}`;
   }
   return text;
 }
@@ -67,7 +64,6 @@ export default function CheckoutPage() {
 
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [landmark, setLandmark] = useState("");
@@ -111,7 +107,6 @@ export default function CheckoutPage() {
     if (customer) {
       setName(customer.name || "");
       setEmail(customer.email || "");
-      setPhone(customer.phone || "");
       setWhatsapp(customer.phone || "");
     }
   }, [customer]);
@@ -133,7 +128,7 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    const lookupPhone = phone.trim() || whatsapp.trim();
+    const lookupPhone = whatsapp.trim();
     if (lookupPhone.length >= 4) {
       fetch(`/api/addresses?phone=${encodeURIComponent(lookupPhone)}`)
         .then((r) => r.json())
@@ -142,7 +137,7 @@ export default function CheckoutPage() {
     } else {
       setSavedAddresses([]);
     }
-  }, [phone, whatsapp]);
+  }, [whatsapp]);
 
   useEffect(() => {
     if (token && paymentMethod === "card") {
@@ -172,7 +167,7 @@ export default function CheckoutPage() {
   }
 
   async function handleSaveAddress() {
-    const contactPhone = phone.trim() || whatsapp.trim();
+    const contactPhone = whatsapp.trim();
     if (!contactPhone || !landmark.trim() || !deliveryLocation) return;
     setSavingAddress(true);
     try {
@@ -210,7 +205,7 @@ export default function CheckoutPage() {
   const [useReferralCredit, setUseReferralCredit] = useState(0);
 
   useEffect(() => {
-    const lookupPhone = phone.trim() || whatsapp.trim();
+    const lookupPhone = whatsapp.trim();
     if (lookupPhone.length >= 4) {
       Promise.all([
         fetch(`/api/loyalty?phone=${encodeURIComponent(lookupPhone)}`),
@@ -227,7 +222,7 @@ export default function CheckoutPage() {
       setUseLoyaltyPoints(0);
       setUseReferralCredit(0);
     }
-  }, [phone, whatsapp]);
+  }, [whatsapp]);
 
   const subtotalPhp = items.reduce((sum, i) => sum + i.priceValue * i.quantity, 0);
   const primaryRestaurant = items.length ? items.find((i) => !(i.isGrocery ?? getIsGroceryBySlug(i.restaurantSlug))) ?? items[0] : null;
@@ -351,7 +346,7 @@ export default function CheckoutPage() {
         headers,
         body: JSON.stringify({
           customerName: name.trim(),
-          customerPhone: (phone.trim() || whatsapp.trim()) || "",
+          customerPhone: whatsapp.trim() || "",
           customerWhatsapp: whatsapp.trim() || undefined,
           customerEmail: email.trim() || undefined,
           deliveryAddress: buildDeliveryAddress(
@@ -413,8 +408,7 @@ export default function CheckoutPage() {
         notes.trim(),
         timeWindow,
         displayScheduled,
-        whatsapp.trim() || undefined,
-        phone.trim() || undefined
+        whatsapp.trim() || undefined
       );
 
       const saveSessionAndRedirect = (id: string) => {
@@ -430,7 +424,7 @@ export default function CheckoutPage() {
             "order-confirmation-meta",
             JSON.stringify({
               orderId: id,
-              phone: phone.trim(),
+              phone: whatsapp.trim(),
               email: email.trim() || undefined,
               receiptData: email.trim()
                 ? {
@@ -467,8 +461,7 @@ export default function CheckoutPage() {
               notes.trim(),
               timeWindow,
               displayScheduled,
-              whatsapp.trim() || undefined,
-              phone.trim() || undefined
+              whatsapp.trim() || undefined
             )
           );
           sessionStorage.setItem(
@@ -479,7 +472,7 @@ export default function CheckoutPage() {
             "order-confirmation-meta",
             JSON.stringify({
               orderId,
-              phone: phone.trim(),
+              phone: whatsapp.trim(),
               email: email.trim() || undefined,
               receiptData: email.trim()
                 ? {
@@ -663,17 +656,6 @@ export default function CheckoutPage() {
               onChange={(e) => setWhatsapp(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="+63 9XX XXX XXXX or 09XX XXX XXXX"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Phone number <span className="font-normal text-slate-500">(optional, for calls)</span></label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="09XX XXX XXXX"
             />
           </div>
 
@@ -1231,8 +1213,7 @@ export default function CheckoutPage() {
               notes.trim(),
               timeWindow,
               displayScheduled ? new Date(displayScheduled).toLocaleString() : undefined,
-              whatsapp.trim() || undefined,
-              phone.trim() || undefined
+              whatsapp.trim() || undefined
             );
             setLastOrder(items);
             clearCart();
@@ -1246,7 +1227,7 @@ export default function CheckoutPage() {
                 "order-confirmation-meta",
                 JSON.stringify({
                   orderId: pendingOrderId,
-                  phone: phone.trim(),
+                  phone: whatsapp.trim(),
                   email: email.trim() || undefined,
                 })
               );

@@ -3,34 +3,25 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Search, Loader2, Package, MapPin, ExternalLink, Headphones, Clock, XCircle, CheckCircle, Star, Bell, MessageCircle, Send, Edit3 } from "lucide-react";
+import { Search, Loader2, Package, MapPin, ExternalLink, Headphones, Clock, XCircle, CheckCircle, Star, MessageCircle, Send, Edit3 } from "lucide-react";
 import { DeliveryMap } from "@/components/delivery-map";
-import { AddToAppModal } from "@/components/add-to-app-modal";
 import { getSlugByRestaurantName, getRestaurantBySlug } from "@/data/combined";
-import { getNotificationPlatform } from "@/lib/platform";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Order received",
-  confirmed: "Confirmed",
-  preparing: "Preparing",
-  ready: "Ready for pickup",
-  assigned: "Driver assigned",
-  picked: "Picked up",
+  confirmed: "Confirmed & preparing",
+  preparing: "Confirmed & preparing",
+  ready: "Confirmed & preparing",
+  assigned: "Confirmed & preparing",
+  picked: "Confirmed & preparing",
   out_for_delivery: "On the way",
   delivered: "Delivered",
   cancelled: "Cancelled",
 };
 
-const STATUS_STEPS = [
-  "pending",
-  "confirmed",
-  "preparing",
-  "ready",
-  "picked",
-  "out_for_delivery",
-  "delivered",
-];
+const STATUS_STEPS = ["pending", "preparing", "out_for_delivery", "delivered"];
+const PREPARING_STATUSES = ["confirmed", "preparing", "ready", "assigned", "picked"];
 
 function formatTime(iso: string | null): string {
   if (!iso) return "—";
@@ -55,6 +46,9 @@ function TrackPageContent() {
         if (oid) setOrderId(oid);
         if (ph) setPhone(ph);
         sessionStorage.removeItem("order-confirmation-meta");
+        if (oid && ph) {
+          doSearch(oid, ph);
+        }
       } catch {
         /* ignore */
       }
@@ -76,7 +70,6 @@ function TrackPageContent() {
   const [showEditItems, setShowEditItems] = useState(false);
   const [editItems, setEditItems] = useState<{ restaurantName: string; restaurantSlug?: string; itemName: string; price: string; priceValue: number; quantity: number }[]>([]);
   const [editItemsSaving, setEditItemsSaving] = useState(false);
-  const [showAddToAppModal, setShowAddToAppModal] = useState(false);
 
   function parsePrice(p: string): number {
     const m = (p || "").match(/[\d,.]+/);
@@ -110,19 +103,16 @@ function TrackPageContent() {
     items: { item_name: string; quantity: number; price: string; restaurant_name: string; restaurant_slug?: string }[];
   } | null>(null);
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
+  async function doSearch(overrideOrderId?: string, overridePhone?: string) {
+    const oid = (overrideOrderId ?? orderId).trim();
+    const ph = (overridePhone ?? phone).trim();
+    if (!oid || !ph) return false;
     setError("");
     setOrder(null);
-    if (!orderId.trim() || !phone.trim()) {
-      setError("Enter order ID and phone number");
-      return;
-    }
-
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/orders/${orderId.trim()}?phone=${encodeURIComponent(phone.trim())}`
+        `/api/orders/${oid}?phone=${encodeURIComponent(ph)}`
       );
       const data = await res.json();
 
@@ -141,17 +131,28 @@ function TrackPageContent() {
         priceValue: i.price_value ?? parsePrice(i.price),
         quantity: i.quantity,
       })));
-      if (data?.id && phone.trim()) {
-        fetch(`/api/orders/${data.id}/messages?phone=${encodeURIComponent(phone.trim())}`)
+      if (data?.id && ph) {
+        fetch(`/api/orders/${data.id}/messages?phone=${encodeURIComponent(ph)}`)
           .then((r) => r.json())
           .then((d) => setMessages(d.messages || []))
           .catch(() => {});
       }
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not find order");
+      return false;
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!orderId.trim() || !phone.trim()) {
+      setError("Enter order ID and WhatsApp number");
+      return;
+    }
+    await doSearch();
   }
 
   useEffect(() => {
@@ -244,9 +245,11 @@ function TrackPageContent() {
   }
 
   const currentStepIndex = order
-    ? STATUS_STEPS.indexOf(order.status) >= 0
-      ? STATUS_STEPS.indexOf(order.status)
-      : -1
+    ? PREPARING_STATUSES.includes(order.status)
+      ? 1
+      : STATUS_STEPS.indexOf(order.status) >= 0
+        ? STATUS_STEPS.indexOf(order.status)
+        : -1
     : -1;
 
   return (
@@ -278,13 +281,13 @@ function TrackPageContent() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Phone number
+              WhatsApp number
             </label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="09XX XXX XXXX"
+              placeholder="+63 9XX XXX XXXX or 09XX XXX XXXX"
               className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
             />
           </div>
@@ -316,28 +319,6 @@ function TrackPageContent() {
                 Status: {STATUS_LABELS[order.status] || order.status}
               </h2>
 
-              {order.status !== "delivered" && order.status !== "cancelled" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const platform = getNotificationPlatform();
-                    if (platform === "ios" || platform === "macos-safari") {
-                      setShowAddToAppModal(true);
-                    } else {
-                      window.open(`https://ntfy.sh/siargao-order-${order.id}`, "_blank", "noopener,noreferrer");
-                    }
-                  }}
-                  className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700 w-full text-left"
-                >
-                  <Bell className="w-5 h-5 shrink-0" />
-                  Get push notifications for this order
-                </button>
-              )}
-              <AddToAppModal
-                isOpen={showAddToAppModal}
-                onClose={() => setShowAddToAppModal(false)}
-                platform={getNotificationPlatform()}
-              />
               {order.estimatedDeliveryAt && order.status !== "delivered" && order.status !== "cancelled" && (
                 <div className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-slate-100 dark:bg-slate-800">
                   <Clock className="w-5 h-5 text-primary shrink-0" />
@@ -552,15 +533,13 @@ function TrackPageContent() {
                   const timestamp =
                     step === "pending"
                       ? order.createdAt
-                      : step === "confirmed"
-                        ? order.confirmedAt
-                        : step === "ready"
-                          ? order.readyAt
-                          : step === "picked"
-                            ? order.pickedAt
-                            : step === "delivered"
-                              ? order.deliveredAt
-                              : null;
+                      : step === "preparing"
+                        ? order.confirmedAt || order.readyAt
+                        : step === "out_for_delivery"
+                          ? order.pickedAt
+                          : step === "delivered"
+                            ? order.deliveredAt
+                            : null;
                   return (
                     <div key={step} className="relative -left-6 flex items-start gap-3">
                       <div

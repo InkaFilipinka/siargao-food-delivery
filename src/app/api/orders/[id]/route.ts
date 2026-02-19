@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { verifyToken } from "@/lib/auth";
-import { sendNtfy } from "@/lib/ntfy";
 import { getSlugByRestaurantName, getIsGroceryBySlug } from "@/data/combined";
 
 function getBearerToken(request: Request): string | null {
@@ -179,26 +178,13 @@ export async function PATCH(
       }
       updatePayload.status = status;
       const now = new Date().toISOString();
-      if (status === "confirmed") updatePayload.confirmed_at = now;
+      if (status === "confirmed" || status === "preparing") updatePayload.confirmed_at = now;
       if (status === "ready") updatePayload.ready_at = now;
       if (status === "assigned") updatePayload.assigned_at = now;
       if (status === "picked") updatePayload.picked_at = now;
       if (status === "delivered") updatePayload.delivered_at = now;
 
-      // Customer push notification via ntfy
-      const topic = `siargao-order-${id}`;
-      const statusLabels: Record<string, string> = {
-        confirmed: "Order confirmed",
-        preparing: "Restaurant is preparing your order",
-        ready: "Order ready for pickup",
-        assigned: "Driver assigned",
-        picked: "Driver picked up your order",
-        out_for_delivery: "On the way to you!",
-        delivered: "Delivered! Enjoy your meal",
-        cancelled: "Order cancelled",
-      };
-      const msg = statusLabels[status] || status;
-      sendNtfy(topic, msg, { title: "Siargao Delivery", priority: "high", tags: "package" }).catch(() => {});
+      // ntfy is used for restaurant/driver/admin only, not customers
     }
 
     if (arrivedAtHub === true) {

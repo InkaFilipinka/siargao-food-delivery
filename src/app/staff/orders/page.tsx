@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Headphones,
   Columns3,
+  Send,
 } from "lucide-react";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 import { DispatchBoard } from "@/components/dispatch-board";
@@ -25,15 +26,24 @@ const STAFF_TOKEN_KEY = "siargao-staff-token";
 const POLL_INTERVAL_MS = 30000;
 
 const STATUS_OPTIONS = [
-  "confirmed",
-  "preparing",
-  "ready",
-  "assigned",
-  "picked",
-  "out_for_delivery",
-  "delivered",
-  "cancelled",
+  { value: "pending", label: "Pending" },
+  { value: "preparing", label: "Confirmed & preparing" },
+  { value: "out_for_delivery", label: "Out for delivery" },
+  { value: "delivered", label: "Delivered" },
+  { value: "cancelled", label: "Cancelled" },
 ];
+
+const STATUS_DISPLAY: Record<string, string> = {
+  pending: "Pending",
+  confirmed: "Confirmed & preparing",
+  preparing: "Confirmed & preparing",
+  ready: "Confirmed & preparing",
+  assigned: "Confirmed & preparing",
+  picked: "Confirmed & preparing",
+  out_for_delivery: "Out for delivery",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
 
 function toWhatsAppUrl(phone: string): string {
   const digits = phone.replace(/\D/g, "");
@@ -67,12 +77,16 @@ export default function StaffOrdersPage() {
   const [needsAuth, setNeedsAuth] = useState(false);
   const [staffToken, setStaffTokenState] = useState("");
   const [orderId, setOrderId] = useState("");
-  const [newStatus, setNewStatus] = useState("confirmed");
+  const [newStatus, setNewStatus] = useState("preparing");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [orderMessages, setOrderMessages] = useState<Record<string, { id: string; sender_type: string; message: string; created_at: string }[]>>({});
+  const [orderReplyInput, setOrderReplyInput] = useState<Record<string, string>>({});
+  const [messagesLoadingId, setMessagesLoadingId] = useState<string | null>(null);
+  const [sendingMessageId, setSendingMessageId] = useState<string | null>(null);
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
     const token = typeof window !== "undefined" ? sessionStorage.getItem(STAFF_TOKEN_KEY) : null;
@@ -149,7 +163,7 @@ export default function StaffOrdersPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
-      setMessage({ type: "ok", text: `Order updated to ${newStatus}` });
+      setMessage({ type: "ok", text: `Order updated to ${STATUS_OPTIONS.find((s) => s.value === newStatus)?.label || newStatus}` });
       setOrderId("");
     } catch (err) {
       setMessage({ type: "err", text: err instanceof Error ? err.message : "Failed" });
@@ -178,10 +192,54 @@ export default function StaffOrdersPage() {
     }
   }
 
+  function loadOrderMessages(id: string) {
+    setMessagesLoadingId(id);
+    fetch(`/api/orders/${id}/messages`, { headers: getAuthHeaders() })
+      .then((r) => r.json())
+      .then((d) => setOrderMessages((prev) => ({ ...prev, [id]: d.messages || [] })))
+      .catch(() => setOrderMessages((prev) => ({ ...prev, [id]: [] })))
+      .finally(() => setMessagesLoadingId(null));
+  }
+
+  async function sendOrderReply(orderId: string) {
+    const text = (orderReplyInput[orderId] || "").trim();
+    if (!text) return;
+    setSendingMessageId(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await res.json();
+      if (res.ok && data) {
+        setOrderMessages((prev) => ({
+          ...prev,
+          [orderId]: [...(prev[orderId] || []), data],
+        }));
+        setOrderReplyInput((prev) => ({ ...prev, [orderId]: "" }));
+      }
+    } finally {
+      setSendingMessageId(null);
+    }
+  }
+
+  useEffect(() => {
+    if (expandedId && !needsAuth) {
+      loadOrderMessages(expandedId);
+    }
+  }, [expandedId, needsAuth]);
+
+  const PREPARING_STATUSES = ["confirmed", "preparing", "ready", "assigned", "picked"];
   const filteredOrders =
     statusFilter === "all"
       ? orders
-      : orders.filter((o) => o.status === statusFilter);
+      : statusFilter === "preparing"
+        ? orders.filter((o) => PREPARING_STATUSES.includes(o.status))
+        : orders.filter((o) => o.status === statusFilter);
 
   const formatTime = (s: string | null) => {
     if (!s) return "—";
@@ -322,8 +380,8 @@ export default function StaffOrdersPage() {
               >
                 <option value="all">All statuses</option>
                 {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s.replace(/_/g, " ")}
+                  <option key={s.value} value={s.value}>
+                    {s.label}
                   </option>
                 ))}
               </select>
@@ -393,7 +451,7 @@ export default function StaffOrdersPage() {
                                 : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
                           )}
                         >
-                          {o.status.replace(/_/g, " ")}
+                          {STATUS_DISPLAY[o.status] || o.status.replace(/_/g, " ")}
                         </span>
                       </div>
                       <ChevronDown
@@ -475,6 +533,63 @@ export default function StaffOrdersPage() {
                             </span>
                           )}
                         </p>
+                        <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                          <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                            <MessageCircle className="w-4 h-4" />
+                            Order messages
+                          </h4>
+                          {messagesLoadingId === o.id ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                          ) : (
+                            <>
+                              {(orderMessages[o.id] || []).length > 0 ? (
+                                <ul className="space-y-2 mb-3 max-h-32 overflow-y-auto">
+                                  {(orderMessages[o.id] || []).map((m) => (
+                                    <li
+                                      key={m.id}
+                                      className={`text-sm p-2 rounded-lg ${
+                                        m.sender_type === "customer"
+                                          ? "bg-slate-100 dark:bg-slate-700/50 text-slate-800 dark:text-slate-200 mr-4"
+                                          : "bg-primary/10 text-slate-900 dark:text-white ml-4"
+                                      }`}
+                                    >
+                                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                                        {m.sender_type} · {formatTime(m.created_at)}:
+                                      </span>{" "}
+                                      {m.message}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-xs text-slate-500 mb-2">No messages yet</p>
+                              )}
+                              <div className="flex gap-2">
+                                <input
+                                  value={orderReplyInput[o.id] || ""}
+                                  onChange={(e) =>
+                                    setOrderReplyInput((prev) => ({ ...prev, [o.id]: e.target.value }))
+                                  }
+                                  onKeyDown={(e) =>
+                                    e.key === "Enter" && !e.shiftKey && sendOrderReply(o.id)
+                                  }
+                                  placeholder="Reply to customer..."
+                                  className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm"
+                                />
+                                <button
+                                  onClick={() => sendOrderReply(o.id)}
+                                  disabled={
+                                    sendingMessageId === o.id ||
+                                    !(orderReplyInput[o.id] || "").trim()
+                                  }
+                                  className="p-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                                  title="Send"
+                                >
+                                  <Send className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 pt-2">
                           <span className="text-sm text-slate-600 dark:text-slate-400">
                             Update status:
@@ -488,8 +603,8 @@ export default function StaffOrdersPage() {
                             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
                           >
                             {STATUS_OPTIONS.map((s) => (
-                              <option key={s} value={s}>
-                                {s.replace(/_/g, " ")}
+                              <option key={s.value} value={s.value}>
+                                {s.label}
                               </option>
                             ))}
                           </select>
@@ -541,8 +656,8 @@ export default function StaffOrdersPage() {
                   className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500"
                 >
                   {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s.replace(/_/g, " ")}
+                    <option key={s.value} value={s.value}>
+                      {s.label}
                     </option>
                   ))}
                 </select>

@@ -11,7 +11,6 @@ export default function AccountPage() {
   const { customer, token, isLoaded, login, logout } = useCustomerAuth();
   const router = useRouter();
   const [whatsapp, setWhatsapp] = useState("");
-  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<{ id: string; brand: string; last4: string; isDefault: boolean }[]>([]);
@@ -31,16 +30,15 @@ export default function AccountPage() {
     setError("");
     setLoading(true);
     try {
-      const identifier = whatsapp.trim() || phone.trim();
-      if (!identifier) {
-        setError("Enter your WhatsApp or phone number");
+      if (!whatsapp.trim()) {
+        setError("Enter your WhatsApp number");
         setLoading(false);
         return;
       }
       const res = await fetch("/api/auth/customer/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: identifier }),
+        body: JSON.stringify({ phone: whatsapp.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Login failed");
@@ -167,12 +165,12 @@ export default function AccountPage() {
         </Link>
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-            Enter the WhatsApp or phone number you used when placing an order.
+            Enter the WhatsApp number you used when placing an order.
           </p>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                WhatsApp number <span className="font-normal text-slate-500">(Only one required)</span>
+                WhatsApp number
               </label>
               <input
                 type="tel"
@@ -182,22 +180,10 @@ export default function AccountPage() {
                 className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Phone number <span className="font-normal text-slate-500">(Only one required)</span>
-              </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="09171234567"
-                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-              />
-            </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button
               type="submit"
-              disabled={loading || (!whatsapp.trim() && !phone.trim())}
+              disabled={loading || !whatsapp.trim()}
               className="w-full bg-primary text-primary-foreground font-medium py-3 rounded-lg hover:opacity-90 disabled:opacity-70 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}

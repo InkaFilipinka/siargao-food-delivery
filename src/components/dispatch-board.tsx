@@ -5,22 +5,21 @@ import { MapPin, Phone, MessageCircle, Loader2, Package } from "lucide-react";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 import { cn } from "@/lib/utils";
 
+const PREPARING_STATUSES = ["confirmed", "preparing", "ready", "assigned", "picked"];
 const KANBAN_COLUMNS = [
-  { id: "new", label: "New", statuses: ["pending"] },
-  { id: "confirmed", label: "Confirmed", statuses: ["confirmed", "preparing"] },
-  { id: "ready", label: "Ready", statuses: ["ready"] },
-  { id: "assigned", label: "Assigned", statuses: ["assigned"] },
-  { id: "picked", label: "Picked", statuses: ["picked", "out_for_delivery"] },
+  { id: "pending", label: "Pending", statuses: ["pending"] },
+  { id: "preparing", label: "Confirmed & preparing", statuses: PREPARING_STATUSES },
+  { id: "out_for_delivery", label: "Out for delivery", statuses: ["out_for_delivery"] },
   { id: "delivered", label: "Delivered", statuses: ["delivered"] },
   { id: "cancelled", label: "Cancelled", statuses: ["cancelled"] },
 ] as const;
 
 const NEXT_STATUS: Record<string, string> = {
-  pending: "confirmed",
-  confirmed: "preparing",
-  preparing: "ready",
-  ready: "assigned",
-  assigned: "picked",
+  pending: "preparing",
+  confirmed: "out_for_delivery",
+  preparing: "out_for_delivery",
+  ready: "out_for_delivery",
+  assigned: "out_for_delivery",
   picked: "out_for_delivery",
   out_for_delivery: "delivered",
 };

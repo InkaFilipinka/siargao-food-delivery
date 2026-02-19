@@ -18,6 +18,8 @@ import {
   ToggleRight,
   MessageCircle,
   Phone,
+  ChevronDown,
+  Send,
 } from "lucide-react";
 import { combinedRestaurants, getRestaurantBySlug } from "@/data/combined";
 import { cn } from "@/lib/utils";
@@ -89,6 +91,11 @@ export default function RestaurantPortalPage() {
   } | null>(null);
   const [settings, setSettings] = useState<{ hours: string | null; minOrderPhp: number | null } | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [messagesExpandedId, setMessagesExpandedId] = useState<string | null>(null);
+  const [orderMessages, setOrderMessages] = useState<Record<string, { id: string; sender_type: string; message: string; created_at: string }[]>>({});
+  const [orderReplyInput, setOrderReplyInput] = useState<Record<string, string>>({});
+  const [messagesLoadingId, setMessagesLoadingId] = useState<string | null>(null);
+  const [sendingMessageId, setSendingMessageId] = useState<string | null>(null);
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
     if (typeof window === "undefined") return {};
@@ -213,6 +220,47 @@ export default function RestaurantPortalPage() {
       setAcceptingId(null);
     }
   }
+
+  function loadOrderMessages(id: string) {
+    setMessagesLoadingId(id);
+    fetch(`/api/orders/${id}/messages`, { headers: getAuthHeaders() })
+      .then((r) => r.json())
+      .then((d) => setOrderMessages((prev) => ({ ...prev, [id]: d.messages || [] })))
+      .catch(() => setOrderMessages((prev) => ({ ...prev, [id]: [] })))
+      .finally(() => setMessagesLoadingId(null));
+  }
+
+  async function sendOrderReply(orderId: string) {
+    const text = (orderReplyInput[orderId] || "").trim();
+    if (!text) return;
+    setSendingMessageId(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await res.json();
+      if (res.ok && data) {
+        setOrderMessages((prev) => ({
+          ...prev,
+          [orderId]: [...(prev[orderId] || []), data],
+        }));
+        setOrderReplyInput((prev) => ({ ...prev, [orderId]: "" }));
+      }
+    } finally {
+      setSendingMessageId(null);
+    }
+  }
+
+  useEffect(() => {
+    if (messagesExpandedId && !needsAuth) {
+      loadOrderMessages(messagesExpandedId);
+    }
+  }, [messagesExpandedId, needsAuth]);
 
   async function toggleAvailability(itemName: string, available: boolean) {
     if (!slug) return;
@@ -722,6 +770,76 @@ export default function RestaurantPortalPage() {
                         <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
                           ₱{Number(o.totalPhp).toLocaleString()} total (order)
                         </p>
+
+                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-600">
+                          <button
+                            onClick={() =>
+                              setMessagesExpandedId(messagesExpandedId === o.id ? null : o.id)
+                            }
+                            className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            Messages
+                            <ChevronDown
+                              className={cn(
+                                "w-4 h-4 transition-transform",
+                                messagesExpandedId === o.id && "rotate-180"
+                              )}
+                            />
+                          </button>
+                          {messagesExpandedId === o.id && (
+                            <div className="mt-2">
+                              {messagesLoadingId === o.id ? (
+                                <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                              ) : (
+                                <>
+                                  {(orderMessages[o.id] || []).length > 0 ? (
+                                    <ul className="space-y-2 mb-2 max-h-24 overflow-y-auto">
+                                      {(orderMessages[o.id] || []).map((m) => (
+                                        <li
+                                          key={m.id}
+                                          className={cn(
+                                            "text-xs p-2 rounded",
+                                            m.sender_type === "customer"
+                                              ? "bg-slate-100 dark:bg-slate-700/50 mr-2"
+                                              : "bg-primary/10 ml-2"
+                                          )}
+                                        >
+                                          <span className="text-slate-500">{m.sender_type}:</span> {m.message}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <p className="text-xs text-slate-500 mb-2">No messages yet</p>
+                                  )}
+                                  <div className="flex gap-2">
+                                    <input
+                                      value={orderReplyInput[o.id] || ""}
+                                      onChange={(e) =>
+                                        setOrderReplyInput((prev) => ({ ...prev, [o.id]: e.target.value }))
+                                      }
+                                      onKeyDown={(e) =>
+                                        e.key === "Enter" && !e.shiftKey && sendOrderReply(o.id)
+                                      }
+                                      placeholder="Reply to customer..."
+                                      className="flex-1 px-2 py-1.5 rounded text-sm border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                    />
+                                    <button
+                                      onClick={() => sendOrderReply(o.id)}
+                                      disabled={
+                                        sendingMessageId === o.id ||
+                                        !(orderReplyInput[o.id] || "").trim()
+                                      }
+                                      className="p-1.5 rounded bg-primary text-primary-foreground disabled:opacity-50"
+                                    >
+                                      <Send className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
                         {o.restaurantStatus === "pending" && (
                           <div className="mt-4 flex flex-wrap gap-2">
