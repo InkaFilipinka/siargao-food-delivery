@@ -60,7 +60,7 @@ export function useExchangeRate() {
     };
 
     fetchRate();
-    const interval = setInterval(fetchRate, 5 * 60 * 1000);
+    const interval = setInterval(fetchRate, 12 * 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
