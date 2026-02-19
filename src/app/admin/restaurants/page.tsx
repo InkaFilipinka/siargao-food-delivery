@@ -166,7 +166,7 @@ export default function AdminRestaurantsPage() {
         ? [...mediaImageUrls.filter(Boolean), mediaNewImageUrl.trim()]
         : mediaImageUrls.filter(Boolean);
 
-      await Promise.all([
+      const [mediaRes, configRes] = await Promise.all([
         fetch("/api/admin/restaurant-media", {
           method: "PATCH",
           headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -187,6 +187,10 @@ export default function AdminRestaurantsPage() {
           }),
         }),
       ]);
+      const mediaData = await mediaRes.json();
+      const configData = await configRes.json();
+      if (!mediaRes.ok) throw new Error(mediaData.error || "Failed to save media");
+      if (!configRes.ok) throw new Error(configData.error || "Failed to save config");
       setMediaNewImageUrl("");
       setMediaSlug(null);
       load();
@@ -690,7 +694,16 @@ export default function AdminRestaurantsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Logo URL</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Logo</label>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Upload (drag & drop) or paste URL below. Saved as {mediaSlug}-logo.</p>
+                <ImageUploadZone
+                  slug={mediaSlug}
+                  type="logo"
+                  onUploaded={(url) => setMediaLogoUrl(url)}
+                  getAuthHeaders={getAuthHeaders}
+                  disabled={mediaSaving}
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 mb-2">Or paste URL:</p>
                 <input
                   type="url"
                   value={mediaLogoUrl}

@@ -8,6 +8,8 @@ import {
   getCommissionPct,
 } from "@/lib/restaurant-config";
 
+export const dynamic = "force-dynamic";
+
 interface MenuItemJson {
   name: string;
   price: string;
@@ -26,12 +28,15 @@ export async function GET(request: Request) {
 async function getRestaurantsData(request: Request) {
   const { searchParams } = new URL(request.url);
   let includeHidden = searchParams.get("includeHidden") === "1" || searchParams.get("includeHidden") === "true";
+  let isStaffRequest = false;
   if (includeHidden) {
     const auth = request.headers.get("authorization");
     const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
     const staffToken = process.env.STAFF_TOKEN;
     if (!staffToken || token !== staffToken) {
       includeHidden = false;
+    } else {
+      isStaffRequest = true;
     }
   }
   const menuByRestaurant = new Map(
@@ -189,7 +194,10 @@ async function getRestaurantsData(request: Request) {
       };
     });
 
-  const restaurants = [...staticList, ...adminList];
+  let restaurants = [...staticList, ...adminList];
+  if (!isStaffRequest) {
+    restaurants = restaurants.map(({ whatsappNumber: _, ...r }) => r);
+  }
 
   return Response.json({
     restaurants,

@@ -1,9 +1,24 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getRestaurantBySlug, combinedRestaurants } from "@/data/combined";
+import { headers } from "next/headers";
+import { combinedRestaurants } from "@/data/combined";
 import { ArrowLeft, MapPin, MessageCircle, Phone, Clock, ShoppingBag } from "lucide-react";
 import { SUPPORT_PHONE, SUPPORT_WHATSAPP } from "@/config/support";
 import { RestaurantMenuWithAvailability } from "@/components/restaurant-menu-with-availability";
+
+export const dynamic = "force-dynamic";
+
+async function fetchRestaurant(slug: string) {
+  const h = await headers();
+  const host = h.get("host") || "localhost:3000";
+  const proto = h.get("x-forwarded-proto") || "http";
+  const base = process.env.NEXT_PUBLIC_BASE_URL || `${proto}://${host}`;
+  const res = await fetch(`${base}/api/restaurant/${encodeURIComponent(slug)}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
 
 export function generateStaticParams() {
   return combinedRestaurants.map((r) => ({ slug: r.slug }));
@@ -15,7 +30,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const restaurant = getRestaurantBySlug(slug);
+  const restaurant = await fetchRestaurant(slug);
   if (!restaurant) return { title: "Restaurant not found" };
   return {
     title: `${restaurant.name} | Siargao Delivery`,
@@ -29,7 +44,7 @@ export default async function RestaurantPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const restaurant = getRestaurantBySlug(slug);
+  const restaurant = await fetchRestaurant(slug);
   if (!restaurant) notFound();
 
   return (
@@ -58,7 +73,7 @@ export default async function RestaurantPage({
               {restaurant.name}
             </h1>
             <div className="flex flex-wrap gap-2 mt-2">
-              {restaurant.categories.map((cat) => (
+              {restaurant.categories.map((cat: string) => (
                 <span
                   key={cat}
                   className="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium"
@@ -91,7 +106,7 @@ export default async function RestaurantPage({
 
             <div className="flex flex-wrap gap-2 mt-6">
               <a
-                href={`https://wa.me/${SUPPORT_WHATSAPP}`}
+                href={`https://wa.me/${SUPPORT_WHATSAPP.replace(/\D/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"

@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
 
   const file = formData.get("file") as File | null;
   const slug = formData.get("slug")?.toString()?.trim().toLowerCase().replace(/\s+/g, "-");
+  const type = formData.get("type")?.toString()?.toLowerCase();
   if (!file || !slug) {
     return NextResponse.json({ error: "file and slug required" }, { status: 400 });
   }
@@ -61,23 +62,29 @@ export async function POST(request: NextRequest) {
       fileSizeLimit: `${MAX_SIZE_MB}MB`,
     }).catch(() => {});
 
-    // List existing files to get next number
-    const { data: existing } = await supabase.storage.from(BUCKET).list(folder);
-    const prefix = `${slug}-`;
-    const numbers = (existing || [])
-      .filter((f) => f.name?.startsWith(prefix))
-      .map((f) => {
-        const match = f.name.match(new RegExp(`^${prefix.replace(/-/g, "\\-")}(\\d+)\\.`));
-        return match ? parseInt(match[1], 10) : 0;
-      });
-    const nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
-    const filename = `${slug}-${nextNum}.${ext}`;
-    const path = `${folder}/${filename}`;
+    let filename: string;
+    let path: string;
+    if (type === "logo") {
+      filename = `${slug}-logo.${ext}`;
+      path = `${folder}/${filename}`;
+    } else {
+      const { data: existing } = await supabase.storage.from(BUCKET).list(folder);
+      const prefix = `${slug}-`;
+      const numbers = (existing || [])
+        .filter((f) => f.name?.startsWith(prefix) && !f.name?.includes("-logo."))
+        .map((f) => {
+          const match = f.name.match(new RegExp(`^${prefix.replace(/-/g, "\\-")}(\\d+)\\.`));
+          return match ? parseInt(match[1], 10) : 0;
+        });
+      const nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+      filename = `${slug}-${nextNum}.${ext}`;
+      path = `${folder}/${filename}`;
+    }
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, buffer, {
       contentType: mime,
-      upsert: false,
+      upsert: type === "logo",
     });
 
     if (uploadError) {

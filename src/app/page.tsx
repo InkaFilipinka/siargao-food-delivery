@@ -50,7 +50,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/restaurants")
+    fetch("/api/restaurants", { cache: "no-store", headers: { "Cache-Control": "no-cache" } })
       .then((res) => res.json())
       .then(setData)
       .catch(console.error)

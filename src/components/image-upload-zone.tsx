@@ -8,6 +8,8 @@ interface ImageUploadZoneProps {
   onUploaded: (url: string) => void;
   getAuthHeaders: () => Record<string, string>;
   disabled?: boolean;
+  /** "logo" for logo upload (saved as slug-logo.ext, upserts). Default: food images. */
+  type?: "food" | "logo";
 }
 
 export function ImageUploadZone({
@@ -15,6 +17,7 @@ export function ImageUploadZone({
   onUploaded,
   getAuthHeaders,
   disabled,
+  type = "food",
 }: ImageUploadZoneProps) {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -32,6 +35,7 @@ export function ImageUploadZone({
         const formData = new FormData();
         formData.append("file", file);
         formData.append("slug", slug);
+        if (type === "logo") formData.append("type", "logo");
 
         const res = await fetch("/api/admin/upload-restaurant-image", {
           method: "POST",
@@ -48,7 +52,7 @@ export function ImageUploadZone({
         setUploading(false);
       }
     },
-    [slug, onUploaded, getAuthHeaders]
+    [slug, onUploaded, getAuthHeaders, type]
   );
 
   const handleDrop = useCallback(
@@ -112,7 +116,9 @@ export function ImageUploadZone({
             <Upload className="w-8 h-8" />
             <span className="text-sm font-medium">Drag image here or click to browse</span>
             <span className="text-xs">jpg, png, webp, gif (max 5MB)</span>
-            <span className="text-xs text-slate-500">Saved as {slug}-1, {slug}-2, …</span>
+            <span className="text-xs text-slate-500">
+              {type === "logo" ? `Saved as ${slug}-logo` : `Saved as ${slug}-1, ${slug}-2, …`}
+            </span>
           </div>
         )}
       </div>
