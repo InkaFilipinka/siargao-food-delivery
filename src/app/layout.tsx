@@ -21,7 +21,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
-      <body className="font-sans flex flex-col min-h-screen">
+      <body className="font-sans flex flex-col min-h-screen" suppressHydrationWarning>
         <LocaleProvider>
           <CustomerAuthProvider>
             <NavigationWrapper />

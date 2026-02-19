@@ -579,8 +579,10 @@ export default function CheckoutPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Your name *</label>
+            <label htmlFor="checkout-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Your name *</label>
             <input
+              id="checkout-name"
+              name="name"
               type="text"
               required
               value={name}
@@ -591,9 +593,11 @@ export default function CheckoutPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">WhatsApp number *</label>
+            <label htmlFor="checkout-whatsapp" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">WhatsApp number *</label>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Best way to reach you — tourists often use foreign SIMs</p>
             <input
+              id="checkout-whatsapp"
+              name="whatsapp"
               type="tel"
               required
               value={whatsapp}
@@ -604,10 +608,12 @@ export default function CheckoutPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label htmlFor="checkout-email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               Email <span className="font-normal text-slate-500">(optional, for receipt)</span>
             </label>
             <input
+              id="checkout-email"
+              name="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -671,10 +677,12 @@ export default function CheckoutPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label htmlFor="checkout-landmark" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               Landmark * <span className="font-normal text-slate-500">e.g. &quot;near Bravo&quot;, &quot;beside Coconut Grove&quot;</span>
             </label>
             <input
+              id="checkout-landmark"
+              name="landmark"
               type="text"
               required
               value={landmark}
@@ -685,10 +693,12 @@ export default function CheckoutPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label htmlFor="checkout-address" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               Full address <span className="font-normal text-slate-500">(optional)</span>
             </label>
             <textarea
+              id="checkout-address"
+              name="address"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               rows={2}
@@ -699,10 +709,12 @@ export default function CheckoutPage() {
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor="checkout-room" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Room <span className="font-normal text-slate-500">(optional)</span>
               </label>
               <input
+                id="checkout-room"
+                name="room"
                 type="text"
                 value={room}
                 onChange={(e) => setRoom(e.target.value)}
@@ -711,10 +723,12 @@ export default function CheckoutPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor="checkout-floor" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Floor <span className="font-normal text-slate-500">(optional)</span>
               </label>
               <input
+                id="checkout-floor"
+                name="floor"
                 type="text"
                 value={floor}
                 onChange={(e) => setFloor(e.target.value)}
@@ -723,10 +737,12 @@ export default function CheckoutPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor="checkout-guest-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Guest name <span className="font-normal text-slate-500">(optional)</span>
               </label>
               <input
+                id="checkout-guest-name"
+                name="guestName"
                 type="text"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
@@ -739,8 +755,9 @@ export default function CheckoutPage() {
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">When to deliver *</label>
             <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label htmlFor="checkout-time-asap" className="flex items-center gap-2 cursor-pointer">
                 <input
+                  id="checkout-time-asap"
                   type="radio"
                   name="timeWindow"
                   checked={timeWindow === "asap"}
@@ -749,8 +766,9 @@ export default function CheckoutPage() {
                 />
                 <span className="text-slate-900 dark:text-white">ASAP</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label htmlFor="checkout-time-scheduled" className="flex items-center gap-2 cursor-pointer">
                 <input
+                  id="checkout-time-scheduled"
                   type="radio"
                   name="timeWindow"
                   checked={timeWindow === "scheduled"}
@@ -795,6 +813,8 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex gap-3">
                   <input
+                    id="checkout-scheduled-date"
+                    name="scheduledDate"
                     type="date"
                     value={scheduledDate}
                     onChange={(e) => setScheduledDate(e.target.value)}
@@ -802,6 +822,8 @@ export default function CheckoutPage() {
                     className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
                   />
                   <input
+                    id="checkout-scheduled-time"
+                    name="scheduledTime"
                     type="time"
                     value={scheduledTime}
                     onChange={(e) => setScheduledTime(e.target.value)}
@@ -824,6 +846,7 @@ export default function CheckoutPage() {
               ].map(({ id, label, icon: Icon }) => (
                 <label
                   key={id}
+                  htmlFor={`checkout-payment-${id}`}
                   className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
                     paymentMethod === id
                       ? "border-primary bg-primary/10"
@@ -831,6 +854,7 @@ export default function CheckoutPage() {
                   }`}
                 >
                   <input
+                    id={`checkout-payment-${id}`}
                     type="radio"
                     name="paymentMethod"
                     checked={paymentMethod === id}
@@ -872,8 +896,10 @@ export default function CheckoutPage() {
           </div>
 
           <div>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label htmlFor="checkout-priority" className="flex items-center gap-2 cursor-pointer">
               <input
+                id="checkout-priority"
+                name="priorityDelivery"
                 type="checkbox"
                 checked={priorityDelivery}
                 onChange={(e) => setPriorityDelivery(e.target.checked)}
@@ -884,8 +910,10 @@ export default function CheckoutPage() {
           </div>
 
           <div>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label htmlFor="checkout-substitutions" className="flex items-center gap-2 cursor-pointer">
               <input
+                id="checkout-substitutions"
+                name="allowSubstitutions"
                 type="checkbox"
                 checked={allowSubstitutions}
                 onChange={(e) => setAllowSubstitutions(e.target.checked)}
@@ -896,8 +924,10 @@ export default function CheckoutPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Order notes</label>
+            <label htmlFor="checkout-notes" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Order notes</label>
             <textarea
+              id="checkout-notes"
+              name="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
@@ -907,9 +937,11 @@ export default function CheckoutPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Promo code</label>
+            <label htmlFor="checkout-promo" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Promo code</label>
             <div className="flex gap-2">
               <input
+                id="checkout-promo"
+                name="promoCode"
                 type="text"
                 value={promoCode}
                 onChange={(e) => {
@@ -985,8 +1017,10 @@ export default function CheckoutPage() {
               </div>
             )}
             <div className="mt-2">
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Referral code (optional)</label>
+              <label htmlFor="checkout-referral" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Referral code (optional)</label>
               <input
+                id="checkout-referral"
+                name="referralCode"
                 type="text"
                 value={referralCode}
                 onChange={(e) => setReferralCode(e.target.value.toUpperCase())}

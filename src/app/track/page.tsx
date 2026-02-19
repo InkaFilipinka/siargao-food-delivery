@@ -268,10 +268,12 @@ function TrackPageContent() {
 
         <form onSubmit={handleSearch} className="space-y-4 mb-12">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label htmlFor="track-order-id" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               Order ID
             </label>
             <input
+              id="track-order-id"
+              name="orderId"
               type="text"
               value={orderId}
               onChange={(e) => setOrderId(e.target.value)}
@@ -280,10 +282,12 @@ function TrackPageContent() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label htmlFor="track-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               WhatsApp number
             </label>
             <input
+              id="track-phone"
+              name="phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}

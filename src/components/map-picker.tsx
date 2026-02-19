@@ -507,6 +507,8 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
             <div className="relative flex-1">
               <input
                 ref={searchInputRef}
+                id="map-picker-search"
+                name="addressSearch"
                 type="text"
                 placeholder="Search for a place, hotel, resort, or address..."
                 className="w-full px-4 py-3 pr-10 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"

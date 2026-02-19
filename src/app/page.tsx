@@ -171,6 +171,8 @@ export default function Home() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
+              id="home-search"
+              name="search"
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -257,8 +259,10 @@ export default function Home() {
               <option value="rating">Sort: Rating</option>
               <option value="name">Sort: Name</option>
             </select>
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
+            <label htmlFor="home-hide-closed" className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
               <input
+                id="home-hide-closed"
+                name="hideClosed"
                 type="checkbox"
                 checked={hideClosed}
                 onChange={(e) => setHideClosed(e.target.checked)}

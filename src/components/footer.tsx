@@ -127,7 +127,7 @@ export function Footer() {
             >
               ©
             </Link>
-            {" "}{new Date().getFullYear()} Siargao Delivery. General Luna, Siargao.
+            <span suppressHydrationWarning> {new Date().getFullYear()} </span> Siargao Delivery. General Luna, Siargao.
           </p>
           <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <MapPin className="w-3.5 h-3.5" />

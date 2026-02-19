@@ -169,10 +169,12 @@ export default function AccountPage() {
           </p>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="account-whatsapp" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 WhatsApp number
               </label>
               <input
+                id="account-whatsapp"
+                name="whatsapp"
                 type="tel"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}

@@ -114,10 +114,12 @@ export default function OrderHistoryPage() {
 
         <form onSubmit={handleLookup} className="space-y-4 mb-8">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label htmlFor="orders-history-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               Phone number or WhatsApp number <span className="font-normal text-slate-500">(Only one required)</span>
             </label>
             <input
+              id="orders-history-phone"
+              name="phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}

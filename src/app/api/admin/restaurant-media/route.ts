@@ -67,7 +67,10 @@ export async function PATCH(request: Request) {
 
   if (error) {
     console.error("restaurant_media PATCH:", error);
-    return NextResponse.json({ error: "Failed to save" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to save media", details: error.message },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json(data);

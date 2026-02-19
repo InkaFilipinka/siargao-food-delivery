@@ -58,13 +58,13 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "slug is required" }, { status: 400 });
   }
 
+  const trimmedSlug = slug.trim().toLowerCase();
   const updates: Record<string, unknown> = {
-    slug: slug.trim(),
+    slug: trimmedSlug,
     updated_at: new Date().toISOString(),
+    commission_pct: typeof commission_pct === "number" && commission_pct >= 0 ? commission_pct : 30,
+    delivery_commission_pct: typeof delivery_commission_pct === "number" && delivery_commission_pct >= 0 ? delivery_commission_pct : 30,
   };
-  if (typeof commission_pct === "number" && commission_pct >= 0) updates.commission_pct = commission_pct;
-  if (typeof delivery_commission_pct === "number" && delivery_commission_pct >= 0)
-    updates.delivery_commission_pct = delivery_commission_pct;
   if (typeof gcash_number === "string") updates.gcash_number = gcash_number.trim() || null;
   if (typeof email === "string") updates.email = email.trim() || null;
   if (typeof payout_method === "string" && ["cash", "gcash", "crypto"].includes(payout_method))
@@ -85,16 +85,44 @@ export async function PATCH(request: Request) {
   if (typeof whatsapp_number === "string") updates.whatsapp_number = whatsapp_number.trim() || null;
   if (typeof menu_url === "string") updates.menu_url = menu_url.trim() || null;
 
-  const { data, error } = await supabase
+  // Try update first, then insert if no existing row
+  const { data: existing } = await supabase
     .from("restaurant_config")
-    .upsert(updates, { onConflict: "slug" })
-    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url")
-    .single();
+    .select("slug")
+    .eq("slug", trimmedSlug)
+    .maybeSingle();
 
-  if (error) {
-    console.error("restaurant_config PATCH:", error);
-    return NextResponse.json({ error: "Failed to save config" }, { status: 500 });
+  const updatePayload = { ...updates };
+  delete (updatePayload as Record<string, unknown>).slug;
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from("restaurant_config")
+      .update(updatePayload)
+      .eq("slug", trimmedSlug)
+      .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url")
+      .single();
+    if (error) {
+      console.error("restaurant_config UPDATE:", error);
+      return NextResponse.json(
+        { error: "Failed to save config", details: error.message },
+        { status: 500 }
+      );
+    }
+    return Response.json({ config: data });
   }
 
+  const { data, error } = await supabase
+    .from("restaurant_config")
+    .insert(updates)
+    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url")
+    .single();
+  if (error) {
+    console.error("restaurant_config INSERT:", error);
+    return NextResponse.json(
+      { error: "Failed to save config", details: error.message },
+      { status: 500 }
+    );
+  }
   return Response.json({ config: data });
 }

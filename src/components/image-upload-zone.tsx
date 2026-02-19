@@ -100,11 +100,14 @@ export function ImageUploadZone({
         `}
       >
         <input
+          id={`image-upload-${slug}-${type}`}
+          name="restaurantImage"
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
           onChange={handleFileInput}
           disabled={disabled || uploading}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          aria-label={`Upload ${type === "logo" ? "logo" : "food"} image for ${slug}`}
         />
         {uploading ? (
           <div className="flex flex-col items-center gap-2 text-slate-600 dark:text-slate-400">

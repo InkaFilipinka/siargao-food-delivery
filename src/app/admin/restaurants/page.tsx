@@ -189,8 +189,8 @@ export default function AdminRestaurantsPage() {
       ]);
       const mediaData = await mediaRes.json();
       const configData = await configRes.json();
-      if (!mediaRes.ok) throw new Error(mediaData.error || "Failed to save media");
-      if (!configRes.ok) throw new Error(configData.error || "Failed to save config");
+      if (!mediaRes.ok) throw new Error(mediaData.details || mediaData.error || "Failed to save media");
+      if (!configRes.ok) throw new Error(configData.details || configData.error || "Failed to save config");
       setMediaNewImageUrl("");
       setMediaSlug(null);
       load();
@@ -507,10 +507,12 @@ export default function AdminRestaurantsPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label htmlFor="admin-edit-commission" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Food commission %
                 </label>
                 <input
+                  id="admin-edit-commission"
+                  name="commission_pct"
                   type="number"
                   min={0}
                   max={100}
@@ -521,10 +523,12 @@ export default function AdminRestaurantsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label htmlFor="admin-edit-delivery-commission" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Delivery commission %
                 </label>
                 <input
+                  id="admin-edit-delivery-commission"
+                  name="delivery_commission_pct"
                   type="number"
                   min={0}
                   max={100}
@@ -535,10 +539,12 @@ export default function AdminRestaurantsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label htmlFor="admin-edit-email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Login email
                 </label>
                 <input
+                  id="admin-edit-email"
+                  name="email"
                   type="email"
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
@@ -547,10 +553,12 @@ export default function AdminRestaurantsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label htmlFor="admin-edit-payout" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Payout method
                 </label>
                 <select
+                  id="admin-edit-payout"
+                  name="payout_method"
                   value={editPayoutMethod}
                   onChange={(e) => setEditPayoutMethod(e.target.value as "cash" | "gcash" | "crypto")}
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
@@ -620,10 +628,12 @@ export default function AdminRestaurantsPage() {
                 Used to show distance from user to restaurant. Leave blank to use hub for delivery fee.
               </p>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label htmlFor="admin-edit-password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   New password (leave blank to keep)
                 </label>
                 <input
+                  id="admin-edit-password"
+                  name="password"
                   type="password"
                   value={editPassword}
                   onChange={(e) => setEditPassword(e.target.value)}
@@ -664,8 +674,10 @@ export default function AdminRestaurantsPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Restaurant name</label>
+                <label htmlFor="admin-media-display-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Restaurant name</label>
                 <input
+                  id="admin-media-display-name"
+                  name="display_name"
                   type="text"
                   value={mediaDisplayName}
                   onChange={(e) => setMediaDisplayName(e.target.value)}
@@ -674,8 +686,10 @@ export default function AdminRestaurantsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">WhatsApp number <span className="text-slate-500 font-normal">(optional)</span></label>
+                <label htmlFor="admin-media-whatsapp" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">WhatsApp number <span className="text-slate-500 font-normal">(optional)</span></label>
                 <input
+                  id="admin-media-whatsapp"
+                  name="whatsapp_number"
                   type="tel"
                   value={mediaWhatsapp}
                   onChange={(e) => setMediaWhatsapp(e.target.value)}
@@ -684,8 +698,10 @@ export default function AdminRestaurantsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Menu / Order URL</label>
+                <label htmlFor="admin-media-menu-url" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Menu / Order URL</label>
                 <input
+                  id="admin-media-menu-url"
+                  name="menu_url"
                   type="url"
                   value={mediaMenuUrl}
                   onChange={(e) => setMediaMenuUrl(e.target.value)}
@@ -705,6 +721,8 @@ export default function AdminRestaurantsPage() {
                 />
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 mb-2">Or paste URL:</p>
                 <input
+                  id="admin-media-logo-url"
+                  name="logo_url"
                   type="url"
                   value={mediaLogoUrl}
                   onChange={(e) => setMediaLogoUrl(e.target.value)}
@@ -877,8 +895,10 @@ export default function AdminRestaurantsPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name</label>
+                <label htmlFor="admin-add-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name</label>
                 <input
+                  id="admin-add-name"
+                  name="name"
                   type="text"
                   value={addName}
                   onChange={(e) => setAddName(e.target.value)}
@@ -887,8 +907,10 @@ export default function AdminRestaurantsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Slug (URL)</label>
+                <label htmlFor="admin-add-slug" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Slug (URL)</label>
                 <input
+                  id="admin-add-slug"
+                  name="slug"
                   type="text"
                   value={addSlug}
                   onChange={(e) => setAddSlug(e.target.value)}
@@ -897,8 +919,10 @@ export default function AdminRestaurantsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Categories (comma-separated)</label>
+                <label htmlFor="admin-add-categories" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Categories (comma-separated)</label>
                 <input
+                  id="admin-add-categories"
+                  name="categories"
                   type="text"
                   value={addCategories}
                   onChange={(e) => setAddCategories(e.target.value)}
@@ -907,8 +931,10 @@ export default function AdminRestaurantsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Price range</label>
+                <label htmlFor="admin-add-price-range" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Price range</label>
                 <select
+                  id="admin-add-price-range"
+                  name="price_range"
                   value={addPriceRange}
                   onChange={(e) => setAddPriceRange(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"

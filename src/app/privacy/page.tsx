@@ -21,7 +21,7 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
         <div className="prose prose-slate dark:prose-invert max-w-none space-y-6 text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
-          <p className="text-slate-600 dark:text-slate-400">
+          <p className="text-slate-600 dark:text-slate-400" suppressHydrationWarning>
             Last updated: {new Date().toLocaleDateString("en-PH")}
           </p>
 
