@@ -59,10 +59,59 @@ export function getRestaurantPhone(menuUrlOrSlug: string): string | null {
   return restaurantExtras[s]?.phone ?? null;
 }
 
-/** Check if restaurant is open now (Philippines time). Hours format: "HH:mm-HH:mm" */
-export function isOpenNow(hours: string | null): boolean | null {
-  if (!hours) return null;
-  const [openStr, closeStr] = hours.split("-").map((s) => s.trim());
+export const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+
+/** Get current day key (0=Sun) for Philippines time */
+export function getTodayKey(): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    weekday: "short",
+  });
+  return formatter.format(new Date()).toLowerCase().slice(0, 3);
+}
+
+/** Get hours for a given day from hours_by_day. Falls back to legacy hours if null. */
+export function getHoursForDay(
+  hoursByDay: Record<string, string> | null,
+  legacyHours: string | null,
+  dayKey: string
+): string | null {
+  if (hoursByDay && typeof hoursByDay[dayKey] === "string" && hoursByDay[dayKey].trim()) {
+    const v = hoursByDay[dayKey].trim().toLowerCase();
+    if (v === "closed" || v === "-") return null;
+    return hoursByDay[dayKey].trim();
+  }
+  return legacyHours;
+}
+
+/** Format hours_by_day for display (e.g. "Mon–Sun 08:00–22:00" or per-day) */
+export function formatHoursForDisplay(hoursByDay: Record<string, string> | null): string | null {
+  if (!hoursByDay || typeof hoursByDay !== "object") return null;
+  const entries = DAY_KEYS.map((k) => [k, (hoursByDay[k] || "").trim()] as const).filter(([, v]) => v && v !== "closed" && v !== "-");
+  if (entries.length === 0) return null;
+  const same = entries.every(([, v]) => v === entries[0][1]);
+  if (same) return entries[0][1].replace("-", " – ");
+  const dayNames: Record<string, string> = { sun: "Sun", mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat" };
+  const groups = new Map<string, string[]>();
+  for (const [k, v] of entries) {
+    const n = dayNames[k];
+    if (!groups.has(v)) groups.set(v, []);
+    groups.get(v)!.push(n);
+  }
+  return [...groups.entries()]
+    .map(([range, days]) => `${days.join(", ")} ${range.replace("-", "–")}`)
+    .join(" • ");
+}
+
+/** Check if restaurant is open now (Philippines time). Hours format: "HH:mm-HH:mm". Supports hoursByDay. */
+export function isOpenNow(
+  hours: string | null,
+  hoursByDay?: Record<string, string> | null
+): boolean | null {
+  const dayKey = getTodayKey();
+  const activeHours = getHoursForDay(hoursByDay ?? null, hours, dayKey);
+  if (!activeHours) return null;
+  const [openStr, closeStr] = activeHours.split("-").map((s) => s.trim());
   if (!openStr || !closeStr) return null;
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Manila",

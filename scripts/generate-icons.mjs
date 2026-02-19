@@ -5,7 +5,9 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const publicDir = join(__dirname, "..", "public");
+const rootDir = join(__dirname, "..");
+const publicDir = join(rootDir, "public");
+const appDir = join(rootDir, "src", "app");
 
 // Theme color #ea580c (orange)
 const themeColor = { r: 234, g: 88, b: 12 };
@@ -24,13 +26,16 @@ async function generateIcon(size) {
 
 async function main() {
   mkdirSync(publicDir, { recursive: true });
-  const [icon192, icon512] = await Promise.all([
+  mkdirSync(appDir, { recursive: true });
+  const [icon32, icon192, icon512] = await Promise.all([
+    generateIcon(32),
     generateIcon(192),
     generateIcon(512),
   ]);
+  writeFileSync(join(appDir, "icon.png"), icon32);
   writeFileSync(join(publicDir, "icon-192.png"), icon192);
   writeFileSync(join(publicDir, "icon-512.png"), icon512);
-  console.log("Generated icon-192.png and icon-512.png");
+  console.log("Generated app/icon.png (favicon), icon-192.png and icon-512.png");
 }
 
 main().catch(console.error);

@@ -3,6 +3,7 @@
 import { MapPin, ChevronRight, UtensilsCrossed, Heart, Clock, Star } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { thumbnailUrl } from "@/lib/image-url";
 import { useFavoritesStore } from "@/store/favorites-store";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { isOpenNow } from "@/config/restaurant-extras";
@@ -47,7 +48,9 @@ export function RestaurantCard({ restaurant, className, rating }: RestaurantCard
   const deliveryLocation = useDeliveryStore((s) => s.location);
   const isFav = isFavorite(restaurant.slug);
   const priceDisplay = restaurant.priceRange || "—";
-  const openStatus = restaurant.hours ? isOpenNow(restaurant.hours) : null;
+  const openStatus = restaurant.hours || (restaurant as { hoursByDay?: Record<string, string> | null }).hoursByDay
+    ? isOpenNow(restaurant.hours ?? null, (restaurant as { hoursByDay?: Record<string, string> | null }).hoursByDay ?? null)
+    : null;
   const distanceKm =
     deliveryLocation &&
     restaurant.lat != null &&
@@ -66,8 +69,10 @@ export function RestaurantCard({ restaurant, className, rating }: RestaurantCard
       <div className="aspect-[16/10] relative bg-slate-100 dark:bg-slate-800 overflow-hidden">
         {restaurant.featuredImage ? (
           <img
-            src={restaurant.featuredImage}
+            src={thumbnailUrl(restaurant.featuredImage, 480)}
             alt={restaurant.name}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300 ease-out"
           />
         ) : (

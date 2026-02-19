@@ -3,6 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { combinedRestaurants } from "@/data/combined";
 import { ArrowLeft, MapPin, MessageCircle, Phone, Clock, ShoppingBag } from "lucide-react";
+import { thumbnailUrl } from "@/lib/image-url";
 import { SUPPORT_PHONE, SUPPORT_WHATSAPP } from "@/config/support";
 import { RestaurantMenuWithAvailability } from "@/components/restaurant-menu-with-availability";
 
@@ -62,7 +63,7 @@ export default async function RestaurantPage({
           {restaurant.featuredImage && (
             <div className="aspect-[16/9] bg-slate-100 dark:bg-slate-800">
               <img
-                src={restaurant.featuredImage}
+                src={thumbnailUrl(restaurant.featuredImage, 800)}
                 alt={restaurant.name}
                 className="w-full h-full object-cover"
               />

@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("restaurant_config")
-    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url")
+    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url, hours, hours_by_day")
     .order("slug");
 
   if (error) {
@@ -52,7 +52,7 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const { slug, commission_pct, delivery_commission_pct, gcash_number, email, password, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url } = body;
+  const { slug, commission_pct, delivery_commission_pct, gcash_number, email, password, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url, hours_by_day } = body;
 
   if (!slug || typeof slug !== "string" || !slug.trim()) {
     return NextResponse.json({ error: "slug is required" }, { status: 400 });
@@ -84,6 +84,18 @@ export async function PATCH(request: Request) {
   if (typeof display_name === "string") updates.display_name = display_name.trim() || null;
   if (typeof whatsapp_number === "string") updates.whatsapp_number = whatsapp_number.trim() || null;
   if (typeof menu_url === "string") updates.menu_url = menu_url.trim() || null;
+  if (hours_by_day !== undefined) {
+    if (hours_by_day && typeof hours_by_day === "object" && !Array.isArray(hours_by_day)) {
+      const cleaned: Record<string, string> = {};
+      for (const k of ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]) {
+        const v = (hours_by_day as Record<string, unknown>)[k];
+        if (typeof v === "string" && v.trim()) cleaned[k] = v.trim();
+      }
+      updates.hours_by_day = Object.keys(cleaned).length > 0 ? cleaned : null;
+    } else {
+      updates.hours_by_day = null;
+    }
+  }
 
   // Try update first, then insert if no existing row
   const { data: existing } = await supabase
@@ -100,7 +112,7 @@ export async function PATCH(request: Request) {
       .from("restaurant_config")
       .update(updatePayload)
       .eq("slug", trimmedSlug)
-      .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url")
+      .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url, hours_by_day")
       .single();
     if (error) {
       console.error("restaurant_config UPDATE:", error);
@@ -115,7 +127,7 @@ export async function PATCH(request: Request) {
   const { data, error } = await supabase
     .from("restaurant_config")
     .insert(updates)
-    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url")
+    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url, hours_by_day")
     .single();
   if (error) {
     console.error("restaurant_config INSERT:", error);

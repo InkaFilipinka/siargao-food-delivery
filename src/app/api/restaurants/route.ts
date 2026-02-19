@@ -7,6 +7,11 @@ import {
   displayFromCost,
   getCommissionPct,
 } from "@/lib/restaurant-config";
+import {
+  formatHoursForDisplay,
+  getHoursForDay,
+  getTodayKey,
+} from "@/config/restaurant-extras";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +67,10 @@ async function getRestaurantsData(request: Request) {
     menu_url?: string | null;
   }>();
 
-  const hoursMinOrderBySlug = new Map<string, { hours: string | null; minOrderPhp: number | null }>();
+  const hoursMinOrderBySlug = new Map<
+    string,
+    { hours: string | null; hoursByDay: Record<string, string> | null; minOrderPhp: number | null }
+  >();
   const latLngBySlug = new Map<string, { lat: number; lng: number }>();
   const mediaBySlug = new Map<string, { logoUrl: string | null; imageUrls: string[] }>();
   const menuExtrasBySlug = new Map<string, { name: string; price: string }[]>();
@@ -85,7 +93,7 @@ async function getRestaurantsData(request: Request) {
     if (!adminRes.error) adminRestaurants = adminRes.data || [];
     const allSlugs = [...staticSlugs, ...adminRestaurants.map((a) => a.slug)];
     const [configRes, mediaRes, extrasRes] = await Promise.all([
-      supabase.from("restaurant_config").select("slug, commission_pct, hours, min_order_php, lat, lng, display_name, whatsapp_number, menu_url").in("slug", allSlugs),
+      supabase.from("restaurant_config").select("slug, commission_pct, hours, hours_by_day, min_order_php, lat, lng, display_name, whatsapp_number, menu_url").in("slug", allSlugs),
       supabase.from("restaurant_media").select("slug, logo_url, image_urls").in("slug", allSlugs),
       supabase.from("restaurant_menu_extras").select("slug, item_name, price").in("slug", allSlugs),
     ]);
@@ -108,8 +116,10 @@ async function getRestaurantsData(request: Request) {
         whatsapp_number: c.whatsapp_number ?? null,
         menu_url: c.menu_url ?? null,
       });
+      const hbd = c.hours_by_day as Record<string, string> | null;
       hoursMinOrderBySlug.set(c.slug, {
         hours: c.hours ?? null,
+        hoursByDay: hbd && typeof hbd === "object" ? hbd : null,
         minOrderPhp: c.min_order_php != null ? Number(c.min_order_php) : null,
       });
       if (c.lat != null && c.lng != null) {
@@ -152,7 +162,13 @@ async function getRestaurantsData(request: Request) {
         imageUrls,
         featuredImage,
         logoUrl: media?.logoUrl ?? null,
-        hours: hoursMinOrderBySlug.get(slug)?.hours ?? getRestaurantHours(slug) ?? getRestaurantHours(r.menuUrl) ?? null,
+        hours: (() => {
+          const hm = hoursMinOrderBySlug.get(slug);
+          const legacy = hm?.hours ?? getRestaurantHours(slug) ?? getRestaurantHours(r.menuUrl) ?? null;
+          if (hm?.hoursByDay) return formatHoursForDisplay(hm.hoursByDay) ?? legacy;
+          return legacy;
+        })(),
+        hoursByDay: hoursMinOrderBySlug.get(slug)?.hoursByDay ?? null,
         minOrderPhp: hoursMinOrderBySlug.get(slug)?.minOrderPhp ?? getMinOrderPhp(slug) ?? getMinOrderPhp(r.menuUrl) ?? null,
         lat: latLngBySlug.get(slug)?.lat ?? null,
         lng: latLngBySlug.get(slug)?.lng ?? null,
@@ -185,7 +201,13 @@ async function getRestaurantsData(request: Request) {
         imageUrls,
         featuredImage,
         logoUrl: media?.logoUrl ?? null,
-        hours: hoursMinOrderBySlug.get(slug)?.hours ?? null,
+        hours: (() => {
+          const hm = hoursMinOrderBySlug.get(slug);
+          const legacy = hm?.hours ?? null;
+          if (hm?.hoursByDay) return formatHoursForDisplay(hm.hoursByDay) ?? legacy;
+          return legacy;
+        })(),
+        hoursByDay: hoursMinOrderBySlug.get(slug)?.hoursByDay ?? null,
         minOrderPhp: hoursMinOrderBySlug.get(slug)?.minOrderPhp ?? null,
         lat: latLngBySlug.get(slug)?.lat ?? null,
         lng: latLngBySlug.get(slug)?.lng ?? null,

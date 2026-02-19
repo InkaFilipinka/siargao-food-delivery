@@ -105,7 +105,7 @@ export default function Home() {
     if (hideClosed && list.length > 0) {
       list = list.filter((r) => {
         if (!r.hours) return true;
-        const open = isOpenNow(r.hours);
+        const open = isOpenNow(r.hours ?? null, (r as { hoursByDay?: Record<string, string> | null }).hoursByDay ?? null);
         return open === null || open === true;
       });
     }

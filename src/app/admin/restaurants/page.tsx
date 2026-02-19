@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ExternalLink, Clock, Settings2, Image, X, Plus, Trash2 } from "lucide-react";
+import { DAY_KEYS } from "@/config/restaurant-extras";
+
+const DISPLAY_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 import { ImageUploadZone } from "@/components/image-upload-zone";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
@@ -34,6 +37,7 @@ type Config = {
   display_name?: string | null;
   whatsapp_number?: string | null;
   menu_url?: string | null;
+  hours_by_day?: Record<string, string> | null;
 };
 
 export default function AdminRestaurantsPage() {
@@ -64,6 +68,7 @@ export default function AdminRestaurantsPage() {
   const [mediaDisplayName, setMediaDisplayName] = useState("");
   const [mediaWhatsapp, setMediaWhatsapp] = useState("");
   const [mediaMenuUrl, setMediaMenuUrl] = useState("");
+  const [mediaHoursByDay, setMediaHoursByDay] = useState<Record<string, string>>({});
   const [mediaSaving, setMediaSaving] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [deleteSlug, setDeleteSlug] = useState<{ slug: string; name: string; isAdmin: boolean } | null>(null);
@@ -119,6 +124,10 @@ export default function AdminRestaurantsPage() {
       setMediaDisplayName((cfg as { display_name?: string })?.display_name ?? r.name ?? "");
       setMediaWhatsapp((cfg as { whatsapp_number?: string })?.whatsapp_number ?? "");
       setMediaMenuUrl((cfg as { menu_url?: string })?.menu_url ?? r.menuUrl ?? `https://siargaodelivery.com/${r.slug}/`);
+      const hbd = (cfg as Config)?.hours_by_day;
+      const initHours: Record<string, string> = {};
+      for (const k of DAY_KEYS) initHours[k] = (hbd && typeof hbd[k] === "string" ? hbd[k] : "") || "";
+      setMediaHoursByDay(initHours);
       try {
         const [mediaRes, extrasRes] = await Promise.all([
           fetch(`/api/admin/restaurant-media?slug=${encodeURIComponent(r.slug)}`, { headers: getAuthHeaders() }),
@@ -184,6 +193,14 @@ export default function AdminRestaurantsPage() {
             display_name: mediaDisplayName.trim() || null,
             whatsapp_number: mediaWhatsapp.trim() || null,
             menu_url: mediaMenuUrl.trim() || null,
+            hours_by_day: (() => {
+              const cleaned: Record<string, string> = {};
+              for (const k of DAY_KEYS) {
+                const v = mediaHoursByDay[k]?.trim();
+                if (v && v !== "closed" && v !== "-") cleaned[k] = v;
+              }
+              return Object.keys(cleaned).length > 0 ? cleaned : null;
+            })(),
           }),
         }),
       ]);
@@ -708,6 +725,24 @@ export default function AdminRestaurantsPage() {
                   placeholder="https://siargaodelivery.com/sunset-pizza/ or external link"
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
                 />
+              </div>
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Opening times (optional)</label>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Format: HH:mm-HH:mm (e.g. 08:00-22:00). Use &quot;closed&quot; or leave empty for closed days.</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {DISPLAY_DAYS.map((day) => (
+                    <div key={day}>
+                      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5 capitalize">{day}</label>
+                      <input
+                        type="text"
+                        value={mediaHoursByDay[day] ?? ""}
+                        onChange={(e) => setMediaHoursByDay((h) => ({ ...h, [day]: e.target.value }))}
+                        placeholder="08:00-22:00 or closed"
+                        className="w-full px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Logo</label>
