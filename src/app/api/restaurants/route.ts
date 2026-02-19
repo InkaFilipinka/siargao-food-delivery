@@ -194,13 +194,13 @@ async function getRestaurantsData(request: Request) {
       };
     });
 
-  let restaurants = [...staticList, ...adminList];
-  if (!isStaffRequest) {
-    restaurants = restaurants.map(({ whatsappNumber: _, ...r }) => r);
-  }
+  const restaurants = [...staticList, ...adminList];
+  const restaurantsToReturn = isStaffRequest
+    ? restaurants
+    : restaurants.map(({ whatsappNumber: _w, ...r }) => r);
 
   return Response.json({
-    restaurants,
+    restaurants: restaurantsToReturn,
     categories: restaurantData.categories,
     cravingCategories: restaurantData.cravingCategories,
     tagline: restaurantData.tagline,
