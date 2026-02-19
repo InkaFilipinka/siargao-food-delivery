@@ -78,6 +78,8 @@ export default function AdminRestaurantsPage() {
   const [addSlug, setAddSlug] = useState("");
   const [addCategories, setAddCategories] = useState("");
   const [addPriceRange, setAddPriceRange] = useState("$$");
+  const [addEmail, setAddEmail] = useState("");
+  const [addPassword, setAddPassword] = useState("");
   const [addSaving, setAddSaving] = useState(false);
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
@@ -312,6 +314,8 @@ export default function AdminRestaurantsPage() {
           categories: addCategories.split(",").map((c) => c.trim()).filter(Boolean),
           priceRange: addPriceRange,
           tags: [],
+          email: addEmail.trim() || undefined,
+          password: addPassword || undefined,
         }),
       });
       if (res.ok) {
@@ -320,6 +324,8 @@ export default function AdminRestaurantsPage() {
         setAddSlug("");
         setAddCategories("");
         setAddPriceRange("$$");
+        setAddEmail("");
+        setAddPassword("");
         load();
       }
     } finally {
@@ -918,7 +924,7 @@ export default function AdminRestaurantsPage() {
 
       {addOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 max-w-sm w-full shadow-xl">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 max-w-md w-full shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-slate-900 dark:text-white">Add restaurant</h3>
               <button
@@ -978,6 +984,31 @@ export default function AdminRestaurantsPage() {
                   <option value="$$">$$</option>
                   <option value="$$$">$$$</option>
                 </select>
+              </div>
+              <div>
+                <label htmlFor="admin-add-email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email (restaurant portal login)</label>
+                <input
+                  id="admin-add-email"
+                  name="email"
+                  type="email"
+                  value={addEmail}
+                  onChange={(e) => setAddEmail(e.target.value)}
+                  placeholder="restaurant@example.com"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Required for restaurant portal access</p>
+              </div>
+              <div>
+                <label htmlFor="admin-add-password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password (restaurant portal login)</label>
+                <input
+                  id="admin-add-password"
+                  name="password"
+                  type="password"
+                  value={addPassword}
+                  onChange={(e) => setAddPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+                />
               </div>
             </div>
             <div className="flex gap-2 mt-6">

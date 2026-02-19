@@ -47,15 +47,42 @@ export async function GET(request: Request) {
       );
     }
 
-    let query = supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(100);
+    let orders: { id: string; status: string; created_at: string; [k: string]: unknown }[];
     if (authResult.driverId) {
-      query = query.eq("driver_id", authResult.driverId);
-    }
-    const { data: orders, error } = await query;
-
-    if (error) {
-      console.error("Orders list error:", error);
-      return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+      // Drivers see: (1) unassigned pending/confirmed/preparing to accept, (2) their assigned orders
+      const [unassignedRes, myRes] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("*")
+          .in("status", ["pending", "confirmed", "preparing"])
+          .is("driver_id", null)
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("orders")
+          .select("*")
+          .eq("driver_id", authResult.driverId)
+          .order("created_at", { ascending: false })
+          .limit(50),
+      ]);
+      if (unassignedRes.error || myRes.error) {
+        console.error("Orders list error:", unassignedRes.error || myRes.error);
+        return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+      }
+      const unassigned = unassignedRes.data || [];
+      const myOrders = myRes.data || [];
+      const seen = new Set<string>();
+      orders = [...myOrders, ...unassigned.filter((o: { id: string }) => !seen.has(o.id) && seen.add(o.id))].sort(
+        (a: { created_at: string }, b: { created_at: string }) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    } else {
+      const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(100);
+      if (error) {
+        console.error("Orders list error:", error);
+        return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+      }
+      orders = data || [];
     }
 
     const orderIds = (orders || []).map((o) => o.id);

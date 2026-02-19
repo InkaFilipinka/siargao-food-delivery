@@ -29,8 +29,8 @@ async function checkStaffDriverRestaurantAccess(
   }
   const decoded = verifyToken(token);
   if (decoded?.type === "driver") {
-    const { data: order } = await supabase.from("orders").select("assigned_driver_id").eq("id", orderId).single();
-    if (!order || order.assigned_driver_id !== decoded.driverId) {
+    const { data: order } = await supabase.from("orders").select("driver_id").eq("id", orderId).single();
+    if (!order || order.driver_id !== decoded.driverId) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
     return { ok: true, senderType: "driver" };

@@ -212,8 +212,14 @@ export async function PATCH(
     }
 
     if (authResult.driverId) {
-      const { data: order } = await supabase.from("orders").select("driver_id").eq("id", id).single();
-      if (!order || order.driver_id !== authResult.driverId) {
+      const { data: order } = await supabase.from("orders").select("driver_id, status").eq("id", id).single();
+      if (!order) {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+      const isAccepting = status === "assigned" && !order.driver_id && ["pending", "confirmed", "preparing"].includes(order.status);
+      if (isAccepting) {
+        updatePayload.driver_id = authResult.driverId;
+      } else if (order.driver_id !== authResult.driverId) {
         return NextResponse.json({ error: "Not assigned to you" }, { status: 403 });
       }
     }

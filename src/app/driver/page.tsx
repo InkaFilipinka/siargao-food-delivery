@@ -24,7 +24,8 @@ import { DeliveryMap } from "@/components/delivery-map";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
 const DRIVER_TOKEN_KEY = "siargao-driver-token";
-const DRIVER_STATUSES = ["ready", "assigned", "picked", "out_for_delivery"];
+const ACCEPTABLE_STATUSES = ["pending", "confirmed", "preparing"];
+const MY_ORDER_STATUSES = ["ready", "assigned", "picked", "out_for_delivery"];
 const POLL_INTERVAL_MS = 30000;
 
 type Order = {
@@ -114,7 +115,7 @@ export default function DriverPage() {
       })
       .then((data) => {
         const all = (data.orders || []).filter((o: Order) =>
-          DRIVER_STATUSES.includes(o.status)
+          ACCEPTABLE_STATUSES.includes(o.status) || MY_ORDER_STATUSES.includes(o.status)
         );
         setOrders(all);
       })
@@ -132,6 +133,14 @@ export default function DriverPage() {
     return () => clearInterval(id);
   }, [needsAuth, loadOrders]);
 
+  const availableToAccept = useMemo(
+    () => orders.filter((o) => ACCEPTABLE_STATUSES.includes(o.status)),
+    [orders]
+  );
+  const myOrders = useMemo(
+    () => orders.filter((o) => MY_ORDER_STATUSES.includes(o.status)),
+    [orders]
+  );
   const outForDeliveryOrders = useMemo(
     () => orders.filter((o) => o.status === "out_for_delivery"),
     [orders]
@@ -514,8 +523,71 @@ export default function DriverPage() {
                 No active deliveries.
               </p>
             ) : (
-              <div className="space-y-4">
-                {orders.map((o) => (
+              <div className="space-y-6">
+                {availableToAccept.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                      Available to accept — go wait at hub
+                    </h3>
+                    <div className="space-y-4">
+                      {availableToAccept.map((o) => (
+                        <div
+                          key={o.id}
+                          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-mono text-xs text-slate-500">{String(o.id).slice(0, 8)}…</p>
+                              <p className="font-medium text-slate-900 dark:text-white">{o.customerName}</p>
+                              <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1">
+                                <MapPin className="w-4 h-4 shrink-0" />
+                                {o.landmark}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-1">
+                                ₱{Number(o.totalPhp).toLocaleString()} · {formatTime(o.createdAt)}
+                              </p>
+                            </div>
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                              {o.status.replace(/_/g, " ")}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            <button
+                              onClick={() => updateOrder(o.id, { status: "assigned" })}
+                              disabled={updatingId === o.id}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                            >
+                              {updatingId === o.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Package className="w-4 h-4" />
+                              )}
+                              Accept & go wait
+                            </button>
+                            {o.deliveryLat != null && o.deliveryLng != null && (
+                              <a
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${o.deliveryLat},${o.deliveryLng}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-medium"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                View map
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {myOrders.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                      My deliveries
+                    </h3>
+                    <div className="space-y-4">
+                {myOrders.map((o) => (
                   <div
                     key={o.id}
                     className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4"
@@ -742,6 +814,9 @@ export default function DriverPage() {
                     )}
                   </div>
                 ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

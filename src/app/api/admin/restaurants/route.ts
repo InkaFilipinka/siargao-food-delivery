@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { hashPassword } from "@/lib/auth";
 
 function requireStaffAuth(request: Request): Response | null {
   const auth = request.headers.get("authorization");
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
   if (err) return err;
 
   const body = await request.json().catch(() => ({}));
-  const { action, slug, name, categories, priceRange, tags, menuUrl } = body;
+  const { action, slug, name, categories, priceRange, tags, menuUrl, email, password } = body;
 
   const supabase = getSupabaseAdmin();
   if (!supabase) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
@@ -27,21 +28,47 @@ export async function POST(request: Request) {
     if (!n) return NextResponse.json({ error: "name required" }, { status: 400 });
     const rawSlug = typeof slug === "string" ? slug.trim() : "";
     const s = rawSlug ? rawSlug.toLowerCase().replace(/\s+/g, "-") : n.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const { error } = await supabase.from("admin_restaurants").upsert(
+    const menuUrlStr = typeof menuUrl === "string" ? menuUrl.trim() || null : null;
+
+    // 1. Add to admin_restaurants
+    const { error: adminErr } = await supabase.from("admin_restaurants").upsert(
       {
         slug: s,
         name: n,
         categories: Array.isArray(categories) ? categories : [n],
         price_range: typeof priceRange === "string" ? priceRange : "$$",
         tags: Array.isArray(tags) ? tags : [],
-        menu_url: typeof menuUrl === "string" ? menuUrl.trim() || null : null,
+        menu_url: menuUrlStr,
       },
       { onConflict: "slug" }
     );
-    if (error) {
-      console.error("admin_restaurants insert:", error);
+    if (adminErr) {
+      console.error("admin_restaurants insert:", adminErr);
       return NextResponse.json({ error: "Failed to add" }, { status: 500 });
     }
+
+    // 2. Create restaurant_config so they can log into restaurant portal (email + password required)
+    const emailTrim = typeof email === "string" ? email.trim().toLowerCase() : "";
+    const passwordTrim = typeof password === "string" ? password.trim() : "";
+    if (emailTrim && passwordTrim) {
+      const { data: existing } = await supabase.from("restaurant_config").select("slug").eq("slug", s).maybeSingle();
+      const updatePayload = {
+        commission_pct: 30,
+        delivery_commission_pct: 30,
+        email: emailTrim,
+        password_hash: hashPassword(passwordTrim),
+        menu_url: menuUrlStr,
+        updated_at: new Date().toISOString(),
+      };
+      const { error: configErr } = existing
+        ? await supabase.from("restaurant_config").update(updatePayload).eq("slug", s)
+        : await supabase.from("restaurant_config").insert({ slug: s, ...updatePayload });
+      if (configErr) {
+        console.error("restaurant_config upsert:", configErr);
+        return NextResponse.json({ error: "Added to list but failed to create portal login" }, { status: 500 });
+      }
+    }
+
     return NextResponse.json({ ok: true });
   }
 
