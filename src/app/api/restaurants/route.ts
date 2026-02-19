@@ -50,7 +50,12 @@ async function getRestaurantsData(request: Request) {
   };
 
   const staticSlugs = restaurantData.restaurants.map((r) => getSlug(r.menuUrl));
-  const configBySlug = new Map<string, { commission_pct: number }>();
+  const configBySlug = new Map<string, {
+    commission_pct: number;
+    display_name?: string | null;
+    whatsapp_number?: string | null;
+    menu_url?: string | null;
+  }>();
 
   const hoursMinOrderBySlug = new Map<string, { hours: string | null; minOrderPhp: number | null }>();
   const latLngBySlug = new Map<string, { lat: number; lng: number }>();
@@ -130,7 +135,6 @@ async function getRestaurantsData(request: Request) {
       const mediaImages = media?.imageUrls || [];
       const imageUrls = [...staticImages, ...mediaImages];
       const featuredImage = media?.logoUrl || imageUrls[0] || null;
-      const config = configBySlug.get(slug);
       const displayName = config?.display_name ?? r.name;
       const menuUrlOverride = config?.menu_url;
       return {
