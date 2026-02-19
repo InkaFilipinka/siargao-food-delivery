@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("restaurant_config")
-    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng")
+    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url")
     .order("slug");
 
   if (error) {
@@ -52,7 +52,7 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const { slug, commission_pct, delivery_commission_pct, gcash_number, email, password, payout_method, crypto_wallet_address, lat, lng } = body;
+  const { slug, commission_pct, delivery_commission_pct, gcash_number, email, password, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url } = body;
 
   if (!slug || typeof slug !== "string" || !slug.trim()) {
     return NextResponse.json({ error: "slug is required" }, { status: 400 });
@@ -81,11 +81,14 @@ export async function PATCH(request: Request) {
   if (typeof password === "string" && password.length > 0) {
     updates.password_hash = hashPassword(password);
   }
+  if (typeof display_name === "string") updates.display_name = display_name.trim() || null;
+  if (typeof whatsapp_number === "string") updates.whatsapp_number = whatsapp_number.trim() || null;
+  if (typeof menu_url === "string") updates.menu_url = menu_url.trim() || null;
 
   const { data, error } = await supabase
     .from("restaurant_config")
     .upsert(updates, { onConflict: "slug" })
-    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng")
+    .select("slug, commission_pct, delivery_commission_pct, gcash_number, email, payout_method, crypto_wallet_address, lat, lng, display_name, whatsapp_number, menu_url")
     .single();
 
   if (error) {

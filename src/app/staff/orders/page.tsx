@@ -17,6 +17,8 @@ import {
   Headphones,
   Columns3,
   Send,
+  CreditCard,
+  RotateCcw,
 } from "lucide-react";
 import { SUPPORT_WHATSAPP } from "@/config/support";
 import { DispatchBoard } from "@/components/dispatch-board";
@@ -66,6 +68,11 @@ type Order = {
   updatedBy?: string | null;
   scheduledAt: string | null;
   createdAt: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  stripePaymentIntentId?: string | null;
+  cardLast4?: string | null;
+  cardBrand?: string | null;
   items: { restaurant_name: string; item_name: string; price: string; quantity: number }[];
 };
 
@@ -87,6 +94,7 @@ export default function StaffOrdersPage() {
   const [orderReplyInput, setOrderReplyInput] = useState<Record<string, string>>({});
   const [messagesLoadingId, setMessagesLoadingId] = useState<string | null>(null);
   const [sendingMessageId, setSendingMessageId] = useState<string | null>(null);
+  const [refundingId, setRefundingId] = useState<string | null>(null);
 
   const getAuthHeaders = useCallback((): Record<string, string> => {
     const token = typeof window !== "undefined" ? sessionStorage.getItem(STAFF_TOKEN_KEY) : null;
@@ -224,6 +232,28 @@ export default function StaffOrdersPage() {
       }
     } finally {
       setSendingMessageId(null);
+    }
+  }
+
+  async function handleRefund(order: Order) {
+    if (!order.stripePaymentIntentId || order.paymentStatus !== "paid" || order.paymentMethod !== "card") return;
+    if (!confirm(`Refund full amount (₱${Number(order.totalPhp).toLocaleString()}) for this card order?`)) return;
+    setRefundingId(order.id);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setMessage({ type: "ok", text: "Refund initiated successfully" });
+        loadOrders();
+      } else {
+        setMessage({ type: "err", text: data.error || "Refund failed" });
+      }
+    } finally {
+      setRefundingId(null);
     }
   }
 
@@ -533,6 +563,28 @@ export default function StaffOrdersPage() {
                             </span>
                           )}
                         </p>
+                        {o.paymentMethod === "card" && (o.cardLast4 || o.cardBrand) && (
+                          <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                            <CreditCard className="w-4 h-4" />
+                            {[o.cardBrand, o.cardLast4 && `•••• ${o.cardLast4}`].filter(Boolean).join(" ")}
+                            {o.stripePaymentIntentId && o.paymentStatus === "paid" && (
+                              <button
+                                onClick={() => handleRefund(o)}
+                                disabled={refundingId === o.id}
+                                className="ml-2 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-50"
+                              >
+                                {refundingId === o.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <>
+                                    <RotateCcw className="w-3 h-3" />
+                                    Refund
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </p>
+                        )}
                         <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
                           <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
                             <MessageCircle className="w-4 h-4" />

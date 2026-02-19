@@ -100,8 +100,6 @@ export default function CheckoutPage() {
     guestName: string | null;
   }[]>([]);
   const [savingAddress, setSavingAddress] = useState(false);
-  const [savedPaymentMethods, setSavedPaymentMethods] = useState<{ id: string; brand: string; last4: string; isDefault: boolean }[]>([]);
-  const [selectedSavedCardId, setSelectedSavedCardId] = useState<string | null>(null);
 
   useEffect(() => {
     if (customer) {
@@ -139,21 +137,6 @@ export default function CheckoutPage() {
     }
   }, [whatsapp]);
 
-  useEffect(() => {
-    if (token && paymentMethod === "card") {
-      fetch("/api/payment-methods", { headers: { Authorization: `Bearer ${token}` } })
-        .then((r) => r.json())
-        .then((d) => {
-          setSavedPaymentMethods(d.paymentMethods || []);
-          const def = d.paymentMethods?.find((pm: { isDefault: boolean }) => pm.isDefault);
-          setSelectedSavedCardId(def?.id ?? d.paymentMethods?.[0]?.id ?? null);
-        })
-        .catch(() => setSavedPaymentMethods([]));
-    } else {
-      setSavedPaymentMethods([]);
-      setSelectedSavedCardId(null);
-    }
-  }, [token, paymentMethod]);
 
   function applySavedAddress(addr: (typeof savedAddresses)[0]) {
     setLandmark(addr.landmark);
@@ -497,45 +480,6 @@ export default function CheckoutPage() {
       if (paymentMethod === "card") {
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (token) headers["Authorization"] = `Bearer ${token}`;
-
-        if (selectedSavedCardId && token) {
-          const piRes = await fetch("/api/create-payment-intent", {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              amount: totalPhp,
-              orderId,
-              paymentMethodId: selectedSavedCardId,
-            }),
-          });
-          const piData = await piRes.json();
-          if (!piRes.ok) throw new Error(piData.error || "Payment failed");
-          if (piData.status === "succeeded") {
-            await fetch(`/api/orders/${orderId}/confirm-card-payment`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentIntentId: piData.paymentIntentId }),
-            });
-            saveSessionAndRedirect(orderId);
-            return;
-          }
-          if (piData.clientSecret) {
-            const { loadStripe } = await import("@stripe/stripe-js");
-            const pk = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-            if (!pk) throw new Error("Stripe not configured");
-            const stripeJs = await loadStripe(pk);
-            if (!stripeJs) throw new Error("Stripe failed to load");
-            const { error: confirmErr } = await stripeJs.confirmCardPayment(piData.clientSecret);
-            if (confirmErr) throw new Error(confirmErr.message || "Payment failed");
-            await fetch(`/api/orders/${orderId}/confirm-card-payment`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentIntentId: piData.paymentIntentId }),
-            });
-            saveSessionAndRedirect(orderId);
-            return;
-          }
-        }
 
         const stripeRes = await fetch("/api/create-checkout-session", {
           method: "POST",
@@ -898,47 +842,6 @@ export default function CheckoutPage() {
                 </label>
               ))}
             </div>
-            {paymentMethod === "card" && token && savedPaymentMethods.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Saved cards</p>
-                <div className="space-y-2">
-                  {savedPaymentMethods.map((pm) => (
-                    <label
-                      key={pm.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${
-                        selectedSavedCardId === pm.id ? "border-primary bg-primary/5" : "border-slate-200 dark:border-slate-700"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="savedCard"
-                        checked={selectedSavedCardId === pm.id}
-                        onChange={() => setSelectedSavedCardId(pm.id)}
-                        className="text-primary"
-                      />
-                      <CreditCard className="w-5 h-5 text-slate-500" />
-                      <span className="text-slate-900 dark:text-white capitalize">{pm.brand} •••• {pm.last4}</span>
-                      {pm.isDefault && <span className="text-xs text-slate-500">(default)</span>}
-                    </label>
-                  ))}
-                  <label
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${
-                      selectedSavedCardId === null ? "border-primary bg-primary/5" : "border-slate-200 dark:border-slate-700"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="savedCard"
-                      checked={selectedSavedCardId === null}
-                      onChange={() => setSelectedSavedCardId(null)}
-                      className="text-primary"
-                    />
-                    <CreditCard className="w-5 h-5 text-slate-500" />
-                    <span className="text-slate-900 dark:text-white">Use new card</span>
-                  </label>
-                </div>
-              </div>
-            )}
             {paymentMethod === "cash" && (
               <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-200">
                 <strong>Geolocation required.</strong> Order is confirmed by the restaurant or us via a call to you before preparation.

@@ -3,12 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ExternalLink, Clock, Settings2, Image, X, Plus, Trash2 } from "lucide-react";
+import { ImageUploadZone } from "@/components/image-upload-zone";
 
 const STAFF_TOKEN_KEY = "siargao-staff-token";
 
 type Restaurant = {
   name: string;
   slug: string;
+  menuUrl?: string;
   categories: string[];
   priceRange: string | null;
   tags: string[];
@@ -29,6 +31,9 @@ type Config = {
   crypto_wallet_address?: string | null;
   lat?: number | null;
   lng?: number | null;
+  display_name?: string | null;
+  whatsapp_number?: string | null;
+  menu_url?: string | null;
 };
 
 export default function AdminRestaurantsPage() {
@@ -56,7 +61,11 @@ export default function AdminRestaurantsPage() {
   const [mediaExtras, setMediaExtras] = useState<{ id?: string; itemName: string; price: string }[]>([]);
   const [mediaNewItemName, setMediaNewItemName] = useState("");
   const [mediaNewItemPrice, setMediaNewItemPrice] = useState("");
+  const [mediaDisplayName, setMediaDisplayName] = useState("");
+  const [mediaWhatsapp, setMediaWhatsapp] = useState("");
+  const [mediaMenuUrl, setMediaMenuUrl] = useState("");
   const [mediaSaving, setMediaSaving] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const [deleteSlug, setDeleteSlug] = useState<{ slug: string; name: string; isAdmin: boolean } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -105,6 +114,11 @@ export default function AdminRestaurantsPage() {
       setMediaExtras([]);
       setMediaNewItemName("");
       setMediaNewItemPrice("");
+      setMediaError(null);
+      const cfg = getConfig(r.slug);
+      setMediaDisplayName((cfg as { display_name?: string })?.display_name ?? r.name ?? "");
+      setMediaWhatsapp((cfg as { whatsapp_number?: string })?.whatsapp_number ?? "");
+      setMediaMenuUrl((cfg as { menu_url?: string })?.menu_url ?? r.menuUrl ?? `https://siargaodelivery.com/${r.slug}/`);
       try {
         const [mediaRes, extrasRes] = await Promise.all([
           fetch(`/api/admin/restaurant-media?slug=${encodeURIComponent(r.slug)}`, { headers: getAuthHeaders() }),
@@ -119,26 +133,65 @@ export default function AdminRestaurantsPage() {
         setMediaSlug(r.slug);
       }
     },
-    [getAuthHeaders]
+    [getAuthHeaders, getConfig]
   );
 
   const saveMedia = async () => {
     if (!mediaSlug) return;
     setMediaSaving(true);
+    setMediaError(null);
     try {
-      await fetch("/api/admin/restaurant-media", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({
-          slug: mediaSlug,
-          logoUrl: mediaLogoUrl.trim() || null,
-          imageUrls: mediaImageUrls.filter(Boolean),
+      // Add pending menu item first if user filled it but didn't click the Plus
+      if (mediaNewItemName.trim()) {
+        const res = await fetch("/api/admin/restaurant-menu-extras", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          body: JSON.stringify({
+            slug: mediaSlug,
+            itemName: mediaNewItemName.trim(),
+            price: mediaNewItemPrice.trim() || "0 PHP",
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data) {
+          setMediaExtras((prev) => [...prev, { id: data.id, itemName: data.item_name, price: data.price }]);
+          setMediaNewItemName("");
+          setMediaNewItemPrice("");
+        } else {
+          throw new Error(data.error || "Failed to add menu item");
+        }
+      }
+      // Add pending photo URL if user filled it but didn't click Add
+      const imageUrlsToSave = mediaNewImageUrl.trim()
+        ? [...mediaImageUrls.filter(Boolean), mediaNewImageUrl.trim()]
+        : mediaImageUrls.filter(Boolean);
+
+      await Promise.all([
+        fetch("/api/admin/restaurant-media", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          body: JSON.stringify({
+            slug: mediaSlug,
+            logoUrl: mediaLogoUrl.trim() || null,
+            imageUrls: imageUrlsToSave,
+          }),
         }),
-      });
+        fetch("/api/admin/restaurant-config", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          body: JSON.stringify({
+            slug: mediaSlug,
+            display_name: mediaDisplayName.trim() || null,
+            whatsapp_number: mediaWhatsapp.trim() || null,
+            menu_url: mediaMenuUrl.trim() || null,
+          }),
+        }),
+      ]);
+      setMediaNewImageUrl("");
       setMediaSlug(null);
       load();
-    } catch {
-      /* ignore */
+    } catch (e) {
+      setMediaError(e instanceof Error ? e.message : "Save failed");
     } finally {
       setMediaSaving(false);
     }
@@ -161,9 +214,13 @@ export default function AdminRestaurantsPage() {
         setMediaExtras((prev) => [...prev, { id: data.id, itemName: data.item_name, price: data.price }]);
         setMediaNewItemName("");
         setMediaNewItemPrice("");
+        setMediaError(null);
         load();
+      } else {
+        setMediaError(data.error || "Failed to add menu item");
       }
-    } catch {
+    } catch (e) {
+      setMediaError(e instanceof Error ? e.message : "Failed to add");
       /* ignore */
     }
   };
@@ -597,11 +654,41 @@ export default function AdminRestaurantsPage() {
               <h3 className="font-semibold text-slate-900 dark:text-white">
                 Logo, images & menu — {data.restaurants.find((r) => r.slug === mediaSlug)?.name}
               </h3>
-              <button onClick={() => setMediaSlug(null)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+              <button onClick={() => { setMediaSlug(null); setMediaError(null); }} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Restaurant name</label>
+                <input
+                  type="text"
+                  value={mediaDisplayName}
+                  onChange={(e) => setMediaDisplayName(e.target.value)}
+                  placeholder="Display name on site"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">WhatsApp number <span className="text-slate-500 font-normal">(optional)</span></label>
+                <input
+                  type="tel"
+                  value={mediaWhatsapp}
+                  onChange={(e) => setMediaWhatsapp(e.target.value)}
+                  placeholder="+63 912 345 6789"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Menu / Order URL</label>
+                <input
+                  type="url"
+                  value={mediaMenuUrl}
+                  onChange={(e) => setMediaMenuUrl(e.target.value)}
+                  placeholder="https://siargaodelivery.com/sunset-pizza/ or external link"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Logo URL</label>
                 <input
@@ -613,7 +700,15 @@ export default function AdminRestaurantsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Food images (URLs)</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Food images</label>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Upload (drag & drop) or paste URL below.</p>
+                <ImageUploadZone
+                  slug={mediaSlug}
+                  onUploaded={(url) => setMediaImageUrls((u) => [...u, url])}
+                  getAuthHeaders={getAuthHeaders}
+                  disabled={mediaSaving}
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 mb-2">Or add by URL:</p>
                 <div className="space-y-2">
                   {mediaImageUrls.map((url, i) => (
                     <div key={i} className="flex gap-2">
@@ -648,15 +743,18 @@ export default function AdminRestaurantsPage() {
                           setMediaNewImageUrl("");
                         }
                       }}
-                      className="p-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
+                      title="Add image URL"
+                      className="px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-sm font-medium flex items-center gap-1"
                     >
                       <Plus className="w-4 h-4" />
+                      Add
                     </button>
                   </div>
                 </div>
               </div>
               <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Add menu item</label>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Enter item name and price, then click Add or Save.</p>
                 {mediaExtras.length > 0 && (
                   <ul className="mb-3 space-y-1">
                     {mediaExtras.map((e) => (
@@ -693,16 +791,21 @@ export default function AdminRestaurantsPage() {
                   <button
                     type="button"
                     onClick={addMenuExtra}
-                    className="p-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
+                    title="Add item to menu"
+                    className="px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-sm font-medium flex items-center gap-1"
                   >
                     <Plus className="w-4 h-4" />
+                    Add
                   </button>
                 </div>
               </div>
             </div>
+            {mediaError && (
+              <p className="text-sm text-red-600 dark:text-red-400 mt-2">{mediaError}</p>
+            )}
             <div className="flex gap-2 mt-6">
               <button
-                onClick={() => setMediaSlug(null)}
+                onClick={() => { setMediaSlug(null); setMediaError(null); }}
                 className="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
               >
                 Cancel

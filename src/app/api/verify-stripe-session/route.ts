@@ -27,35 +27,29 @@ export async function POST(request: NextRequest) {
     }
 
     const orderId = session.metadata?.orderId;
-    const customerId = session.metadata?.customerId;
     if (orderId) {
       const supabase = getSupabaseAdmin();
       if (supabase) {
-        await supabase
-          .from("orders")
-          .update({ payment_status: "paid" })
-          .eq("id", orderId)
-          .eq("payment_method", "card");
-        if (customerId && session.payment_intent) {
-          const pi = typeof session.payment_intent === "string"
-            ? await stripe.paymentIntents.retrieve(session.payment_intent)
-            : session.payment_intent;
-          const pmId = pi.payment_method;
-          if (pmId && typeof pmId === "string") {
-            const pm = await stripe.paymentMethods.retrieve(pmId);
-            const { count } = await supabase
-              .from("customer_payment_methods")
-              .select("id", { count: "exact", head: true })
-              .eq("customer_id", customerId);
-            await supabase.from("customer_payment_methods").insert({
-              customer_id: customerId,
-              stripe_payment_method_id: pm.id,
-              brand: pm.card?.brand ?? null,
-              last4: pm.card?.last4 ?? null,
-              is_default: (count ?? 0) === 0,
-            });
+        const update: Record<string, unknown> = { payment_status: "paid" };
+        if (session.payment_intent) {
+          const pi =
+            typeof session.payment_intent === "string"
+              ? await stripe.paymentIntents.retrieve(session.payment_intent)
+              : session.payment_intent;
+          update.stripe_payment_intent_id = pi.id;
+          if (pi.payment_method && typeof pi.payment_method === "string") {
+            const pm = await stripe.paymentMethods.retrieve(pi.payment_method);
+            if (pm.card) {
+              update.card_last4 = pm.card.last4 ?? null;
+              update.card_brand = pm.card.brand ?? null;
+            }
           }
         }
+        await supabase
+          .from("orders")
+          .update(update)
+          .eq("id", orderId)
+          .eq("payment_method", "card");
       }
     }
 

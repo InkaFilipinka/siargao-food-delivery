@@ -75,7 +75,7 @@ async function getRestaurantsData(request: Request) {
     if (!adminRes.error) adminRestaurants = adminRes.data || [];
     const allSlugs = [...staticSlugs, ...adminRestaurants.map((a) => a.slug)];
     const [configRes, mediaRes, extrasRes] = await Promise.all([
-      supabase.from("restaurant_config").select("slug, commission_pct, hours, min_order_php, lat, lng").in("slug", allSlugs),
+      supabase.from("restaurant_config").select("slug, commission_pct, hours, min_order_php, lat, lng, display_name, whatsapp_number, menu_url").in("slug", allSlugs),
       supabase.from("restaurant_media").select("slug, logo_url, image_urls").in("slug", allSlugs),
       supabase.from("restaurant_menu_extras").select("slug, item_name, price").in("slug", allSlugs),
     ]);
@@ -92,7 +92,12 @@ async function getRestaurantsData(request: Request) {
       menuExtrasBySlug.set(e.slug, list);
     }
     for (const c of configs || []) {
-      configBySlug.set(c.slug, { commission_pct: c.commission_pct ?? 30 });
+      configBySlug.set(c.slug, {
+        commission_pct: c.commission_pct ?? 30,
+        display_name: c.display_name ?? null,
+        whatsapp_number: c.whatsapp_number ?? null,
+        menu_url: c.menu_url ?? null,
+      });
       hoursMinOrderBySlug.set(c.slug, {
         hours: c.hours ?? null,
         minOrderPhp: c.min_order_php != null ? Number(c.min_order_php) : null,
@@ -125,8 +130,14 @@ async function getRestaurantsData(request: Request) {
       const mediaImages = media?.imageUrls || [];
       const imageUrls = [...staticImages, ...mediaImages];
       const featuredImage = media?.logoUrl || imageUrls[0] || null;
+      const config = configBySlug.get(slug);
+      const displayName = config?.display_name ?? r.name;
+      const menuUrlOverride = config?.menu_url;
       return {
         ...r,
+        name: displayName,
+        menuUrl: menuUrlOverride ?? r.menuUrl,
+        whatsappNumber: config?.whatsapp_number ?? null,
         slug,
         menuItems,
         imageUrls,
@@ -150,9 +161,13 @@ async function getRestaurantsData(request: Request) {
       const imageUrls = media?.imageUrls || [];
       const featuredImage = media?.logoUrl || imageUrls[0] || null;
       const menuItems = extras.map((e) => ({ name: e.name, price: e.price }));
+      const config = configBySlug.get(slug);
+      const displayName = config?.display_name ?? a.name;
+      const menuUrlOverride = config?.menu_url ?? a.menu_url;
       return {
-        name: a.name,
-        menuUrl: a.menu_url || `https://siargaodelivery.com/${slug}`,
+        name: displayName,
+        menuUrl: menuUrlOverride || `https://siargaodelivery.com/${slug}`,
+        whatsappNumber: config?.whatsapp_number ?? null,
         categories: a.categories,
         priceRange: a.price_range || "$$",
         tags: a.tags,

@@ -54,9 +54,7 @@ export async function POST(request: NextRequest) {
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ["card"],
       mode: "payment",
-      ...(stripeCustomerId
-        ? { customer: stripeCustomerId, payment_intent_data: { setup_future_usage: "off_session" } }
-        : { customer_email: customerEmail }),
+      ...(stripeCustomerId ? { customer: stripeCustomerId } : { customer_email: customerEmail }),
       line_items:
         lineItems?.length > 0
           ? lineItems.map(
