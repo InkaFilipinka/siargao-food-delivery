@@ -120,7 +120,7 @@ export const ProductOrderCard = ({ onNavigate }: ProductOrderCardProps) => {
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
   const handleAction = (action: string) => {
     if (onNavigate) {
-      const map: Record<string, string> = { nav_hub: 'driver-hub', nav_earnings: 'driver-earnings' };
+      const map: Record<string, string> = { nav_hub: 'driver-hub', nav_earnings: 'driver-earnings', notifications: 'notifications', change_payout: 'payout-settings', view_all_trips: 'trip-history' };
       if (map[action]) onNavigate(map[action]!);
       return;
     }

@@ -13,7 +13,20 @@ export type MobileScreen =
   | "driver-hub"
   | "driver-earnings"
   | "restaurant-dashboard"
-  | "partner-login";
+  | "partner-login"
+  // CURSOR placeholders (missing from Figma)
+  | "account"
+  | "location-picker"
+  | "forgot-password"
+  | "sign-up"
+  | "order-detail"
+  | "item-detail"
+  | "support"
+  | "notifications"
+  | "edit-address"
+  | "edit-phone"
+  | "payout-settings"
+  | "trip-history";
 
 const MobilePreviewContext = createContext<{
   screen: MobileScreen;

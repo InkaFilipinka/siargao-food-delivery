@@ -65,8 +65,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   }] as any[];
   const handleAction = (action: string) => {
     if (onNavigate) {
-      const map: Record<string, string> = { back: 'home', 'view-cart': 'cart', 'nav-home': 'home', 'nav-orders': 'orders', 'nav-account': 'home' };
+      const map: Record<string, string> = { back: 'home', search: 'home', 'view-cart': 'cart', checkout: 'checkout', 'nav-home': 'home', 'nav-orders': 'orders', 'nav-account': 'account' };
       if (map[action]) onNavigate(map[action]!);
+      if (action.startsWith('view-')) onNavigate('item-detail');
       return;
     }
     console.log(`Action triggered: ${action}`);

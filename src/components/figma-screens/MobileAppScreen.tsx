@@ -70,7 +70,7 @@ export const MobileAppScreen = ({
               letterSpacing: '-0.5px'
             }}>TravelGo</h1>
             </div>
-            <button aria-label="Notifications" onMouseEnter={buttonHoverStyle} onMouseLeave={buttonResetStyle} style={{
+            <button aria-label="Notifications" onClick={() => onNavigate?.('notifications')} onMouseEnter={buttonHoverStyle} onMouseLeave={buttonResetStyle} style={{
             width: '40px',
             height: '40px',
             backgroundColor: '#F3F4F6',
@@ -217,12 +217,13 @@ export const MobileAppScreen = ({
         </section>
 
         {/* ACTIVE DELIVERY CARD */}
-        <section style={{
+        <section onClick={() => onNavigate?.('track')} style={{
         backgroundColor: '#FFFFFF',
         borderRadius: '16px',
         overflow: 'hidden',
         boxShadow: '0px 10px 15px rgba(0, 0, 0, 0.1), 0px 4px 6px rgba(0, 0, 0, 0.1)',
-        border: '1px solid #E5E7EB'
+        border: '1px solid #E5E7EB',
+        cursor: onNavigate ? 'pointer' : undefined
       }}>
           <header style={{
           background: '#F97316',
@@ -542,7 +543,7 @@ export const MobileAppScreen = ({
               color: '#111827'
             }}>Fuel Break</span>
             </button>
-            <button onMouseEnter={buttonHoverStyle} onMouseLeave={buttonResetStyle} style={{
+            <button onClick={() => onNavigate?.('support')} onMouseEnter={buttonHoverStyle} onMouseLeave={buttonResetStyle} style={{
             flex: 1,
             height: '108px',
             backgroundColor: '#FFFFFF',

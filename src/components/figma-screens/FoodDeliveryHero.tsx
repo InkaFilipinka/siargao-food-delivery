@@ -8,7 +8,7 @@ export const FoodDeliveryHero = ({ onNavigate }: FoodDeliveryHeroProps) => {
     onNavigate ? onNavigate('home') : console.log('Navigating to food ordering...');
   };
   const handleLocationClick = () => {
-    if (!onNavigate) console.log('Opening location picker...');
+    onNavigate ? onNavigate('location-picker') : console.log('Opening location picker...');
   };
   const handleBookTripClick = () => {
     onNavigate ? onNavigate('partner-login') : console.log('Navigating to trip booking...');

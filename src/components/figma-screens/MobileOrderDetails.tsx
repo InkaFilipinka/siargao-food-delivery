@@ -5,10 +5,10 @@ interface MobileOrderDetailsProps {
 export const MobileOrderDetails = ({ onNavigate }: MobileOrderDetailsProps) => {
   const [activeTab, setActiveTab] = useState('orders');
   const handleBack = () => onNavigate ? onNavigate('orders') : console.log('Back clicked');
-  const handleSupport = () => console.log('Support clicked');
-  const handleCall = () => console.log('Calling rider...');
-  const handleMessage = () => console.log('Opening chat...');
-  const handleNavClick = (tab: string) => onNavigate ? onNavigate(tab === 'home' ? 'home' : tab === 'orders' ? 'orders' : 'home') : setActiveTab(tab);
+  const handleSupport = () => onNavigate ? onNavigate('support') : console.log('Support clicked');
+  const handleCall = () => onNavigate ? onNavigate('support') : console.log('Calling rider...');
+  const handleMessage = () => onNavigate ? onNavigate('support') : console.log('Opening chat...');
+  const handleNavClick = (tab: string) => onNavigate ? onNavigate(tab === 'home' ? 'home' : tab === 'orders' ? 'orders' : tab === 'account' ? 'account' : 'home') : setActiveTab(tab);
   const buttonHoverStyle = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.currentTarget.style.opacity = '0.8';
     e.currentTarget.style.transform = 'scale(0.98)';

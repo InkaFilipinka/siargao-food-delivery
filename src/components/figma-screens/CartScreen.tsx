@@ -663,7 +663,7 @@ export const CartScreen = ({ onNavigate }: CartScreenProps) => {
         }}>Orders</span>
         </button>
 
-        <button onClick={() => onNavigate ? onNavigate('home') : setActiveTab('account')} style={{
+        <button onClick={() => onNavigate ? onNavigate('account') : setActiveTab('account')} style={{
         ...buttonStyle,
         flexDirection: 'column',
         gap: '4px',

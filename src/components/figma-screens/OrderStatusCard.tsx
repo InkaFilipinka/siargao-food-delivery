@@ -197,7 +197,7 @@ export const OrderStatusCard = ({ onNavigate }: OrderStatusCardProps) => {
       gap: '16px',
       paddingBottom: '100px'
     }}>
-        {filteredOrders.map(order => <div key={order.id} style={{
+        {filteredOrders.map(order => <div key={order.id} onClick={() => onNavigate?.('order-detail')} style={{
         width: '100%',
         backgroundColor: 'rgba(255, 255, 255, 1)',
         border: '1px solid rgba(229, 231, 235, 1)',
@@ -207,7 +207,8 @@ export const OrderStatusCard = ({ onNavigate }: OrderStatusCardProps) => {
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px'
+        gap: '12px',
+        cursor: onNavigate ? 'pointer' : undefined
       }}>
             {/* Card Header */}
             <div style={{
@@ -320,7 +321,7 @@ export const OrderStatusCard = ({ onNavigate }: OrderStatusCardProps) => {
           gap: '8px',
           marginTop: '4px'
         }}>
-              <button style={{
+              <button onClick={e => { e.stopPropagation(); onNavigate?.('restaurant'); }} style={{
             flex: order.status === 'Cancelled' ? 1 : 'none',
             width: order.status === 'Cancelled' ? 'auto' : '110px',
             height: '38px',
@@ -335,7 +336,7 @@ export const OrderStatusCard = ({ onNavigate }: OrderStatusCardProps) => {
                 REORDER
               </button>
               {order.status !== 'Cancelled' && <>
-                  <button style={{
+                  <button onClick={e => { e.stopPropagation(); onNavigate?.('order-detail'); }} style={{
               width: '92px',
               height: '38px',
               backgroundColor: 'transparent',
@@ -347,7 +348,7 @@ export const OrderStatusCard = ({ onNavigate }: OrderStatusCardProps) => {
             }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.02)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                     RECEIPT
                   </button>
-                  <button style={{
+                  <button onClick={e => { e.stopPropagation(); onNavigate?.('order-detail'); }} style={{
               width: '48px',
               height: '38px',
               backgroundColor: 'rgba(249, 115, 22, 1)',
@@ -393,7 +394,7 @@ export const OrderStatusCard = ({ onNavigate }: OrderStatusCardProps) => {
         name: 'Account',
         icon: 'https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/af01e9f7-948a-4168-b49c-ef2c7f33dbab.svg',
         width: '17.5px'
-      }].map(item => <button key={item.name} onClick={() => onNavigate ? onNavigate(item.name === 'Home' ? 'home' : item.name === 'Orders' ? 'orders' : 'home') : setActiveTab(item.name)} style={{
+      }].map(item => <button key={item.name} onClick={() => onNavigate ? onNavigate(item.name === 'Home' ? 'home' : item.name === 'Orders' ? 'orders' : item.name === 'Account' ? 'account' : 'home') : setActiveTab(item.name)} style={{
         backgroundColor: 'transparent',
         border: 'none',
         display: 'flex',

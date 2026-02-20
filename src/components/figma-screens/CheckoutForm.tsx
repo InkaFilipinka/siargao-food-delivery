@@ -153,7 +153,7 @@ export const CheckoutForm = ({ onNavigate }: CheckoutFormProps) => {
             color: '#0D9488',
             fontSize: '14px',
             fontWeight: 500
-          }} onClick={() => console.log('Change Address')}>
+          }} onClick={() => onNavigate ? onNavigate('edit-address') : console.log('Change Address')}>
               Change
             </button>
           </div>
@@ -212,7 +212,7 @@ export const CheckoutForm = ({ onNavigate }: CheckoutFormProps) => {
             color: '#0D9488',
             fontSize: '14px',
             fontWeight: 500
-          }} onClick={() => console.log('Edit Phone')}>
+          }} onClick={() => onNavigate ? onNavigate('edit-phone') : console.log('Edit Phone')}>
               Edit
             </button>
           </div>

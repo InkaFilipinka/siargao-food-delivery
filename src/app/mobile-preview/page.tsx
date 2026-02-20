@@ -12,9 +12,10 @@ import { MobileAppScreen } from "@/components/figma-screens/MobileAppScreen";
 import { ProductOrderCard } from "@/components/figma-screens/ProductOrderCard";
 import { DataTableHeader } from "@/components/figma-screens/DataTableHeader";
 import { LoginScreen } from "@/components/figma-screens/LoginScreen";
+import { CursorPlaceholder } from "@/components/figma-screens/CursorPlaceholder";
 import { useState } from "react";
 
-const SCREENS: { id: MobileScreen; label: string }[] = [
+const FIGMA_SCREENS: { id: MobileScreen; label: string }[] = [
   { id: "landing", label: "Landing" },
   { id: "home", label: "Home (Search)" },
   { id: "restaurant", label: "Restaurant" },
@@ -28,10 +29,27 @@ const SCREENS: { id: MobileScreen; label: string }[] = [
   { id: "partner-login", label: "Partner Login" },
 ];
 
+const CURSOR_PLACEHOLDERS: { id: MobileScreen; label: string }[] = [
+  { id: "account", label: "Account (CURSOR)" },
+  { id: "location-picker", label: "Location Picker (CURSOR)" },
+  { id: "forgot-password", label: "Forgot Password (CURSOR)" },
+  { id: "sign-up", label: "Sign Up (CURSOR)" },
+  { id: "order-detail", label: "Order Detail (CURSOR)" },
+  { id: "item-detail", label: "Item Detail (CURSOR)" },
+  { id: "support", label: "Support (CURSOR)" },
+  { id: "notifications", label: "Notifications (CURSOR)" },
+  { id: "edit-address", label: "Edit Address (CURSOR)" },
+  { id: "edit-phone", label: "Edit Phone (CURSOR)" },
+  { id: "payout-settings", label: "Payout Settings (CURSOR)" },
+  { id: "trip-history", label: "Trip History (CURSOR)" },
+];
+
+const SCREENS = [...FIGMA_SCREENS, ...CURSOR_PLACEHOLDERS];
+
 function MobilePreviewContent() {
   const ctx = useMobilePreview();
   if (!ctx) return <div>Loading...</div>;
-  const { screen, goTo } = ctx;
+  const { screen, goTo, goBack } = ctx;
   const [showSwitcher, setShowSwitcher] = useState(false);
 
   const handleNavigate = (s: string) => goTo(s as MobileScreen);
@@ -66,9 +84,30 @@ function MobilePreviewContent() {
               const role = data?.role as "driver" | "restaurant";
               handleNavigate(role === "driver" ? "driver-hub" : "restaurant-dashboard");
             }}
-            onForgotPassword={() => {}}
-            onSignUp={() => {}}
-            onSocialLogin={() => {}}
+            onForgotPassword={() => handleNavigate("forgot-password")}
+            onSignUp={() => handleNavigate("sign-up")}
+            onSocialLogin={(platform) => {
+              handleNavigate(platform === "google" || platform === "facebook" ? "driver-hub" : "partner-login");
+            }}
+          />
+        );
+      case "account":
+      case "location-picker":
+      case "forgot-password":
+      case "sign-up":
+      case "order-detail":
+      case "item-detail":
+      case "support":
+      case "notifications":
+      case "edit-address":
+      case "edit-phone":
+      case "payout-settings":
+      case "trip-history":
+        return (
+          <CursorPlaceholder
+            title={SCREENS.find((s) => s.id === screen)?.label.replace(" (CURSOR)", "") ?? screen}
+            subtitle="Temporary placeholder"
+            onBack={goBack}
           />
         );
       default:

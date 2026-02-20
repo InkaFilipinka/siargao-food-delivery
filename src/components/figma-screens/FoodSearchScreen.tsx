@@ -208,7 +208,7 @@ export const FoodSearchScreen = ({ onNavigate }: FoodSearchScreenProps) => {
               border: '2px solid white'
             }}>2</div>
             </button>
-            <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/ca7877fc-1add-482d-a82d-355f88d9cc80.jpg" alt="Profile" style={{
+            <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/ca7877fc-1add-482d-a82d-355f88d9cc80.jpg" alt="Profile" onClick={() => onNavigate?.('account')} role="button" style={{
             width: '40px',
             height: '40px',
             borderRadius: '50%',
@@ -492,7 +492,7 @@ export const FoodSearchScreen = ({ onNavigate }: FoodSearchScreenProps) => {
       }, {
         name: 'Account',
         icon: 'https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/7f941418-5915-40c6-8e55-62d6db52b58a.svg'
-      }].map(tab => <button key={tab.name} onClick={() => onNavigate ? onNavigate(tab.name === 'Home' ? 'home' : tab.name === 'Orders' ? 'orders' : 'home') : setActiveTab(tab.name)} style={{
+      }].map(tab => <button key={tab.name} onClick={() => onNavigate ? onNavigate(tab.name === 'Home' ? 'home' : tab.name === 'Orders' ? 'orders' : tab.name === 'Account' ? 'account' : 'home') : setActiveTab(tab.name)} style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
