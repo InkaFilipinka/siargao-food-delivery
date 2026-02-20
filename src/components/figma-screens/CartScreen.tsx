@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 interface CartScreenProps {
   onNavigate?: (screen: string) => void;
+  hideBottomNav?: boolean;
 }
-export const CartScreen = ({ onNavigate }: CartScreenProps) => {
+export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
   const [qty1, setQty1] = useState(1);
   const [qty2, setQty2] = useState(2);
   const [cutlery, setCutlery] = useState(true);
@@ -613,7 +614,7 @@ export const CartScreen = ({ onNavigate }: CartScreenProps) => {
       </div>
 
       {/* Navigation Footer */}
-      <nav style={{
+      {!hideBottomNav && <nav style={{
       width: '100%',
       height: '81px',
       backgroundColor: '#FFFFFF',
@@ -680,6 +681,6 @@ export const CartScreen = ({ onNavigate }: CartScreenProps) => {
           fontWeight: 500
         }}>Account</span>
         </button>
-      </nav>
+      </nav>}
     </div>;
 };

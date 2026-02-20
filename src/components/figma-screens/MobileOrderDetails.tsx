@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 interface MobileOrderDetailsProps {
   onNavigate?: (screen: string) => void;
+  hideBottomNav?: boolean;
 }
-export const MobileOrderDetails = ({ onNavigate }: MobileOrderDetailsProps) => {
+export const MobileOrderDetails = ({ onNavigate, hideBottomNav }: MobileOrderDetailsProps) => {
   const [activeTab, setActiveTab] = useState('orders');
   const handleBack = () => onNavigate ? onNavigate('orders') : console.log('Back clicked');
   const handleSupport = () => onNavigate ? onNavigate('support') : console.log('Support clicked');
@@ -594,7 +595,7 @@ export const MobileOrderDetails = ({ onNavigate }: MobileOrderDetailsProps) => {
         </main>
 
         {/* Navigation Footer */}
-        <nav style={{
+        {!hideBottomNav && <nav style={{
         width: '375px',
         height: '81px',
         backgroundColor: 'rgba(255, 255, 255, 1)',
@@ -669,7 +670,7 @@ export const MobileOrderDetails = ({ onNavigate }: MobileOrderDetailsProps) => {
             color: activeTab === 'account' ? 'rgba(13, 148, 136, 1)' : 'rgba(156, 163, 175, 1)'
           }}>Account</span>
           </button>
-        </nav>
+        </nav>}
       </div>
     </div>;
 };

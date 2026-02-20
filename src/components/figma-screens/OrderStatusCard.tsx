@@ -19,8 +19,9 @@ interface Order {
 }
 interface OrderStatusCardProps {
   onNavigate?: (screen: string) => void;
+  hideBottomNav?: boolean;
 }
-export const OrderStatusCard = ({ onNavigate }: OrderStatusCardProps) => {
+export const OrderStatusCard = ({ onNavigate, hideBottomNav }: OrderStatusCardProps) => {
   const [activeFilter, setActiveFilter] = useState('All Orders');
   const [activeTab, setActiveTab] = useState('Orders');
   const orders: Order[] = [{
@@ -369,7 +370,7 @@ export const OrderStatusCard = ({ onNavigate }: OrderStatusCardProps) => {
       </main>
 
       {/* Bottom Navigation */}
-      <nav style={{
+      {!hideBottomNav && <nav style={{
       width: '100%',
       height: '81px',
       backgroundColor: 'rgba(255, 255, 255, 1)',
@@ -421,6 +422,6 @@ export const OrderStatusCard = ({ onNavigate }: OrderStatusCardProps) => {
           color: activeTab === item.name ? 'rgba(13, 148, 136, 1)' : 'rgba(156, 163, 175, 1)'
         }}>{item.name}</span>
           </button>)}
-      </nav>
+      </nav>}
     </div>;
 };

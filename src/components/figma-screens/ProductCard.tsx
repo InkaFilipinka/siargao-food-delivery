@@ -3,6 +3,7 @@ interface ProductCardProps {
   className?: string;
   style?: React.CSSProperties;
   onNavigate?: (screen: string) => void;
+  hideBottomNav?: boolean;
 }
 const COLORS = {
   primary: 'rgba(13, 148, 136, 1)',
@@ -22,7 +23,8 @@ const COLORS = {
 export const ProductCard: React.FC<ProductCardProps> = ({
   className,
   style,
-  onNavigate
+  onNavigate,
+  hideBottomNav
 }) => {
   const [activeTab, setActiveTab] = useState<'Menu' | 'Info'>('Menu');
   const [activeCategory, setActiveCategory] = useState('Popular');
@@ -499,7 +501,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       {/* Navigation Footer */}
-      <nav style={{
+      {!hideBottomNav && <nav style={{
       height: '81px',
       backgroundColor: COLORS.white,
       borderTop: `1px solid ${COLORS.gray200}`,
@@ -567,6 +569,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           fontWeight: 500
         }}>Account</span>
         </button>
-      </nav>
+      </nav>}
     </div>;
 };

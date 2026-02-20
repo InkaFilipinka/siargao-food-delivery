@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 interface FoodSearchScreenProps {
   onNavigate?: (screen: string) => void;
+  hideBottomNav?: boolean;
 }
-export const FoodSearchScreen = ({ onNavigate }: FoodSearchScreenProps) => {
+export const FoodSearchScreen = ({ onNavigate, hideBottomNav }: FoodSearchScreenProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeTab, setActiveTab] = useState('Home');
@@ -469,7 +470,7 @@ export const FoodSearchScreen = ({ onNavigate }: FoodSearchScreenProps) => {
       </main>
 
       {/* Navigation Bar */}
-      <nav style={{
+      {!hideBottomNav && <nav style={{
       width: '100%',
       height: '71px',
       backgroundColor: '#FFFFFF',
@@ -514,7 +515,7 @@ export const FoodSearchScreen = ({ onNavigate }: FoodSearchScreenProps) => {
           color: activeTab === tab.name ? '#0D9488' : '#9CA3AF'
         }}>{tab.name}</span>
           </button>)}
-      </nav>
+      </nav>}
 
       {/* Decorative Blur Elements */}
       <div style={{

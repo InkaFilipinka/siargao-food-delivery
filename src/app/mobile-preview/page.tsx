@@ -13,7 +13,14 @@ import { ProductOrderCard } from "@/components/figma-screens/ProductOrderCard";
 import { DataTableHeader } from "@/components/figma-screens/DataTableHeader";
 import { LoginScreen } from "@/components/figma-screens/LoginScreen";
 import { CursorPlaceholder } from "@/components/figma-screens/CursorPlaceholder";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { useState } from "react";
+
+const CUSTOMER_SCREENS_WITH_NAV: MobileScreen[] = [
+  "landing", "home", "restaurant", "cart", "checkout", "track", "orders",
+  "account", "location-picker", "forgot-password", "sign-up", "order-detail",
+  "item-detail", "support", "notifications", "edit-address", "edit-phone",
+];
 
 const FIGMA_SCREENS: { id: MobileScreen; label: string }[] = [
   { id: "landing", label: "Landing" },
@@ -51,6 +58,7 @@ function MobilePreviewContent() {
   if (!ctx) return <div>Loading...</div>;
   const { screen, goTo, goBack } = ctx;
   const [showSwitcher, setShowSwitcher] = useState(false);
+  const showGlobalNav = CUSTOMER_SCREENS_WITH_NAV.includes(screen);
 
   const handleNavigate = (s: string) => goTo(s as MobileScreen);
 
@@ -59,17 +67,17 @@ function MobilePreviewContent() {
       case "landing":
         return <FoodDeliveryHero onNavigate={handleNavigate} />;
       case "home":
-        return <FoodSearchScreen onNavigate={handleNavigate} />;
+        return <FoodSearchScreen onNavigate={handleNavigate} hideBottomNav={showGlobalNav} />;
       case "restaurant":
-        return <ProductCard onNavigate={handleNavigate} />;
+        return <ProductCard onNavigate={handleNavigate} hideBottomNav={showGlobalNav} />;
       case "cart":
-        return <CartScreen onNavigate={handleNavigate} />;
+        return <CartScreen onNavigate={handleNavigate} hideBottomNav={showGlobalNav} />;
       case "checkout":
         return <CheckoutForm onNavigate={handleNavigate} />;
       case "track":
-        return <MobileOrderDetails onNavigate={handleNavigate} />;
+        return <MobileOrderDetails onNavigate={handleNavigate} hideBottomNav={showGlobalNav} />;
       case "orders":
-        return <OrderStatusCard onNavigate={handleNavigate} />;
+        return <OrderStatusCard onNavigate={handleNavigate} hideBottomNav={showGlobalNav} />;
       case "driver-hub":
         return <MobileAppScreen onNavigate={handleNavigate} />;
       case "driver-earnings":
@@ -146,10 +154,13 @@ function MobilePreviewContent() {
       </div>
 
       {/* Phone frame */}
-      <div className="relative rounded-2xl shadow-2xl border-4 border-gray-300 overflow-hidden bg-gray-100">
-        <div className="w-[375px] min-h-[600px] max-h-[90vh] overflow-y-auto overscroll-contain">
+      <div className="relative rounded-2xl shadow-2xl border-4 border-gray-300 overflow-hidden bg-gray-100 flex flex-col" style={{ width: 375, maxHeight: "90vh" }}>
+        <div className="flex-1 overflow-y-auto overscroll-contain w-[375px] min-h-[400px]">
           {renderScreen()}
         </div>
+        {showGlobalNav && (
+          <MobileBottomNav currentScreen={screen} onNavigate={handleNavigate} />
+        )}
       </div>
 
       <p className="mt-4 text-sm text-gray-600">
