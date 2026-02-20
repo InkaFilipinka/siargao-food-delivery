@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { NavigationWrapper } from "@/components/navigation-wrapper";
-import { Footer } from "@/components/footer";
+import { ConditionalChrome } from "@/components/conditional-chrome";
 import { LocaleProvider } from "@/contexts/locale-context";
 import { CustomerAuthProvider } from "@/contexts/customer-auth-context";
 
@@ -24,9 +23,7 @@ export default function RootLayout({
       <body className="font-sans flex flex-col min-h-screen" suppressHydrationWarning>
         <LocaleProvider>
           <CustomerAuthProvider>
-            <NavigationWrapper />
-            <div className="flex-1">{children}</div>
-            <Footer />
+            <ConditionalChrome>{children}</ConditionalChrome>
           </CustomerAuthProvider>
         </LocaleProvider>
       </body>

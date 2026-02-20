@@ -13,6 +13,10 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### Mobile app UI preview
+
+A standalone mobile preview of the TravelGo Figma screens is available at [http://localhost:3000/mobile-preview](http://localhost:3000/mobile-preview). It has no backend — pure UI/UX. Use it to click through flows and see which screens connect and which are missing. Use the "Screen switcher" button to jump directly to any screen.
+
 ### Environment variables
 
 Create `.env.local`:
