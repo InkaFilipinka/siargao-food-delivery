@@ -5,6 +5,7 @@ import React from "react";
 const NAV_ITEMS = [
   { id: "home", label: "Home", icon: "https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/14649436-96e8-4ea7-865a-834a1f5b7f8b.svg" },
   { id: "orders", label: "Orders", icon: "https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/80069351-0f00-442f-acab-1699edd85cf5.svg" },
+  { id: "cart", label: "View Cart", icon: "https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/166c1b62-1a3e-4bcb-9c66-ea53dead3040.svg" },
   { id: "account", label: "Account", icon: "https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/7f941418-5915-40c6-8e55-62d6db52b58a.svg" },
 ] as const;
 
@@ -16,8 +17,9 @@ interface MobileBottomNavProps {
 export function MobileBottomNav({ currentScreen, onNavigate }: MobileBottomNavProps) {
   const isActive = (id: string) => {
     const map: Record<string, string[]> = {
-      home: ["landing", "home", "restaurant", "cart", "checkout", "item-detail"],
+      home: ["landing", "home", "restaurant", "checkout", "item-detail"],
       orders: ["orders", "track", "order-detail"],
+      cart: ["cart"],
       account: ["account", "location-picker", "forgot-password", "sign-up", "support", "notifications", "edit-address", "edit-phone"],
     };
     return map[id as keyof typeof map]?.includes(currentScreen) ?? false;
@@ -54,7 +56,7 @@ export function MobileBottomNav({ currentScreen, onNavigate }: MobileBottomNavPr
               backgroundColor: "transparent",
               cursor: "pointer",
               padding: "8px 0",
-              width: "72px",
+              width: "64px",
             }}
           >
             <img
