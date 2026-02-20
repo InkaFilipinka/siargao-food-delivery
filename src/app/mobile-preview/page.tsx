@@ -105,8 +105,8 @@ function MobilePreviewContent() {
       case "trip-history":
         return (
           <CursorPlaceholder
+            screenId={screen}
             title={SCREENS.find((s) => s.id === screen)?.label.replace(" (CURSOR)", "") ?? screen}
-            subtitle="Temporary placeholder"
             onBack={goBack}
           />
         );
