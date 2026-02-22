@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TravelGo — Island Life Delivered</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --tg-primary: #0D9488;
+      --tg-primary-dark: #0F766E;
+      --tg-orange: #F97316;
+      --tg-bg: #FFFFFF;
+      --tg-text: #1E293B;
+      --tg-muted: #64748B;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', sans-serif; background: var(--tg-bg); min-height: 100vh; }
+
+    .page {
+      max-width: 420px; margin: 0 auto; min-height: 100vh;
+      display: flex; flex-direction: column; padding: 24px 20px; position: relative;
+    }
+
+    /* Decorative circles */
+    .deco { position: absolute; border-radius: 50%; pointer-events: none; }
+    .deco-1 { width: 120px; height: 120px; background: rgba(13, 148, 136, 0.08); top: -20px; right: -30px; }
+    .deco-2 { width: 80px; height: 80px; background: rgba(249, 115, 22, 0.08); top: 60px; left: -20px; }
+
+    .header { margin-bottom: 24px; }
+    .logo-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .logo-wrap img { height: 40px; width: auto; }
+    .brand-sub { font-size: 14px; color: var(--tg-muted); }
+
+    .hero-title {
+      font-size: 28px; font-weight: 800; color: var(--tg-text); line-height: 1.25; margin-bottom: 10px;
+    }
+    .hero-title span { color: var(--tg-primary); }
+    .hero-sub { font-size: 15px; color: var(--tg-muted); line-height: 1.5; margin-bottom: 20px; }
+
+    /* Hero from AI-generated screenshot (leftmost 1/5) */
+    .hero-img {
+      height: 180px; border-radius: 20px; margin-bottom: 20px; overflow: hidden;
+      background: url('../assets/landing-full.png') 0 0 no-repeat;
+      background-size: 500% 100%;
+      transition: transform 0.2s ease;
+    }
+    .hero-img:hover { transform: scale(1.01); }
+
+    .location-card {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 20px; background: var(--tg-bg); border: 1px solid #E2E8F0;
+      border-radius: 14px; margin-bottom: 16px; cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .location-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .location-card .pin { font-size: 22px; }
+    .location-card .label { font-size: 13px; color: var(--tg-muted); margin-bottom: 2px; }
+    .location-card .text { font-size: 16px; font-weight: 600; color: var(--tg-text); }
+    .location-card .arrow { font-size: 18px; color: var(--tg-muted); margin-left: auto; }
+
+    .cta-primary {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 18px 24px; background: var(--tg-primary); color: white;
+      border-radius: 14px; border: none; width: 100%;
+      font-size: 17px; font-weight: 700; font-family: inherit; cursor: pointer;
+      text-decoration: none; margin-bottom: 6px;
+      transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+    .cta-primary:hover {
+      background: var(--tg-primary-dark);
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 6px 20px rgba(13, 148, 136, 0.4);
+    }
+    .cta-desc { font-size: 13px; color: var(--tg-muted); margin-bottom: 16px; text-align: center; }
+
+    .cta-secondary {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; background: var(--tg-orange); color: white;
+      border-radius: 14px; width: 100%; text-decoration: none; margin-bottom: 28px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .cta-secondary:hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35);
+    }
+    .cta-secondary .left { display: flex; align-items: center; gap: 10px; }
+    .cta-secondary .icon { font-size: 22px; }
+    .cta-secondary .main { font-size: 16px; font-weight: 700; }
+    .cta-secondary .sub { font-size: 12px; opacity: 0.95; display: block; margin-top: 2px; }
+    .cta-secondary .arrow { font-size: 18px; }
+
+    .features {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;
+    }
+    .feature {
+      background: #F8FAFC; padding: 16px; border-radius: 14px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .feature:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .feature .icon { font-size: 26px; margin-bottom: 8px; }
+    .feature .title { font-size: 14px; font-weight: 700; color: var(--tg-text); }
+    .feature .desc { font-size: 12px; color: var(--tg-muted); margin-top: 4px; }
+
+    .trust-bar {
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+      padding: 16px 20px; background: var(--tg-primary); color: white;
+      border-radius: 14px; margin-top: auto;
+      transition: transform 0.2s ease;
+    }
+    .trust-bar:hover { transform: translateY(-2px); }
+    .trust-bar .star { font-size: 18px; }
+    .trust-bar .rating { font-size: 16px; font-weight: 700; }
+    .trust-bar .divider { width: 1px; height: 20px; background: rgba(255,255,255,0.5); }
+    .trust-bar .count { font-size: 14px; opacity: 0.95; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <span class="deco deco-1"></span>
+    <span class="deco deco-2"></span>
+
+    <header class="header">
+      <div class="logo-wrap">
+        <img src="../assets/travelgo-logo.png" alt="TravelGo">
+      </div>
+      <div class="brand-sub">Siargao Island</div>
+    </header>
+
+    <h1 class="hero-title">
+      Island Life <span>Delivered</span>
+    </h1>
+    <p class="hero-sub">
+      Fresh local food and seamless delivery across Siargao's beautiful barangays
+    </p>
+
+    <div class="hero-img" role="img" aria-label="Tropical island delivery illustration"></div>
+
+    <div class="location-card">
+      <span class="pin">📍</span>
+      <div>
+        <div class="label">Deliver to</div>
+        <div class="text">General Luna</div>
+      </div>
+      <span class="arrow">▾</span>
+    </div>
+
+    <a href="../travelgo-ai/" class="cta-primary">
+      <span>🍴</span>
+      Order Food →
+    </a>
+    <p class="cta-desc">Browse local restaurants & cafes</p>
+
+    <a href="../travelgo-ai/restaurant-orders.html" class="cta-secondary">
+      <div class="left">
+        <span class="icon">🏢</span>
+        <div>
+          <span class="main">Partner Portal</span>
+          <span class="sub">Join our restaurant network</span>
+        </div>
+      </div>
+      <span class="arrow">→</span>
+    </a>
+
+    <div class="features">
+      <div class="feature">
+        <div class="icon">🛵</div>
+        <div class="title">Fast Delivery</div>
+        <div class="desc">Island-wide in 30 mins</div>
+      </div>
+      <div class="feature">
+        <div class="icon">🌿</div>
+        <div class="title">Local Fresh</div>
+        <div class="desc">Farm to table quality</div>
+      </div>
+      <div class="feature">
+        <div class="icon">❤️</div>
+        <div class="title">Island Love</div>
+        <div class="desc">Supporting locals</div>
+      </div>
+      <div class="feature">
+        <div class="icon">🛡️</div>
+        <div class="title">Safe & Secure</div>
+        <div class="desc">Contactless delivery</div>
+      </div>
+    </div>
+
+    <div class="trust-bar">
+      <span class="star">★</span>
+      <span class="rating">4.8 Rating</span>
+      <span class="divider"></span>
+      <span class="count">Trusted by 2,500+ island locals</span>
+    </div>
+  </div>
+</body>
+</html>

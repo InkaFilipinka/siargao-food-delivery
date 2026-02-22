@@ -1,9 +1,17 @@
 "use client";
 
 import React from "react";
+import { useMobileRestaurants } from "@/contexts/mobile-restaurants-context";
+import { useFavoritesStore } from "@/store/favorites-store";
+import { thumbnailUrl } from "@/lib/image-url";
 
 type CursorScreenId =
   | "account"
+  | "personal-info"
+  | "saved-addresses"
+  | "payment-methods"
+  | "favorites"
+  | "help-support"
   | "location-picker"
   | "forgot-password"
   | "sign-up"
@@ -20,6 +28,8 @@ interface CursorPlaceholderProps {
   screenId: CursorScreenId;
   title: string;
   onBack?: () => void;
+  onNavigate?: (screen: string) => void;
+  onRestaurantSelect?: (slug: string) => void;
 }
 
 const BackArrow = () => (
@@ -40,7 +50,7 @@ const CURSOR_BADGE = (
       letterSpacing: "0.1em",
     }}
   >
-    CURSOR
+    design cursor
   </div>
 );
 
@@ -64,10 +74,9 @@ function ListItem({ label, onClick }: { label: string; onClick?: () => void }) {
   );
 }
 
-function AccountScreen({ onBack }: { onBack?: () => void }) {
+function AccountScreen({ onBack, onNavigate }: { onBack?: () => void; onNavigate?: (s: string) => void }) {
   return (
     <div style={{ width: "100%", maxWidth: "375px", minHeight: "840px", margin: "0 auto", backgroundColor: "#FAFAF9", fontFamily: '"Inter", sans-serif' }}>
-      {CURSOR_BADGE}
       <header style={{ padding: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
         {onBack && (
           <button onClick={onBack} style={{ width: 40, height: 40, borderRadius: "50%", backgroundColor: "#F3F4F6", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -87,13 +96,198 @@ function AccountScreen({ onBack }: { onBack?: () => void }) {
           </div>
         </div>
         <div style={{ backgroundColor: "#FFF", borderTop: "1px solid #E5E7EB" }}>
-          <ListItem label="Personal Information" />
-          <ListItem label="Saved Addresses" />
-          <ListItem label="Payment Methods" />
-          <ListItem label="Order History" />
-          <ListItem label="Favorites" />
-          <ListItem label="Notifications" />
-          <ListItem label="Help & Support" />
+          <ListItem label="Personal Information" onClick={() => onNavigate?.("personal-info")} />
+          <ListItem label="Saved Addresses" onClick={() => onNavigate?.("saved-addresses")} />
+          <ListItem label="Payment Methods" onClick={() => onNavigate?.("payment-methods")} />
+          <ListItem label="Order History" onClick={() => onNavigate?.("orders")} />
+          <ListItem label="Favorites" onClick={() => onNavigate?.("favorites")} />
+          <ListItem label="Notifications" onClick={() => onNavigate?.("notifications")} />
+          <ListItem label="Help & Support" onClick={() => onNavigate?.("help-support")} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PersonalInfoScreen({ onBack }: { onBack?: () => void }) {
+  return (
+    <div style={{ width: "100%", maxWidth: "375px", minHeight: "840px", margin: "0 auto", backgroundColor: "#FAFAF9", fontFamily: '"Inter", sans-serif' }}>
+      {CURSOR_BADGE}
+      <header style={{ padding: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
+        {onBack && (
+          <button onClick={onBack} style={{ width: 40, height: 40, borderRadius: "50%", backgroundColor: "#F3F4F6", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <BackArrow />
+          </button>
+        )}
+        <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>Personal Information</h1>
+      </header>
+      <div style={{ padding: "24px" }}>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 8 }}>Full name</label>
+          <input placeholder="Juan Dela Cruz" style={{ width: "100%", padding: 16, border: "1px solid #E5E7EB", borderRadius: 12, fontSize: 16, boxSizing: "border-box" }} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 8 }}>Email</label>
+          <input placeholder="juan@example.com" type="email" style={{ width: "100%", padding: 16, border: "1px solid #E5E7EB", borderRadius: 12, fontSize: 16, boxSizing: "border-box" }} />
+        </div>
+        <div style={{ marginBottom: 24 }}>
+          <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 8 }}>Phone</label>
+          <input placeholder="+63 917 123 4567" style={{ width: "100%", padding: 16, border: "1px solid #E5E7EB", borderRadius: 12, fontSize: 16, boxSizing: "border-box" }} />
+        </div>
+        <button style={{ width: "100%", padding: 16, backgroundColor: "#0D9488", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer" }}>Save changes</button>
+      </div>
+    </div>
+  );
+}
+
+function SavedAddressesScreen({ onBack, onNavigate }: { onBack?: () => void; onNavigate?: (s: string) => void }) {
+  const addresses = [
+    { label: "Home", address: "Cloud 9 Road, General Luna", isDefault: true },
+    { label: "Work", address: "Tourism Rd, Barangay Catangnan", isDefault: false },
+    { label: "Beach House", address: "Pacifico, San Isidro", isDefault: false },
+  ];
+  return (
+    <div style={{ width: "100%", maxWidth: "375px", minHeight: "840px", margin: "0 auto", backgroundColor: "#FAFAF9", fontFamily: '"Inter", sans-serif' }}>
+      {CURSOR_BADGE}
+      <header style={{ padding: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
+        {onBack && (
+          <button onClick={onBack} style={{ width: 40, height: 40, borderRadius: "50%", backgroundColor: "#F3F4F6", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <BackArrow />
+          </button>
+        )}
+        <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>Saved Addresses</h1>
+      </header>
+      <div style={{ padding: "16px" }}>
+        {addresses.map((addr, i) => (
+          <div key={i} style={{ padding: 16, backgroundColor: "#FFF", borderRadius: 12, marginBottom: 12, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", border: addr.isDefault ? "2px solid #0D9488" : "1px solid #E5E7EB" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 600 }}>{addr.label}</div>
+                <div style={{ fontSize: 14, color: "#6B7280", marginTop: 4 }}>{addr.address}</div>
+                {addr.isDefault && <span style={{ fontSize: 12, color: "#0D9488", fontWeight: 500, marginTop: 8, display: "inline-block" }}>Default</span>}
+              </div>
+            </div>
+          </div>
+        ))}
+        <button onClick={() => onNavigate?.("edit-address")} style={{ width: "100%", padding: 16, backgroundColor: "#F3F4F6", color: "#374151", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", marginTop: 8 }}>
+          + Add new address
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PaymentMethodsScreen({ onBack }: { onBack?: () => void }) {
+  const cards = [
+    { last4: "4242", brand: "Visa", isDefault: true },
+    { last4: "5555", brand: "Mastercard", isDefault: false },
+  ];
+  return (
+    <div style={{ width: "100%", maxWidth: "375px", minHeight: "840px", margin: "0 auto", backgroundColor: "#FAFAF9", fontFamily: '"Inter", sans-serif' }}>
+      {CURSOR_BADGE}
+      <header style={{ padding: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
+        {onBack && (
+          <button onClick={onBack} style={{ width: 40, height: 40, borderRadius: "50%", backgroundColor: "#F3F4F6", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <BackArrow />
+          </button>
+        )}
+        <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>Payment Methods</h1>
+      </header>
+      <div style={{ padding: "16px" }}>
+        {cards.map((card, i) => (
+          <div key={i} style={{ padding: 16, backgroundColor: "#FFF", borderRadius: 12, marginBottom: 12, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{card.brand} •••• {card.last4}</div>
+              {card.isDefault && <span style={{ fontSize: 12, color: "#0D9488", fontWeight: 500 }}>Default</span>}
+            </div>
+          </div>
+        ))}
+        <button style={{ width: "100%", padding: 16, backgroundColor: "#0D9488", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", marginTop: 8 }}>
+          + Add payment method
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FavoritesScreen({ onBack, onNavigate, onRestaurantSelect }: { onBack?: () => void; onNavigate?: (s: string) => void; onRestaurantSelect?: (slug: string) => void }) {
+  const { restaurants } = useMobileRestaurants() ?? { restaurants: [] };
+  const favoriteSlugs = useFavoritesStore((s) => s.restaurantSlugs);
+  const favorites = restaurants.filter((r) => favoriteSlugs.includes(r.slug));
+  const handleSelect = (slug: string) => {
+    onRestaurantSelect?.(slug) ?? onNavigate?.("restaurant");
+  };
+  return (
+    <div style={{ width: "100%", maxWidth: "375px", minHeight: "840px", margin: "0 auto", backgroundColor: "#FAFAF9", fontFamily: '"Inter", sans-serif' }}>
+      {CURSOR_BADGE}
+      <header style={{ padding: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
+        {onBack && (
+          <button onClick={onBack} style={{ width: 40, height: 40, borderRadius: "50%", backgroundColor: "#F3F4F6", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <BackArrow />
+          </button>
+        )}
+        <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>Favorites</h1>
+      </header>
+      <div style={{ padding: "16px" }}>
+        {favorites.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 48, color: "#6B7280" }}>
+            <div style={{ fontSize: 16, marginBottom: 8 }}>No favorites yet</div>
+            <div style={{ fontSize: 14 }}>Save restaurants from the Home screen</div>
+          </div>
+        ) : (
+          favorites.map((fav) => {
+            const img = fav.featuredImage || fav.imageUrls?.[0];
+            const tag = (fav.tags || fav.categories || []).slice(0, 2).join(" • ") || "";
+            return (
+              <div key={fav.slug} onClick={() => handleSelect(fav.slug)} style={{ display: "flex", gap: 12, padding: 16, backgroundColor: "#FFF", borderRadius: 12, marginBottom: 12, boxShadow: "0 1px 2px rgba(0,0,0,0.05)", cursor: "pointer" }}>
+                {img ? (
+                  <img src={img.startsWith("/api/image") ? thumbnailUrl(img, 128) : img} alt={fav.name} style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: 64, height: 64, borderRadius: 8, backgroundColor: "#E5E7EB" }} />
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 600 }}>{fav.name}</div>
+                  <div style={{ fontSize: 14, color: "#6B7280" }}>{tag}</div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function HelpSupportScreen({ onBack }: { onBack?: () => void }) {
+  const items = [
+    { label: "Chat with support", desc: "Get help from our team" },
+    { label: "Call rider", desc: "Contact your delivery driver" },
+    { label: "Report an issue", desc: "Let us know if something went wrong" },
+    { label: "FAQ", desc: "Common questions answered" },
+    { label: "Contact us", desc: "Email or phone support" },
+  ];
+  return (
+    <div style={{ width: "100%", maxWidth: "375px", minHeight: "840px", margin: "0 auto", backgroundColor: "#FAFAF9", fontFamily: '"Inter", sans-serif' }}>
+      {CURSOR_BADGE}
+      <header style={{ padding: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
+        {onBack && (
+          <button onClick={onBack} style={{ width: 40, height: 40, borderRadius: "50%", backgroundColor: "#F3F4F6", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <BackArrow />
+          </button>
+        )}
+        <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>Help & Support</h1>
+      </header>
+      <div style={{ padding: "16px 0" }}>
+        <div style={{ backgroundColor: "#FFF", borderTop: "1px solid #E5E7EB" }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ padding: "16px 20px", borderBottom: "1px solid #F3F4F6", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 500, color: "#111827" }}>{item.label}</div>
+                <div style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>{item.desc}</div>
+              </div>
+              <span style={{ color: "#9CA3AF", fontSize: "14px" }}>›</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -366,8 +560,13 @@ function TripHistoryScreen({ onBack }: { onBack?: () => void }) {
   );
 }
 
-const SCREEN_COMPONENTS: Record<CursorScreenId, React.FC<{ onBack?: () => void }>> = {
+const SCREEN_COMPONENTS: Record<CursorScreenId, React.FC<{ onBack?: () => void; onNavigate?: (s: string) => void; onRestaurantSelect?: (slug: string) => void }>> = {
   account: AccountScreen,
+  "personal-info": PersonalInfoScreen,
+  "saved-addresses": SavedAddressesScreen,
+  "payment-methods": PaymentMethodsScreen,
+  favorites: FavoritesScreen,
+  "help-support": HelpSupportScreen,
   "location-picker": LocationPickerScreen,
   "forgot-password": ForgotPasswordScreen,
   "sign-up": SignUpScreen,
@@ -398,5 +597,5 @@ export function CursorPlaceholder({ screenId, title, onBack }: CursorPlaceholder
       </div>
     );
   }
-  return <Screen onBack={onBack} />;
+  return <Screen onBack={onBack} onNavigate={onNavigate} onRestaurantSelect={onRestaurantSelect} />;
 }

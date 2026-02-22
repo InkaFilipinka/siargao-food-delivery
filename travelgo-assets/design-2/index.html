@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TravelGo — Design #2 (NanBites style)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <div id="screen-landing" class="screen active">
+      <div class="landing-content">
+        <div class="logo-box"><img src="https://cdn.jsdelivr.net/gh/salmanazamdev/nanbites-food-delivery-app@main/src/assets/images/onboarding/logo.png" alt="TravelGo" style="max-width:64px;max-height:64px;object-fit:contain"></div>
+        <h1>TravelGo</h1>
+        <p class="tagline">Order. Travel. Go.</p>
+        <div class="landing-buttons">
+          <button class="btn btn-primary btn-lg" onclick="goTo('customer-home')">I'm a Customer</button>
+          <button class="btn btn-secondary btn-lg" onclick="goTo('partner-login')">I'm a Partner</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-customer-home" class="screen">
+      <header class="app-bar">
+        <span class="logo-text">TravelGo</span>
+        <span class="location">📍 General Luna</span>
+      </header>
+      <div class="search-row">
+        <input type="text" class="search-input" placeholder="Search restaurants, groceries...">
+      </div>
+      <div class="categories-scroll">
+        <button class="cat-pill active">All</button>
+        <button class="cat-pill">Breakfast</button>
+        <button class="cat-pill">Groceries</button>
+        <button class="cat-pill">Drinks</button>
+        <button class="cat-pill">Local</button>
+      </div>
+      <main class="scroll-content">
+        <h2 class="section-title">Near you</h2>
+        <div class="venue-card" onclick="goTo('customer-menu')">
+          <div class="venue-image"><img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish1.png" alt="Surf Cafe"></div>
+          <div class="venue-info">
+            <h3>Surf Cafe</h3>
+            <p class="venue-meta">Breakfast & Coffee · $$ · Open</p>
+          </div>
+        </div>
+        <div class="venue-card" onclick="goTo('customer-menu')">
+          <div class="venue-image"><img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish2.png" alt="Fresh Mart"></div>
+          <div class="venue-info">
+            <h3>Fresh Mart</h3>
+            <p class="venue-meta">Groceries · $ · Open</p>
+          </div>
+        </div>
+        <div class="venue-card" onclick="goTo('customer-menu')">
+          <div class="venue-image"><img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish3.png" alt="Island Bowl"></div>
+          <div class="venue-info">
+            <h3>Island Bowl</h3>
+            <p class="venue-meta">Healthy & Vegan · $$ · Open</p>
+          </div>
+        </div>
+      </main>
+      <nav class="bottom-nav">
+        <button class="nav-item active"><span class="nav-icon">🏠</span>Home</button>
+        <button class="nav-item" onclick="goTo('customer-orders')"><span class="nav-icon">📋</span>Orders</button>
+        <button class="nav-item" onclick="goTo('customer-cart')"><span class="nav-icon">🛒</span>Cart</button>
+        <button class="nav-item" onclick="goTo('customer-account')"><span class="nav-icon">👤</span>Account</button>
+      </nav>
+    </div>
+
+    <div id="screen-customer-menu" class="screen">
+      <header class="app-bar with-back" onclick="goTo('customer-home')">
+        <span class="back">←</span>
+        <span>Surf Cafe</span>
+      </header>
+      <div class="menu-hero"><img src="https://cdn.jsdelivr.net/gh/salmanazamdev/nanbites-food-delivery-app@main/src/assets/images/onboarding/plate.png" alt=""></div>
+      <main class="scroll-content">
+        <div class="menu-section">
+          <h3>Recommend</h3>
+          <div class="menu-item">
+            <div class="menu-item-img"><img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish1.png" alt="Soba Soup"></div>
+            <div class="menu-item-content"><strong>Soba Soup</strong><p class="item-desc">No1. in sales · 50min</p><span class="price">₱120</span></div>
+            <button class="btn-add">+</button>
+          </div>
+          <div class="menu-item">
+            <div class="menu-item-img"><img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish2.png" alt="Sei Ua"></div>
+            <div class="menu-item-content"><strong>Sei Ua Samun Phrai</strong><p class="item-desc">Thai sausage · 50min</p><span class="price">₱140</span></div>
+            <button class="btn-add">+</button>
+          </div>
+        </div>
+        <div class="menu-section">
+          <h3>Popular</h3>
+          <div class="menu-item">
+            <div class="menu-item-img"><img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish4.png" alt="Tomato Chicken"></div>
+            <div class="menu-item-content"><strong>Tomato Chicken</strong><p class="item-desc">Most Popular · 50min</p><span class="price">₱130</span></div>
+            <button class="btn-add">+</button>
+          </div>
+        </div>
+      </main>
+      <div class="cart-bar" onclick="goTo('customer-cart')">
+        <span>2 items · ₱320</span>
+        <span class="view-cart">View cart →</span>
+      </div>
+    </div>
+
+    <div id="screen-customer-cart" class="screen">
+      <header class="app-bar with-back" onclick="goTo('customer-menu')">
+        <span class="back">←</span>
+        <span>Your cart</span>
+      </header>
+      <main class="scroll-content">
+        <div class="cart-item">
+          <span>Silog Breakfast × 1</span>
+          <span>₱140</span>
+        </div>
+        <div class="cart-item">
+          <span>Latte × 2</span>
+          <span>₱170</span>
+        </div>
+        <div class="cart-section">
+          <input type="text" class="input" placeholder="Delivery address">
+          <input type="text" class="input" placeholder="Landmark (e.g. Sunset Resort)">
+        </div>
+      </main>
+      <div class="checkout-bar">
+        <div><strong>₱310</strong><span class="muted">+ delivery</span></div>
+        <button class="btn btn-primary" onclick="goTo('customer-checkout')">Checkout</button>
+      </div>
+    </div>
+
+    <div id="screen-customer-checkout" class="screen">
+      <header class="app-bar with-back" onclick="goTo('customer-cart')">
+        <span class="back">←</span>
+        <span>Checkout</span>
+      </header>
+      <main class="scroll-content">
+        <div class="checkout-section">
+          <h3>Delivery</h3>
+          <p>Sunset Boulevard, General Luna</p>
+          <p class="muted">Landmark: Sunset Resort</p>
+        </div>
+        <div class="checkout-section">
+          <h3>Order summary</h3>
+          <div class="row"><span>Subtotal</span><span>₱310</span></div>
+          <div class="row"><span>Delivery</span><span>₱45</span></div>
+          <div class="row"><span>Tip</span><span>₱0</span></div>
+          <div class="row total"><span>Total</span><span>₱355</span></div>
+        </div>
+        <div class="checkout-section">
+          <h3>Payment</h3>
+          <div class="payment-option selected">💵 Cash on delivery</div>
+          <div class="payment-option">💳 Card</div>
+        </div>
+      </main>
+      <button class="btn btn-primary btn-full" onclick="goTo('customer-track')">Place order · ₱355</button>
+    </div>
+
+    <div id="screen-customer-track" class="screen">
+      <header class="app-bar"><span>Order #4829</span></header>
+      <main class="scroll-content track-content">
+        <div class="track-status">
+          <div class="step done"><span class="dot"></span>Order placed</div>
+          <div class="step done"><span class="dot"></span>Preparing</div>
+          <div class="step active"><span class="dot"></span>On the way</div>
+          <div class="step"><span class="dot"></span>Delivered</div>
+        </div>
+        <div class="track-card">
+          <p class="muted">Driver</p>
+          <p><strong>Maria</strong></p>
+          <button class="btn btn-secondary btn-sm">Call driver</button>
+        </div>
+        <div class="map-placeholder">
+          <span>📍 Live map</span>
+          <p class="muted">ETA: 15 min</p>
+        </div>
+      </main>
+    </div>
+
+    <div id="screen-customer-orders" class="screen">
+      <header class="app-bar"><span>My orders</span></header>
+      <main class="scroll-content">
+        <div class="order-card" onclick="goTo('customer-track')">
+          <div class="order-header"><span>Surf Cafe</span><span class="badge">On the way</span></div>
+          <p class="muted">Today · ₱355</p>
+        </div>
+        <div class="order-card">
+          <div class="order-header"><span>Fresh Mart</span><span class="badge done">Delivered</span></div>
+          <p class="muted">Yesterday · ₱420</p>
+        </div>
+      </main>
+      <nav class="bottom-nav">
+        <button class="nav-item" onclick="goTo('customer-home')"><span class="nav-icon">🏠</span>Home</button>
+        <button class="nav-item active"><span class="nav-icon">📋</span>Orders</button>
+        <button class="nav-item" onclick="goTo('customer-cart')"><span class="nav-icon">🛒</span>Cart</button>
+        <button class="nav-item" onclick="goTo('customer-account')"><span class="nav-icon">👤</span>Account</button>
+      </nav>
+    </div>
+
+    <div id="screen-customer-account" class="screen">
+      <header class="app-bar"><span>Account</span></header>
+      <main class="scroll-content">
+        <div class="account-header">
+          <div class="avatar">👤</div>
+          <p><strong>Guest</strong></p>
+          <p class="muted">Sign in to save orders</p>
+        </div>
+        <div class="list-section">
+          <a class="list-item">My orders</a>
+          <a class="list-item">Favorites</a>
+          <a class="list-item">Addresses</a>
+          <a class="list-item">Payment methods</a>
+        </div>
+      </main>
+      <nav class="bottom-nav">
+        <button class="nav-item" onclick="goTo('customer-home')"><span class="nav-icon">🏠</span>Home</button>
+        <button class="nav-item" onclick="goTo('customer-orders')"><span class="nav-icon">📋</span>Orders</button>
+        <button class="nav-item" onclick="goTo('customer-cart')"><span class="nav-icon">🛒</span>Cart</button>
+        <button class="nav-item active"><span class="nav-icon">👤</span>Account</button>
+      </nav>
+    </div>
+
+    <div id="screen-partner-login" class="screen">
+      <header class="app-bar minimal" onclick="goTo('landing')">← Back</header>
+      <div class="login-content">
+        <img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/res_logo.png" alt="" style="width:64px;height:64px;object-fit:contain;margin-bottom:16px;border-radius:50%">
+        <h1>TravelGo Partners</h1>
+        <input type="email" class="input" placeholder="Email">
+        <input type="password" class="input" placeholder="Password">
+        <button class="btn btn-primary btn-full" onclick="goTo('partner-driver')">Sign in</button>
+      </div>
+    </div>
+
+    <div id="screen-partner-driver" class="screen">
+      <header class="app-bar">
+        <span>TravelGo Partners</span>
+        <span class="status-dot online"></span>
+      </header>
+      <div class="partner-tabs">
+        <button class="tab active">Driver</button>
+        <button class="tab" onclick="goTo('partner-restaurant')">Restaurant</button>
+      </div>
+      <main class="scroll-content">
+        <h2 class="section-title">Available to accept</h2>
+        <div class="partner-card">
+          <div class="card-row">
+            <div><strong>₱450</strong> · 2.3 km</div>
+            <span class="badge">Pending</span>
+          </div>
+          <p class="muted">Maria — Sunset Boulevard</p>
+          <button class="btn btn-accent btn-sm">Accept & go wait</button>
+        </div>
+        <h2 class="section-title">My deliveries</h2>
+        <div class="partner-card">
+          <div class="card-row">
+            <div><strong>₱620</strong> · Surf Cafe</div>
+            <span class="badge orange">Assigned</span>
+          </div>
+          <p class="muted">Juan — Cloud 9 area</p>
+          <button class="btn btn-primary btn-sm">Arrived at hub</button>
+        </div>
+      </main>
+      <nav class="bottom-nav">
+        <button class="nav-item active"><span class="nav-icon">📦</span>Deliveries</button>
+        <button class="nav-item" onclick="goTo('partner-earnings')"><span class="nav-icon">💰</span>Earnings</button>
+        <button class="nav-item" onclick="goTo('partner-profile')"><span class="nav-icon">👤</span>Profile</button>
+      </nav>
+    </div>
+
+    <div id="screen-partner-restaurant" class="screen">
+      <header class="app-bar"><span>Restaurant orders</span></header>
+      <div class="partner-tabs">
+        <button class="tab" onclick="goTo('partner-driver')">Driver</button>
+        <button class="tab active">Restaurant</button>
+      </div>
+      <main class="scroll-content">
+        <div class="partner-card">
+          <div class="card-row"><strong>Order #4829</strong><span class="badge">New</span></div>
+          <p class="muted">Silog × 1, Latte × 2</p>
+          <p><strong>Maria</strong> — Sunset Boulevard</p>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm">Accept</button>
+            <button class="btn btn-secondary btn-sm">Reject</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div id="screen-partner-earnings" class="screen">
+      <header class="app-bar"><span>Earnings</span></header>
+      <main class="scroll-content">
+        <div class="earnings-card">
+          <p class="muted">Today</p>
+          <h2>₱1,240</h2>
+        </div>
+        <div class="earnings-card">
+          <p class="muted">All time</p>
+          <h2>₱28,500</h2>
+        </div>
+      </main>
+      <nav class="bottom-nav">
+        <button class="nav-item" onclick="goTo('partner-driver')"><span class="nav-icon">📦</span>Deliveries</button>
+        <button class="nav-item active"><span class="nav-icon">💰</span>Earnings</button>
+        <button class="nav-item" onclick="goTo('partner-profile')"><span class="nav-icon">👤</span>Profile</button>
+      </nav>
+    </div>
+
+    <div id="screen-partner-profile" class="screen">
+      <header class="app-bar"><span>Profile</span></header>
+      <main class="scroll-content">
+        <div class="account-header">
+          <div class="avatar">🚗</div>
+          <p><strong>Driver</strong></p>
+          <p class="muted">driver@travelgo.ph</p>
+        </div>
+        <div class="list-section">
+          <a class="list-item">Settings</a>
+          <a class="list-item">Availability</a>
+          <a class="list-item" onclick="goTo('landing')">Switch to Customer app</a>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script>function goTo(screenId){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));const el=document.getElementById('screen-'+screenId);if(el)el.classList.add('active');}</script>
+</body>
+</html>

@@ -490,8 +490,8 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-2 sm:p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-sm:max-h-[100dvh] max-sm:rounded-none max-sm:min-h-[100dvh] sm:max-h-[90vh]">
         <div className="p-4 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -500,7 +500,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
                 {selectedLocation ? "Drag the pin or search to fine-tune" : "Locating you… or click the map, drag the pin, or search"}
               </p>
             </div>
-            <button onClick={onClose} aria-label="Close" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+            <button onClick={onClose} aria-label="Close" className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg touch-manipulation">
               <X className="w-6 h-6" />
             </button>
           </div>
@@ -521,13 +521,13 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               type="button"
               onClick={handleUseMyLocation}
               disabled={!mapReady || geoLoading || calculating}
-              className="flex items-center gap-2 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 shrink-0"
+              className="flex items-center gap-2 px-4 py-3 min-h-[44px] border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 shrink-0 touch-manipulation"
               title="Update my location"
             >
               {geoLoading ? (
                 <span className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
               ) : (
-                <Locate className="w-5 h-5" />
+                <Locate className="w-5 h-5 shrink-0" />
               )}
               <span className="hidden sm:inline">Update my location</span>
             </button>
@@ -538,7 +538,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
             </p>
           )}
         </div>
-        <div className="flex-1 relative min-h-[400px]">
+        <div className="flex-1 relative min-h-[300px] sm:min-h-[400px]">
           {mapError ? (
             <div className="w-full h-full flex items-center justify-center p-8">
               <div className="text-center">
@@ -563,7 +563,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
               <button
                 onClick={handleConfirm}
                 disabled={calculating}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 min-h-[44px] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
               >
                 {calculating ? "Calculating…" : "Confirm Location"}
               </button>
@@ -572,7 +572,7 @@ export function MapPicker({ onLocationSelect, isOpen, onClose }: MapPickerProps)
             <p className="text-center text-slate-500">Click on the map or search for your delivery location</p>
           ) : (
             <div className="text-center">
-              <button onClick={onClose} className="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded-lg">
+              <button onClick={onClose} className="bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-6 min-h-[44px] rounded-lg touch-manipulation">
                 Close
               </button>
             </div>

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>food_app_UI — Search screen</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --kBackground: #F5F5F5;
+      --kPrimaryColor: #FDB730;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', sans-serif; background: var(--kBackground); min-height: 100vh; }
+
+    /* App bar — back only, same as home */
+    .app-bar {
+      padding: max(env(safe-area-inset-top), 20px) 25px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .app-bar .icon-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: white;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .app-bar .icon-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .app-bar .icon-btn svg { width: 20px; height: 20px; }
+    .app-bar .spacer { width: 40px; }
+
+    /* Search input — prominent, food_app_UI style */
+    .search-wrap {
+      padding: 0 25px 24px;
+    }
+    .search-input-wrap {
+      display: flex;
+      align-items: center;
+      background: white;
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .search-input-wrap svg { width: 20px; height: 20px; color: #888; flex-shrink: 0; margin-right: 12px; }
+    .search-input-wrap input {
+      flex: 1;
+      border: none;
+      font-size: 16px;
+      outline: none;
+      font-family: inherit;
+    }
+    .search-input-wrap input::placeholder { color: #999; }
+
+    /* Sections */
+    .section { padding: 0 25px 20px; }
+    .section-title { font-size: 16px; font-weight: 700; margin: 0 0 12px; color: #333; }
+    .recent-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag {
+      padding: 8px 14px;
+      background: white;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      color: #555;
+      transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+    }
+    .tag:hover {
+      background: var(--kPrimaryColor);
+      color: white;
+      transform: scale(1.05);
+    }
+
+    /* Search results — food items (same card as home) */
+    .results .food-item {
+      height: 110px;
+      background: white;
+      border-radius: 20px;
+      display: flex;
+      align-items: stretch;
+      margin-bottom: 15px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .results .food-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .results .food-item .img-wrap {
+      width: 110px; height: 110px;
+      padding: 5px;
+      flex-shrink: 0;
+    }
+    .results .food-item .img-wrap img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+    }
+    .results .food-item .content {
+      flex: 1;
+      padding: 20px 10px 10px;
+      min-width: 0;
+    }
+    .results .food-item .name { font-size: 16px; font-weight: 700; margin: 0; }
+    .results .food-item .desc { font-size: 14px; margin: 4px 0 0; color: rgba(128,128,128,0.8); }
+    .results .food-item .price { font-size: 18px; font-weight: 700; margin-top: 6px; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 25px;
+      color: #888;
+    }
+    .empty-state svg { width: 64px; height: 64px; opacity: 0.4; margin-bottom: 16px; }
+    .empty-state p { margin: 0; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- App bar -->
+    <div class="app-bar">
+      <button class="icon-btn" onclick="window.location='../food-app-ui-home/'" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <div class="spacer"></div>
+    </div>
+
+    <!-- Search input -->
+    <div class="search-wrap">
+      <div class="search-input-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="searchInput" placeholder="Search for food, restaurants..." autofocus>
+      </div>
+    </div>
+
+    <!-- Recent searches (when empty) -->
+    <div class="section" id="recentSection">
+      <h2 class="section-title">Recent searches</h2>
+      <div class="recent-tags">
+        <button class="tag">Soba Soup</button>
+        <button class="tag">Tomato Chicken</button>
+        <button class="tag">Pizza</button>
+      </div>
+    </div>
+
+    <!-- Popular (when empty) -->
+    <div class="section">
+      <h2 class="section-title">Popular</h2>
+      <div class="recent-tags">
+        <button class="tag">Recommend</button>
+        <button class="tag">Popular</button>
+        <button class="tag">Burgers</button>
+        <button class="tag">Pasta</button>
+      </div>
+    </div>
+
+    <!-- Results (shown when typing) -->
+    <div class="section results" id="resultsSection" style="display:none">
+      <h2 class="section-title">Results</h2>
+      <div id="resultsList"></div>
+    </div>
+
+    <!-- Empty results -->
+    <div class="empty-state" id="emptyState" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <p>No results for "<span id="emptyQuery"></span>"</p>
+    </div>
+  </div>
+
+  <script>
+    const searchInput = document.getElementById('searchInput');
+    const recentSection = document.getElementById('recentSection');
+    const resultsSection = document.getElementById('resultsSection');
+    const resultsList = document.getElementById('resultsList');
+    const emptyState = document.getElementById('emptyState');
+
+    const foods = [
+      { name: 'Soba Soup', desc: 'No1. in sales', price: 12, img: 'https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish1.png' },
+      { name: 'Sei Ua Samun Phrai', desc: 'No1. in sales', price: 12, img: 'https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish2.png' },
+      { name: 'Ratatoullie Pasta', desc: 'No1. in sales', price: 12, img: 'https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish3.png' },
+      { name: 'Tomato Chicken', desc: 'Most Popular', price: 12, img: 'https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish4.png' },
+    ];
+
+    function renderResults(q) {
+      const lower = q.toLowerCase();
+      const matches = foods.filter(f => f.name.toLowerCase().includes(lower));
+      if (q.length === 0) {
+        recentSection.style.display = 'block';
+        resultsSection.style.display = 'none';
+        emptyState.style.display = 'none';
+        return;
+      }
+      recentSection.style.display = 'none';
+      if (matches.length === 0) {
+        resultsSection.style.display = 'none';
+        emptyState.style.display = 'block';
+        document.getElementById('emptyQuery').textContent = q;
+        return;
+      }
+      emptyState.style.display = 'none';
+      resultsSection.style.display = 'block';
+      resultsList.innerHTML = matches.map(f => `
+        <div class="food-item" onclick="alert('${f.name}')">
+          <div class="img-wrap"><img src="${f.img}" alt=""></div>
+          <div class="content">
+            <div class="name">${f.name}</div>
+            <div class="desc">${f.desc}</div>
+            <div class="price">$${f.price}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    searchInput.addEventListener('input', () => renderResults(searchInput.value.trim()));
+    document.querySelectorAll('.tag').forEach(t => t.addEventListener('click', () => {
+      searchInput.value = t.textContent;
+      renderResults(t.textContent);
+      searchInput.focus();
+    }));
+  </script>
+</body>
+</html>

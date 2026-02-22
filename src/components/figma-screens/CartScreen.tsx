@@ -1,4 +1,34 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from "react";
+
+const tapAnimation = {
+  transition: "transform 0.15s ease, box-shadow 0.15s ease",
+} as React.CSSProperties;
+
+const AnimatedButton: React.FC<{
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  onClick?: () => void;
+}> = ({ children, style, onClick }) => {
+  const [pressed, setPressed] = useState(false);
+  return (
+    <button
+      style={{
+        ...style,
+        ...tapAnimation,
+        transform: pressed ? "scale(0.96)" : "scale(1)",
+      }}
+      onClick={onClick}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => setPressed(false)}
+      onTouchStart={() => setPressed(true)}
+      onTouchEnd={() => setPressed(false)}
+    >
+      {children}
+    </button>
+  );
+};
+
 interface CartScreenProps {
   onNavigate?: (screen: string) => void;
   hideBottomNav?: boolean;
@@ -74,18 +104,15 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
         justifyContent: 'space-between',
         position: 'relative'
       }}>
-          <button onClick={() => onNavigate ? onNavigate('restaurant') : console.log('Back clicked')} style={{
+          <AnimatedButton onClick={() => (onNavigate ? onNavigate("restaurant") : console.log("Back clicked"))} style={{
           ...buttonStyle,
-          width: '40px',
-          height: '40px',
-          backgroundColor: '#F3F4F6',
-          borderRadius: '9999px'
-        }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#E5E7EB'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F3F4F6'} aria-label="Go back">
-            <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/089524ce-cfa5-4ab2-b46d-be74dddf91c7.svg" alt="" style={{
-            width: '14px',
-            height: '16px'
-          }} />
-          </button>
+          width: "40px",
+          height: "40px",
+          backgroundColor: "#F3F4F6",
+          borderRadius: "9999px",
+        }} aria-label="Go back">
+            <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/089524ce-cfa5-4ab2-b46d-be74dddf91c7.svg" alt="" style={{ width: "14px", height: "16px" }} />
+          </AnimatedButton>
           
           <div style={{
           display: 'flex',
@@ -121,6 +148,39 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
       overflowX: 'hidden',
       paddingBottom: '20px'
     }}>
+        {/* Sticky Proceed to Checkout - pinned at top when scrolling */}
+        {!hideBottomNav && (
+          <div
+            style={{
+              position: "sticky",
+              top: 104,
+              zIndex: 9,
+              padding: "12px 16px",
+              backgroundColor: "#FFFFFF",
+              borderBottom: "1px solid #E5E7EB",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            }}
+          >
+            <AnimatedButton
+              onClick={() => (onNavigate ? onNavigate("checkout") : console.log("Proceed to checkout"))}
+              style={{
+                width: "100%",
+                padding: "14px 20px",
+                backgroundColor: "#0D9488",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: "12px",
+                fontSize: "16px",
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0px 4px 12px rgba(13, 148, 136, 0.35)",
+              }}
+            >
+              {`Proceed to Checkout • ${formatCurrency(total)}`}
+            </AnimatedButton>
+          </div>
+        )}
+
         {/* Restaurant Info Section */}
         <section style={{
         width: '100%',
@@ -227,20 +287,17 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
               marginBottom: '8px'
             }}>{formatCurrency(item1Price)}</div>
               
-              <button style={{
+              <AnimatedButton style={{
               ...buttonStyle,
-              gap: '4px',
-              color: '#0D9488',
-              fontSize: '14px',
+              gap: "4px",
+              color: "#0D9488",
+              fontSize: "14px",
               fontWeight: 500,
-              marginBottom: '12px'
-            }} onClick={() => console.log('Add special instructions')}>
-                <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/02f88153-2f86-41af-bae2-dd750788a9df.svg" alt="" style={{
-                width: '10.5px',
-                height: '12px'
-              }} />
+              marginBottom: "12px",
+            }} onClick={() => console.log("Add special instructions")}>
+                <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/02f88153-2f86-41af-bae2-dd750788a9df.svg" alt="" style={{ width: "10.5px", height: "12px" }} />
                 Add special instructions
-              </button>
+              </AnimatedButton>
 
               <div style={{
               display: 'flex',
@@ -252,38 +309,33 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
                 alignItems: 'center',
                 gap: '12px'
               }}>
-                  <button onClick={() => setQty1(Math.max(0, qty1 - 1))} style={{
+                  <AnimatedButton onClick={() => setQty1(Math.max(0, qty1 - 1))} style={{
                   ...buttonStyle,
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: '#F3F4F6',
-                  borderRadius: '8px'
-                }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#E5E7EB'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F3F4F6'}>
+                  width: "32px",
+                  height: "32px",
+                  backgroundColor: "#F3F4F6",
+                  borderRadius: "8px",
+                }}>
                     <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/92ce989f-baf8-43a7-80f3-d980eb0a2a03.svg" alt="Decrease" />
-                  </button>
+                  </AnimatedButton>
                   <span style={{
                   color: '#000000',
                   fontSize: '16px',
                   fontWeight: 500
                 }}>{qty1}</span>
-                  <button onClick={() => setQty1(qty1 + 1)} style={{
+                  <AnimatedButton onClick={() => setQty1(qty1 + 1)} style={{
                   ...buttonStyle,
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: '#0D9488',
-                  borderRadius: '8px'
-                }} onMouseEnter={e => e.currentTarget.style.opacity = '0.9'} onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                  width: "32px",
+                  height: "32px",
+                  backgroundColor: "#0D9488",
+                  borderRadius: "8px",
+                }}>
                     <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/ade5c88b-dea0-4370-8db2-9cddb8e9a019.svg" alt="Increase" />
-                  </button>
+                  </AnimatedButton>
                 </div>
-                <button onClick={() => setQty1(0)} style={{
-                ...buttonStyle
-              }} aria-label="Remove item">
-                  <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/dd66d6aa-b7b2-405d-a3ab-25b5ef5281c7.svg" alt="" style={{
-                  width: '12.25px',
-                  height: '14px'
-                }} />
-                </button>
+                <AnimatedButton onClick={() => setQty1(0)} style={{ ...buttonStyle }} aria-label="Remove item">
+                  <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/dd66d6aa-b7b2-405d-a3ab-25b5ef5281c7.svg" alt="" style={{ width: "12.25px", height: "14px" }} />
+                </AnimatedButton>
               </div>
             </div>
           </div>
@@ -334,15 +386,15 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
                 fontWeight: 400,
                 lineHeight: '20px'
               }}>Extra vegetables, no onions</div>
-                <button onClick={() => console.log('Edit instruction')} style={{
+                <AnimatedButton onClick={() => console.log("Edit instruction")} style={{
                 ...buttonStyle,
-                color: '#0D9488',
-                fontSize: '12px',
+                color: "#0D9488",
+                fontSize: "12px",
                 fontWeight: 400,
-                marginTop: '4px'
+                marginTop: "4px",
               }}>
                   Edit
-                </button>
+                </AnimatedButton>
               </div>
 
               <div style={{
@@ -355,38 +407,33 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
                 alignItems: 'center',
                 gap: '12px'
               }}>
-                  <button onClick={() => setQty2(Math.max(0, qty2 - 1))} style={{
+                  <AnimatedButton onClick={() => setQty2(Math.max(0, qty2 - 1))} style={{
                   ...buttonStyle,
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: '#F3F4F6',
-                  borderRadius: '8px'
-                }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#E5E7EB'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F3F4F6'}>
+                  width: "32px",
+                  height: "32px",
+                  backgroundColor: "#F3F4F6",
+                  borderRadius: "8px",
+                }}>
                     <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/d6719e79-fa9d-418e-b1ae-7ee5afce4586.svg" alt="Decrease" />
-                  </button>
+                  </AnimatedButton>
                   <span style={{
                   color: '#000000',
                   fontSize: '16px',
                   fontWeight: 500
                 }}>{qty2}</span>
-                  <button onClick={() => setQty2(qty2 + 1)} style={{
+                  <AnimatedButton onClick={() => setQty2(qty2 + 1)} style={{
                   ...buttonStyle,
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: '#0D9488',
-                  borderRadius: '8px'
-                }} onMouseEnter={e => e.currentTarget.style.opacity = '0.9'} onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                  width: "32px",
+                  height: "32px",
+                  backgroundColor: "#0D9488",
+                  borderRadius: "8px",
+                }}>
                     <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/9c25f38b-724a-4d3a-8c9b-1e2dac1ace02.svg" alt="Increase" />
-                  </button>
+                  </AnimatedButton>
                 </div>
-                <button onClick={() => setQty2(0)} style={{
-                ...buttonStyle
-              }} aria-label="Remove item">
-                  <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/f4b572bf-0de7-4584-bc5a-bea8db60f1be.svg" alt="" style={{
-                  width: '12.25px',
-                  height: '14px'
-                }} />
-                </button>
+                <AnimatedButton onClick={() => setQty2(0)} style={{ ...buttonStyle }} aria-label="Remove item">
+                  <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/f4b572bf-0de7-4584-bc5a-bea8db60f1be.svg" alt="" style={{ width: "12.25px", height: "14px" }} />
+                </AnimatedButton>
               </div>
             </div>
           </div>
@@ -439,14 +486,14 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
               }}>{`Add utensils, napkins &\ncondiments`}</div>
               </div>
             </div>
-            <button onClick={() => setCutlery(!cutlery)} style={{
+            <AnimatedButton onClick={() => setCutlery(!cutlery)} style={{
             ...buttonStyle,
-            width: '44px',
-            height: '24px',
-            backgroundColor: cutlery ? '#0D9488' : '#D1D5DB',
-            borderRadius: '9999px',
-            position: 'relative',
-            transition: 'background-color 0.3s ease'
+            width: "44px",
+            height: "24px",
+            backgroundColor: cutlery ? "#0D9488" : "#D1D5DB",
+            borderRadius: "9999px",
+            position: "relative",
+            transition: "background-color 0.3s ease",
           }} aria-pressed={cutlery}>
               <div style={{
               width: '20px',
@@ -457,7 +504,7 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
               left: cutlery ? '22px' : '2px',
               transition: 'left 0.3s ease'
             }} />
-            </button>
+            </AnimatedButton>
           </div>
         </section>
 
@@ -497,14 +544,14 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
             color: '#111827',
             fontFamily: 'inherit'
           }} />
-            <button onClick={handleApplyPromo} style={{
+            <AnimatedButton onClick={handleApplyPromo} style={{
             ...buttonStyle,
-            color: '#0D9488',
-            fontSize: '14px',
-            fontWeight: 600
+            color: "#0D9488",
+            fontSize: "14px",
+            fontWeight: 600,
           }}>
               Apply
-            </button>
+            </AnimatedButton>
           </div>
         </section>
 
@@ -583,36 +630,6 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
         </section>
       </main>
 
-      {/* Checkout Action Area */}
-      <div style={{
-      width: '100%',
-      height: '93px',
-      backgroundColor: '#FFFFFF',
-      borderTop: '1px solid #E5E7EB',
-      position: 'absolute',
-      left: '0',
-      top: '683px',
-      display: 'flex',
-      justifyContent: 'center',
-      paddingTop: '17px',
-      zIndex: 10
-    }}>
-        <button onClick={() => onNavigate ? onNavigate('checkout') : console.log('Proceed to checkout')} style={{
-        ...buttonStyle,
-        width: '343px',
-        height: '60px',
-        backgroundColor: '#0D9488',
-        boxShadow: '0px 10px 15px rgba(0, 0, 0, 0.1), 0px 4px 6px rgba(0, 0, 0, 0.1)',
-        borderRadius: '12px',
-        color: '#FFFFFF',
-        fontSize: '18px',
-        fontWeight: 600,
-        letterSpacing: '-0.5px'
-      }} onMouseEnter={e => e.currentTarget.style.opacity = '0.9'} onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-          {`Proceed to Checkout • ${formatCurrency(total)}`}
-        </button>
-      </div>
-
       {/* Navigation Footer */}
       {!hideBottomNav && <nav style={{
       width: '100%',
@@ -628,11 +645,11 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
       alignItems: 'center',
       padding: '0 16px'
     }}>
-        <button onClick={() => onNavigate ? onNavigate('home') : setActiveTab('home')} style={{
+        <AnimatedButton onClick={() => (onNavigate ? onNavigate("home") : setActiveTab("home"))} style={{
         ...buttonStyle,
-        flexDirection: 'column',
-        gap: '4px',
-        width: '64px'
+        flexDirection: "column",
+        gap: "4px",
+        width: "64px",
       }}>
           <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/b76ffe6a-72a6-43e0-95b9-0b0f96693780.svg" alt="Home" style={{
           width: '20px',
@@ -644,13 +661,13 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
           fontSize: '12px',
           fontWeight: 500
         }}>Home</span>
-        </button>
+        </AnimatedButton>
 
-        <button onClick={() => onNavigate ? onNavigate('orders') : setActiveTab('orders')} style={{
+        <AnimatedButton onClick={() => (onNavigate ? onNavigate("orders") : setActiveTab("orders"))} style={{
         ...buttonStyle,
-        flexDirection: 'column',
-        gap: '4px',
-        width: '64px'
+        flexDirection: "column",
+        gap: "4px",
+        width: "64px",
       }}>
           <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/4bb7321b-a60d-4338-9e06-4ccb156cb2b8.svg" alt="Orders" style={{
           width: '18px',
@@ -662,13 +679,13 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
           fontSize: '12px',
           fontWeight: 500
         }}>Orders</span>
-        </button>
+        </AnimatedButton>
 
-        <button onClick={() => onNavigate ? onNavigate('account') : setActiveTab('account')} style={{
+        <AnimatedButton onClick={() => (onNavigate ? onNavigate("account") : setActiveTab("account"))} style={{
         ...buttonStyle,
-        flexDirection: 'column',
-        gap: '4px',
-        width: '64px'
+        flexDirection: "column",
+        gap: "4px",
+        width: "64px",
       }}>
           <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/bb2aac90-b538-49b4-8cb8-90454a2ac7c9.svg" alt="Account" style={{
           width: '16px',
@@ -680,7 +697,7 @@ export const CartScreen = ({ onNavigate, hideBottomNav }: CartScreenProps) => {
           fontSize: '12px',
           fontWeight: 500
         }}>Account</span>
-        </button>
+        </AnimatedButton>
       </nav>}
     </div>;
 };

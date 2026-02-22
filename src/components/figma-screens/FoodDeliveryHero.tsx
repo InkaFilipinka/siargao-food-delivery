@@ -1,17 +1,34 @@
-import React, { useState } from 'react';
+import React from "react";
+import type { DeliveryLocation } from "@/contexts/mobile-preview-context";
+
 interface FoodDeliveryHeroProps {
   onNavigate?: (screen: string) => void;
+  onOpenMap?: () => void;
+  deliveryLocation?: DeliveryLocation | null;
 }
-export const FoodDeliveryHero = ({ onNavigate }: FoodDeliveryHeroProps) => {
-  const [location, setLocation] = useState('General Luna');
+
+export const FoodDeliveryHero = ({ onNavigate, onOpenMap, deliveryLocation }: FoodDeliveryHeroProps) => {
+  const locationLabel = deliveryLocation?.placeName
+    ? deliveryLocation.placeName.split(" - ")[0] || deliveryLocation.placeName
+    : deliveryLocation
+      ? `${deliveryLocation.distance}km from General Luna`
+      : "General Luna";
+
   const handleOrderClick = () => {
-    onNavigate ? onNavigate('home') : console.log('Navigating to food ordering...');
+    onNavigate ? onNavigate("home") : console.log("Navigating to food ordering...");
   };
+
   const handleLocationClick = () => {
-    onNavigate ? onNavigate('location-picker') : console.log('Opening location picker...');
+    if (onOpenMap) {
+      onOpenMap();
+    } else if (onNavigate) {
+      onNavigate("location-picker");
+    } else {
+      console.log("Opening location picker...");
+    }
   };
   const handleBookTripClick = () => {
-    onNavigate ? onNavigate('partner-login') : console.log('Navigating to trip booking...');
+    onNavigate ? onNavigate('partner-login') : console.log('Navigating to partner login...');
   };
   return <div style={{
     width: '100%',
@@ -224,7 +241,9 @@ export const FoodDeliveryHero = ({ onNavigate }: FoodDeliveryHeroProps) => {
               alignItems: 'center',
               gap: '6px',
               cursor: 'pointer',
-              outline: 'none'
+              outline: 'none',
+              minHeight: 44,
+              minWidth: 44
             }}>
                 <span style={{
                 color: '#4B5563',
@@ -232,7 +251,7 @@ export const FoodDeliveryHero = ({ onNavigate }: FoodDeliveryHeroProps) => {
                 fontWeight: 400,
                 lineHeight: '24px',
                 letterSpacing: '-0.5px'
-              }}>{location}</span>
+              }}>{locationLabel}</span>
                 <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/3ae17146-c366-4c62-bf00-b0f230cdc8d0.svg" alt="Arrow" style={{
                 width: '12px',
                 height: '12px'
@@ -458,7 +477,7 @@ export const FoodDeliveryHero = ({ onNavigate }: FoodDeliveryHeroProps) => {
               fontWeight: 600,
               lineHeight: '24px',
               letterSpacing: '-0.5px'
-            }}>Book a Trip</span>
+            }}>Partner/Driver login</span>
             </div>
             <span style={{
             color: 'rgba(255, 255, 255, 0.8)',
@@ -467,7 +486,7 @@ export const FoodDeliveryHero = ({ onNavigate }: FoodDeliveryHeroProps) => {
             lineHeight: '20px',
             letterSpacing: '-0.5px'
           }}>
-              Get best Tourist Tours on the Island
+              Sign in as a driver or restaurant partner
             </span>
           </button>
         </section>

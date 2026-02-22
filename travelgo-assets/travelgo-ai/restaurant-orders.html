@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TravelGo — Restaurant Orders</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --tg-primary: #0D9488;
+      --tg-orange: #F97316;
+      --tg-bg: #F8FAFC;
+      --tg-surface: #FFFFFF;
+      --tg-text: #1E293B;
+      --tg-muted: #64748B;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', sans-serif; background: var(--tg-bg); min-height: 100vh; padding-bottom: 70px; }
+
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; background: var(--tg-surface); box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .header h1 { font-size: 20px; font-weight: 700; margin: 0; color: var(--tg-text); }
+    .header .bell { padding: 8px; border: none; background: none; cursor: pointer; }
+
+    .rest-info {
+      display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: var(--tg-surface);
+      border-bottom: 1px solid #E2E8F0;
+    }
+    .rest-info .logo {
+      width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--tg-primary), #14b8a6);
+      display: flex; align-items: center; justify-content: center; color: white; font-size: 20px;
+    }
+    .rest-info .name { font-size: 16px; font-weight: 700; color: var(--tg-text); }
+    .rest-info .meta { font-size: 13px; color: var(--tg-muted); }
+
+    .tabs {
+      display: flex; padding: 12px 20px; gap: 8px; background: var(--tg-surface);
+    }
+    .tab {
+      flex: 1; padding: 10px 16px; border-radius: 10px; border: none;
+      font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+      background: #F1F5F9; color: var(--tg-muted);
+    }
+    .tab.active { background: var(--tg-primary); color: white; }
+    .tab .count { margin-left: 4px; opacity: 0.9; }
+
+    .content { padding: 16px 20px; }
+    .order-card {
+      background: var(--tg-surface); border-radius: 16px; padding: 16px;
+      margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .order-card .order-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+    }
+    .order-card .order-num { font-size: 15px; font-weight: 700; color: var(--tg-text); }
+    .order-card .status { font-size: 12px; color: var(--tg-muted); }
+    .order-card .status.new { color: var(--tg-primary); font-weight: 600; }
+    .order-card .customer { font-size: 14px; font-weight: 600; color: var(--tg-text); margin: 8px 0 4px; }
+    .order-card .address { font-size: 13px; color: var(--tg-muted); margin-bottom: 12px; }
+    .order-card .items { font-size: 13px; color: var(--tg-text); line-height: 1.6; }
+    .order-card .items span { color: var(--tg-muted); }
+    .order-card .actions {
+      display: flex; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #E2E8F0;
+    }
+    .order-card .btn {
+      flex: 1; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600;
+      border: none; cursor: pointer; font-family: inherit;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .order-card .btn:hover {
+      transform: scale(1.03);
+    }
+    .order-card .btn-accept { background: var(--tg-primary); color: white; }
+    .order-card .btn-reject { background: #FEE2E2; color: #991B1B; }
+    .order-card .btn-prepare { background: var(--tg-orange); color: white; }
+    .order-card .btn-ready { background: var(--tg-primary); color: white; }
+
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 64px;
+      background: var(--tg-surface); display: flex; justify-content: space-around;
+      align-items: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--tg-muted); text-decoration: none; }
+    .nav-item.active { color: var(--tg-primary); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>Restaurant Orders</h1>
+    <button class="bell" aria-label="Notifications">🔔</button>
+  </header>
+
+  <div class="rest-info">
+    <div class="logo">🍽️</div>
+    <div>
+      <div class="name">Island Grill</div>
+      <div class="meta">★ 4.8 • General Luna</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active">New <span class="count">3</span></button>
+    <button class="tab">Preparing <span class="count">2</span></button>
+    <button class="tab">Ready <span class="count">1</span></button>
+  </div>
+
+  <main class="content">
+    <div class="order-card">
+      <div class="order-header">
+        <span class="order-num">Order #2851</span>
+        <span class="status new">• New</span>
+      </div>
+      <p class="status">Received 2 mins ago</p>
+      <div class="customer">Sarah Johnson</div>
+      <div class="address">Cloud 9 Boardwalk, Room 12</div>
+      <div class="items">
+        2x Grilled Fish Tacos <span>₱340</span><br>
+        1x Mango Smoothie <span>₱120</span>
+      </div>
+      <div class="actions">
+        <button class="btn btn-reject">Reject</button>
+        <button class="btn btn-accept">Accept</button>
+      </div>
+    </div>
+
+    <div class="order-card">
+      <div class="order-header">
+        <span class="order-num">Order #2850</span>
+        <span class="status new">• New</span>
+      </div>
+      <p class="status">Received 5 mins ago</p>
+      <div class="customer">Maria Santos</div>
+      <div class="address">Beachfront Resort, Tourism Rd</div>
+      <div class="items">
+        2x Acai Bowl <span>₱340</span><br>
+        1x Smoothie <span>₱120</span>
+      </div>
+      <div class="actions">
+        <button class="btn btn-reject">Reject</button>
+        <button class="btn btn-accept">Accept</button>
+      </div>
+    </div>
+
+    <div class="order-card">
+      <div class="order-header">
+        <span class="order-num">Order #2849</span>
+        <span class="status">Preparing</span>
+      </div>
+      <p class="status">Accepted 12 mins ago</p>
+      <div class="customer">Juan Dela Cruz</div>
+      <div class="address">Cloud 9, General Luna</div>
+      <div class="items">
+        1x Grilled Lapu-Lapu <span>₱450</span><br>
+        1x Seafood Kare-Kare <span>₱380</span>
+      </div>
+      <div class="actions">
+        <button class="btn btn-prepare">Mark as Preparing</button>
+        <button class="btn btn-ready">Mark Ready</button>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="#" class="nav-item active">🏍️ Driver Hub</a>
+    <a href="#" class="nav-item">📊 Earnings</a>
+  </nav>
+</body>
+</html>

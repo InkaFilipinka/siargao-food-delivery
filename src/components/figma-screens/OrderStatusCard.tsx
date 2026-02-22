@@ -198,7 +198,7 @@ export const OrderStatusCard = ({ onNavigate, hideBottomNav }: OrderStatusCardPr
       gap: '16px',
       paddingBottom: '100px'
     }}>
-        {filteredOrders.map(order => <div key={order.id} onClick={() => onNavigate?.('order-detail')} style={{
+        {filteredOrders.map(order => <div key={order.id} onClick={() => onNavigate?.('track')} style={{
         width: '100%',
         backgroundColor: 'rgba(255, 255, 255, 1)',
         border: '1px solid rgba(229, 231, 235, 1)',
@@ -337,7 +337,7 @@ export const OrderStatusCard = ({ onNavigate, hideBottomNav }: OrderStatusCardPr
                 REORDER
               </button>
               {order.status !== 'Cancelled' && <>
-                  <button onClick={e => { e.stopPropagation(); onNavigate?.('order-detail'); }} style={{
+                  <button onClick={e => { e.stopPropagation(); onNavigate?.('track'); }} style={{
               width: '92px',
               height: '38px',
               backgroundColor: 'transparent',
@@ -349,7 +349,7 @@ export const OrderStatusCard = ({ onNavigate, hideBottomNav }: OrderStatusCardPr
             }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.02)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                     RECEIPT
                   </button>
-                  <button onClick={e => { e.stopPropagation(); onNavigate?.('order-detail'); }} style={{
+                  <button onClick={e => { e.stopPropagation(); onNavigate?.('track'); }} style={{
               width: '48px',
               height: '38px',
               backgroundColor: 'rgba(249, 115, 22, 1)',

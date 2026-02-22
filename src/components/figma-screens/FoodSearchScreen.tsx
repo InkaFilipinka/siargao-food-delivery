@@ -1,77 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from "react";
+import type { DeliveryLocation } from "@/contexts/mobile-preview-context";
+import { useMobileRestaurants } from "@/contexts/mobile-restaurants-context";
+import { useFavoritesStore } from "@/store/favorites-store";
+import { useCartStore } from "@/store/cart-store";
+import { thumbnailUrl } from "@/lib/image-url";
+
 interface FoodSearchScreenProps {
   onNavigate?: (screen: string) => void;
+  onRestaurantSelect?: (slug: string) => void;
   hideBottomNav?: boolean;
+  onOpenMap?: () => void;
+  deliveryLocation?: DeliveryLocation | null;
 }
-export const FoodSearchScreen = ({ onNavigate, hideBottomNav }: FoodSearchScreenProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [activeTab, setActiveTab] = useState('Home');
-  const [favorites, setFavorites] = useState<number[]>([]);
-  const categories = [{
-    name: 'All',
-    icon: 'https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/772d3d76-d01c-473d-8cfb-8859218f92ac.svg',
-    width: '67.48px'
-  }, {
-    name: 'Pizza',
-    icon: 'https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/4ed4388b-8f5f-4e86-ad48-c01ce0c5bdce.svg',
-    width: '88.13px'
-  }, {
-    name: 'Burgers',
-    icon: 'https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/160bfe5d-7a9a-48b1-815d-88b608aecda7.svg',
-    width: '104.63px'
-  }, {
-    name: 'Seafood',
-    icon: 'https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/5a9beb00-b03b-48a5-8e89-9ad784527d6c.svg',
-    width: '109.36px'
-  }, {
-    name: 'Coffee',
-    icon: 'https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/732ce815-e41a-47a7-9155-bfddd6835ffb.svg',
-    width: '99.88px'
-  }] as any[];
-  const restaurants = [{
-    id: 1,
-    name: 'Siargao Seafood House',
-    image: 'https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/12d5aed3-eab9-4f89-b23b-a4d002b8edb4.png',
-    rating: '4.8',
-    tags: 'Fresh seafood • Filipino cuisine',
-    time: '25-35 min',
-    fee: '₱35',
-    minOrder: 'Min ₱200',
-    discount: '20% OFF'
-  }, {
-    id: 2,
-    name: 'Island Pizza Co.',
-    image: 'https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/4f32e751-8add-49f8-9ae7-8a157b9bac28.png',
-    rating: '4.6',
-    tags: 'Wood-fired pizza • Italian',
-    time: '20-30 min',
-    fee: '₱40',
-    minOrder: 'Min ₱300'
-  }, {
-    id: 3,
-    name: 'Bamboo Burger Bar',
-    image: 'https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/6412cdbf-9298-417e-a30c-8fb8f190bb44.png',
-    rating: '4.7',
-    tags: 'Gourmet burgers • American',
-    time: '15-25 min',
-    fee: 'Free',
-    oldFee: '₱45',
-    minOrder: 'Min ₱250',
-    discount: 'FREE DELIVERY'
-  }, {
-    id: 4,
-    name: 'Surf & Grind Coffee',
-    image: 'https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/da1297f4-4552-4d73-8826-d443fcd7561c.png',
-    rating: '4.9',
-    tags: 'Specialty coffee • Pastries',
-    time: '10-20 min',
-    fee: '₱25',
-    minOrder: 'Min ₱150'
-  }] as any[];
-  const toggleFavorite = (id: number) => {
-    setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
-  };
+
+const CATEGORY_ICON = "https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/772d3d76-d01c-473d-8cfb-8859218f92ac.svg";
+
+export const FoodSearchScreen = ({ onNavigate, onRestaurantSelect, hideBottomNav, onOpenMap, deliveryLocation }: FoodSearchScreenProps) => {
+  const locationLabel = deliveryLocation?.placeName
+    ? deliveryLocation.placeName.split(" - ")[0] || deliveryLocation.placeName
+    : deliveryLocation
+      ? `${deliveryLocation.distance}km from General Luna`
+      : "General Luna, Siargao";
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeTab, setActiveTab] = useState("Home");
+  const { restaurants, categories: apiCategories, ratings, loading } = useMobileRestaurants() ?? { restaurants: [], categories: ["All"], ratings: {}, loading: true };
+  const { isFavorite, toggleRestaurant } = useFavoritesStore();
+  const cartCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
+
+  const categories = useMemo(() => ["All", ...(apiCategories || []).filter((c) => c !== "All")], [apiCategories]);
+
+  const filteredRestaurants = useMemo(() => {
+    let list = activeCategory === "All" ? restaurants : restaurants.filter((r) => r.categories?.includes(activeCategory));
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.name.toLowerCase().includes(q) ||
+          r.categories?.some((c) => c.toLowerCase().includes(q)) ||
+          r.tags?.some((t) => t.toLowerCase().includes(q)) ||
+          r.menuItems?.some((m) => m.name.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [restaurants, activeCategory, searchQuery]);
   return <div style={{
     width: '100%',
     maxWidth: '375px',
@@ -133,48 +105,41 @@ export const FoodSearchScreen = ({ onNavigate, hideBottomNav }: FoodSearchScreen
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-          <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
+          <button
+            onClick={() => onOpenMap?.()}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: onOpenMap ? "pointer" : "default",
+              minHeight: 44,
+              minWidth: 44,
+            }}
+          >
             <div style={{
-            width: '24px',
-            height: '24px',
-            backgroundColor: '#0D9488',
-            borderRadius: '50%',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center'
+            width: "24px",
+            height: "24px",
+            backgroundColor: "#0D9488",
+            borderRadius: "50%",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
           }}>
-              <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/1f2b6359-dac7-4263-8b0a-a46445db8333.svg" alt="loc" style={{
-              width: '9px',
-              height: '12px'
-            }} />
+              <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/1f2b6359-dac7-4263-8b0a-a46445db8333.svg" alt="loc" style={{ width: "9px", height: "12px" }} />
             </div>
-            <div>
-              <div style={{
-              color: '#6B7280',
-              fontSize: '12px',
-              lineHeight: '16px'
-            }}>Deliver to</div>
-              <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-                <span style={{
-                color: '#111827',
-                fontSize: '14px',
-                fontWeight: 600
-              }}>General Luna, Siargao</span>
-                <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/8b9ab84d-5acb-4fe7-aef7-5422285738b6.svg" alt="arrow" style={{
-                width: '12px',
-                height: '12px'
-              }} />
+            <div style={{ textAlign: "left" }}>
+              <div style={{ color: "#6B7280", fontSize: "12px", lineHeight: "16px" }}>Deliver to</div>
+              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <span style={{ color: "#111827", fontSize: "14px", fontWeight: 600 }}>{locationLabel}</span>
+                {onOpenMap && (
+                  <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/8b9ab84d-5acb-4fe7-aef7-5422285738b6.svg" alt="arrow" style={{ width: "12px", height: "12px" }} />
+                )}
               </div>
             </div>
-          </div>
+          </button>
           <div style={{
           display: 'flex',
           gap: '12px'
@@ -207,7 +172,7 @@ export const FoodSearchScreen = ({ onNavigate, hideBottomNav }: FoodSearchScreen
               justifyContent: 'center',
               alignItems: 'center',
               border: '2px solid white'
-            }}>2</div>
+            }}>{cartCount || 0}</div>
             </button>
             <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/ca7877fc-1add-482d-a82d-355f88d9cc80.jpg" alt="Profile" onClick={() => onNavigate?.('account')} role="button" style={{
             width: '40px',
@@ -281,31 +246,33 @@ export const FoodSearchScreen = ({ onNavigate, hideBottomNav }: FoodSearchScreen
           gap: '12px',
           paddingRight: '16px'
         }}>
-            {categories.map(cat => <button key={cat.name} onClick={() => setActiveCategory(cat.name)} style={{
-            height: '36px',
-            minWidth: cat.width,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            backgroundColor: activeCategory === cat.name ? '#0D9488' : '#F3F4F6',
-            border: 'none',
-            borderRadius: '9999px',
-            padding: '0 16px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}>
-                <img src={cat.icon} alt={cat.name} style={{
-              width: '12px',
-              height: '12px',
-              filter: activeCategory === cat.name ? 'brightness(0) invert(1)' : 'none'
-            }} />
+            {categories.map((cat) => (
+              <button key={cat} onClick={() => setActiveCategory(cat)} style={{
+                height: "36px",
+                minWidth: "auto",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                backgroundColor: activeCategory === cat ? "#0D9488" : "#F3F4F6",
+                border: "none",
+                borderRadius: "9999px",
+                padding: "0 16px",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}>
+                <img src={CATEGORY_ICON} alt="" style={{
+                  width: "12px",
+                  height: "12px",
+                  filter: activeCategory === cat ? "brightness(0) invert(1)" : "none",
+                }} />
                 <span style={{
-              color: activeCategory === cat.name ? '#FFFFFF' : '#374151',
-              fontSize: '14px',
-              fontWeight: 500
-            }}>{cat.name}</span>
-              </button>)}
+                  color: activeCategory === cat ? "#FFFFFF" : "#374151",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                }}>{cat}</span>
+              </button>
+            ))}
           </div>
         </section>
 
@@ -316,156 +283,99 @@ export const FoodSearchScreen = ({ onNavigate, hideBottomNav }: FoodSearchScreen
         flexDirection: 'column',
         gap: '16px'
       }}>
-          {restaurants.map(res => <div key={res.id} onClick={() => onNavigate?.('restaurant')} style={{
-          width: '343px',
-          backgroundColor: '#FFFFFF',
-          border: '1px solid #F3F4F6',
-          borderRadius: '12px',
-          boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
-          overflow: 'hidden',
-          flexShrink: 0,
-          cursor: 'pointer'
-        }}>
-              <div style={{
-            height: '128px',
-            position: 'relative'
-          }}>
-                <img src={res.image} alt={res.name} style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover'
-            }} />
-                
-                {res.discount && <div style={{
-              position: 'absolute',
-              top: '12px',
-              left: '12px',
-              padding: '4px 12px',
-              backgroundColor: res.discount.includes('OFF') ? '#F97316' : '#22C55E',
-              borderRadius: '9999px'
-            }}>
-                    <span style={{
-                color: 'white',
-                fontSize: '12px',
-                fontWeight: 600
-              }}>{res.discount}</span>
-                  </div>}
-
-                <button onClick={e => {
-              e.stopPropagation();
-              toggleFavorite(res.id);
-            }} style={{
-              position: 'absolute',
-              top: '12px',
-              right: '12px',
-              width: '32px',
-              height: '32px',
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-              border: 'none',
-              borderRadius: '50%',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              cursor: 'pointer'
-            }}>
-                  <img src={favorites.includes(res.id) ? "https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/c0862690-99ad-48e6-933b-6d1307c0c3dd.svg" : "https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/c0862690-99ad-48e6-933b-6d1307c0c3dd.svg"} alt="fav" style={{
-                width: '16px',
-                height: '16px',
-                filter: favorites.includes(res.id) ? 'invert(27%) sepia(91%) saturate(2352%) hue-rotate(346deg) brightness(104%) contrast(101%)' : 'none'
-              }} />
-                </button>
-              </div>
-
-              <div style={{
-            padding: '16px'
-          }}>
-                <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '8px'
-            }}>
-                  <h3 style={{
-                margin: 0,
-                fontSize: '16px',
-                fontWeight: 600,
-                color: '#111827'
-              }}>{res.name}</h3>
-                  <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
-                    <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/1640b383-a00a-4cdf-bc99-6f9c5ee000a0.svg" alt="star" style={{
-                  width: '15.75px',
-                  height: '14px'
-                }} />
-                    <span style={{
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>{res.rating}</span>
+          {loading ? (
+            <div style={{ textAlign: "center", padding: 48, color: "#6B7280", fontSize: 14 }}>Loading restaurants...</div>
+          ) : filteredRestaurants.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 48, color: "#6B7280", fontSize: 14 }}>No restaurants found</div>
+          ) : (
+            filteredRestaurants.map((res) => {
+              const rating = ratings[res.slug];
+              const resImage = res.featuredImage || res.imageUrls?.[0];
+              const tags = (res.tags || []).slice(0, 2).join(" • ") || res.categories?.slice(0, 2).join(" • ") || "";
+              const minOrder = res.minOrderPhp != null ? `Min ₱${res.minOrderPhp}` : "";
+              return (
+                <div
+                  key={res.slug}
+                  onClick={() => onRestaurantSelect?.(res.slug)}
+                  style={{
+                    width: "343px",
+                    backgroundColor: "#FFFFFF",
+                    border: "1px solid #F3F4F6",
+                    borderRadius: "12px",
+                    boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.05)",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ height: "128px", position: "relative", backgroundColor: "#E5E7EB" }}>
+                    {resImage ? (
+                      <img
+                        src={resImage.startsWith("/api/image") ? thumbnailUrl(resImage, 480) : resImage}
+                        alt={res.name}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : null}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleRestaurant(res.slug);
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: "12px",
+                        right: "12px",
+                        width: "32px",
+                        height: "32px",
+                        backgroundColor: "rgba(255, 255, 255, 0.9)",
+                        border: "none",
+                        borderRadius: "50%",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <img
+                        src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/c0862690-99ad-48e6-933b-6d1307c0c3dd.svg"
+                        alt="fav"
+                        style={{
+                          width: "16px",
+                          height: "16px",
+                          filter: isFavorite(res.slug) ? "invert(27%) sepia(91%) saturate(2352%) hue-rotate(346deg) brightness(104%) contrast(101%)" : "none",
+                        }}
+                      />
+                    </button>
                   </div>
-                </div>
-                
-                <p style={{
-              margin: '0 0 12px 0',
-              fontSize: '14px',
-              color: '#4B6663'
-            }}>{res.tags}</p>
-                
-                <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-                  <div style={{
-                display: 'flex',
-                gap: '16px'
-              }}>
-                    <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                      <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/a729998a-cdae-4d45-89e1-dd42770398d8.svg" alt="time" style={{
-                    width: '12px',
-                    height: '12px'
-                  }} />
-                      <span style={{
-                    fontSize: '14px',
-                    color: '#4B5563'
-                  }}>{res.time}</span>
+                  <div style={{ padding: "16px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#111827" }}>{res.name}</h3>
+                      {rating && rating.count > 0 && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/1640b383-a00a-4cdf-bc99-6f9c5ee000a0.svg" alt="star" style={{ width: "15.75px", height: "14px" }} />
+                          <span style={{ fontSize: "14px", fontWeight: 500, color: "#374151" }}>{rating.avg.toFixed(1)}</span>
+                        </div>
+                      )}
                     </div>
-                    <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                      <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/6c741ace-d36f-405c-bb37-b6dc897cdc52.svg" alt="delivery" style={{
-                    width: '15px',
-                    height: '12px'
-                  }} />
-                      {res.oldFee && <span style={{
-                    fontSize: '14px',
-                    color: '#758563',
-                    textDecoration: 'line-through',
-                    marginRight: '4px'
-                  }}>{res.oldFee}</span>}
-                      <span style={{
-                    fontSize: '14px',
-                    color: res.fee === 'Free' ? '#22C55E' : '#4B5563',
-                    fontWeight: res.fee === 'Free' ? 500 : 400
-                  }}>{res.fee}</span>
+                    <p style={{ margin: "0 0 12px 0", fontSize: "14px", color: "#4B6663" }}>{tags}</p>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", gap: "16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/a729998a-cdae-4d45-89e1-dd42770398d8.svg" alt="time" style={{ width: "12px", height: "12px" }} />
+                          <span style={{ fontSize: "14px", color: "#4B5563" }}>25-35 min</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <img src="https://storage.googleapis.com/storage.magicpath.ai/user/375282309693321216/figma-assets/6c741ace-d36f-405c-bb37-b6dc897cdc52.svg" alt="delivery" style={{ width: "15px", height: "12px" }} />
+                          <span style={{ fontSize: "14px", color: "#4B5563" }}>₱35</span>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: "12px", color: "#6B7280" }}>{minOrder}</span>
                     </div>
                   </div>
-                  <span style={{
-                fontSize: '12px',
-                color: '#6B7280'
-              }}>{res.minOrder}</span>
                 </div>
-              </div>
-            </div>)}
+              );
+            })
+          )}
         </section>
       </main>
 

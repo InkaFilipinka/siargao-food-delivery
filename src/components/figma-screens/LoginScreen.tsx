@@ -6,6 +6,7 @@ interface LoginScreenProps {
   onSignUp?: () => void;
   onSocialLogin?: (platform: string) => void;
   onRoleChange?: (role: 'driver' | 'restaurant') => void;
+  initialRole?: 'driver' | 'restaurant';
 }
 export const LoginScreen: React.FC<LoginScreenProps> = ({
   onBack,
@@ -13,9 +14,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onForgotPassword,
   onSignUp,
   onSocialLogin,
-  onRoleChange
+  onRoleChange,
+  initialRole = 'restaurant'
 }) => {
-  const [role, setRole] = useState<'driver' | 'restaurant'>('restaurant');
+  const [role, setRole] = useState<'driver' | 'restaurant'>(initialRole);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

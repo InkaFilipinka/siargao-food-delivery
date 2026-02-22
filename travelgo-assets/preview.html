@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TravelGo — UI Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --tg-primary: #0D9488;
+      --tg-primary-hover: #0F766E;
+      --tg-secondary: #F97316;
+      --tg-bg: #FAFAF9;
+      --tg-surface: #FFFFFF;
+      --tg-text: #1C1917;
+      --tg-text-muted: #78716C;
+      --tg-border: #E7E5E4;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--tg-bg);
+      color: var(--tg-text);
+      margin: 0;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    .brand {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .logo-box {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, var(--tg-primary), var(--tg-secondary));
+      border-radius: 20px;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo-box svg {
+      width: 48px;
+      height: 48px;
+    }
+    .brand h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 0;
+      background: linear-gradient(135deg, var(--tg-primary), var(--tg-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .brand p { color: var(--tg-text-muted); margin: 4px 0 0; }
+    .section { margin-bottom: 32px; }
+    .section h2 { font-size: 18px; margin-bottom: 12px; }
+    .card {
+      background: var(--tg-surface);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .card-row { display: flex; align-items: center; gap: 12px; }
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: #CCFBF1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn {
+      display: inline-block;
+      padding: 14px 24px;
+      border-radius: var(--radius);
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .btn-primary {
+      background: var(--tg-primary);
+      color: white;
+    }
+    .btn-secondary {
+      background: #CCFBF1;
+      color: var(--tg-primary);
+    }
+    .btn-accent {
+      background: var(--tg-secondary);
+      color: white;
+    }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--tg-border);
+      border-radius: var(--radius);
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="brand">
+    <div class="logo-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/>
+        <path d="M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+        <path d="M16 8l4-4"/>
+      </svg>
+    </div>
+    <h1>TravelGo</h1>
+    <p>Order. Travel. Go.</p>
+  </div>
+
+  <div class="section">
+    <h2>Customer App — Home</h2>
+    <div class="card">
+      <div class="card-row">
+        <div class="card-icon">🍜</div>
+        <div>
+          <strong>Surf Cafe</strong>
+          <p style="margin:4px 0 0;font-size:14px;color:var(--tg-text-muted)">Breakfast & Coffee · $$</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-row">
+        <div class="card-icon" style="background:#FFEDD5">🛒</div>
+        <div>
+          <strong>Fresh Mart</strong>
+          <p style="margin:4px 0 0;font-size:14px;color:var(--tg-text-muted)">Groceries · $</p>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary">Order now</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Partner App — Driver</h2>
+    <div class="card">
+      <p style="margin:0 0 8px"><strong>Available</strong> — ₱450 · 2.3 km</p>
+      <p style="margin:0;font-size:14px;color:var(--tg-text-muted)">Maria — Sunset Boulevard</p>
+      <div class="btn-row">
+        <button class="btn btn-accent">Accept & go</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Components</h2>
+    <input class="input" type="text" placeholder="Search restaurants...">
+    <div class="btn-row">
+      <button class="btn btn-primary">Primary</button>
+      <button class="btn btn-secondary">Secondary</button>
+      <button class="btn btn-accent">Accent</button>
+    </div>
+  </div>
+</body>
+</html>

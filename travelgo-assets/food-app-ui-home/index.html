@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>food_app_UI — 1:1 Home recreation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Exact colors from food_app_UI/constants/colors.dart */
+    :root {
+      --kBackground: #F5F5F5;
+      --kPrimaryColor: #FDB730;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', sans-serif; background: var(--kBackground); min-height: 100vh; }
+
+    /* CustomAppBar — padding top (safe), left/right 25, circular white icon buttons */
+    .app-bar {
+      padding: max(env(safe-area-inset-top), 20px) 25px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .app-bar .icon-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: white;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .app-bar .icon-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .app-bar .icon-btn svg { width: 20px; height: 20px; }
+
+    /* RestaurantInfo — margin-top 40, padding h 25 */
+    .restaurant-info {
+      margin-top: 40px;
+      padding: 0 25px;
+    }
+    .restaurant-info .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .restaurant-info .name { font-size: 25px; font-weight: 700; margin: 0; }
+    .restaurant-info .meta-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .restaurant-info .wait-badge {
+      padding: 5px;
+      background: rgba(128,128,128,0.4);
+      border-radius: 5px;
+      color: white;
+      font-size: 14px;
+    }
+    .restaurant-info .meta { font-size: 16px; font-weight: 700; color: rgba(128,128,128,0.6); }
+    .restaurant-info .logo {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .restaurant-info .bottom-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 5px;
+    }
+    .restaurant-info .desc { font-size: 16px; margin: 0; }
+    .restaurant-info .score-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .restaurant-info .score { font-size: 18px; font-weight: 700; }
+
+    /* FoodList — height 100, padding v 30, horizontal pills */
+    .food-list {
+      height: 100px;
+      padding: 30px 0;
+      overflow-x: auto;
+      display: flex;
+      gap: 20px;
+      padding-left: 25px;
+      padding-right: 25px;
+    }
+    .food-list::-webkit-scrollbar { display: none; }
+    .cat-pill {
+      padding: 10px 15px;
+      border-radius: 20px;
+      border: none;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-family: inherit;
+      transition: transform 0.2s ease;
+    }
+    .cat-pill:hover { transform: scale(1.05); }
+    .cat-pill.selected { background: var(--kPrimaryColor); color: white; }
+    .cat-pill:not(.selected) { background: white; color: black; }
+
+    /* FoodListView — PageView with scrollable pages */
+    .food-list-view {
+      flex: 1;
+      overflow: hidden;
+      padding: 0 25px;
+    }
+    .food-pages { display: none; }
+    .food-pages.active { display: block; height: 100%; overflow-y: auto; }
+    .food-pages::-webkit-scrollbar { width: 4px; }
+    .food-pages::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+
+    /* FoodItem — h 110, white, radius 20, row layout */
+    .food-item {
+      height: 110px;
+      background: white;
+      border-radius: 20px;
+      display: flex;
+      align-items: stretch;
+      margin-bottom: 15px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .food-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .food-item .img-wrap {
+      width: 110px; height: 110px;
+      padding: 5px;
+      flex-shrink: 0;
+    }
+    .food-item .img-wrap img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+    }
+    .food-item .content {
+      flex: 1;
+      padding: 20px 10px 10px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .food-item .title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .food-item .name { font-size: 16px; font-weight: 700; margin: 0; line-height: 1.5; }
+    .food-item .arrow { width: 15px; height: 15px; opacity: 0.6; }
+    .food-item .desc {
+      font-size: 14px;
+      margin: 4px 0 0;
+      color: rgba(128,128,128,0.8);
+    }
+    .food-item .desc.highlight { color: var(--kPrimaryColor); }
+    .food-item .price-row { display: flex; align-items: baseline; margin-top: 5px; }
+    .food-item .dollar { font-size: 10px; font-weight: 700; }
+    .food-item .price { font-size: 18px; font-weight: 700; }
+
+    /* Page indicator — dots */
+    .page-indicator {
+      padding: 0 25px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .page-dot {
+      width: 8px; height: 8px;
+      border-radius: 8px;
+      background: rgba(128,128,128,0.5);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .page-dot:hover { transform: scale(1.3); }
+    .page-dot.active {
+      width: 10px; height: 10px;
+      border-radius: 10px;
+      background: var(--kBackground);
+      border: 2px solid var(--kPrimaryColor);
+      box-sizing: border-box;
+    }
+
+    /* FAB */
+    .fab {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: var(--kPrimaryColor);
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .fab:hover {
+      transform: scale(1.08);
+      box-shadow: 0 4px 16px rgba(253, 183, 48, 0.5);
+    }
+    .fab svg { width: 30px; height: 30px; color: black; }
+
+    .page-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <!-- CustomAppBar -->
+    <div class="app-bar">
+      <button class="icon-btn" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <button class="icon-btn" onclick="window.location='../food-app-ui-search/'" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
+    </div>
+
+    <!-- RestaurantInfo -->
+    <div class="restaurant-info">
+      <div class="top-row">
+        <div>
+          <h1 class="name">Restaurant</h1>
+          <div class="meta-row">
+            <span class="wait-badge">20-30min</span>
+            <span class="meta">2.4km</span>
+            <span class="meta">Restaurant</span>
+          </div>
+        </div>
+        <img class="logo" src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/res_logo.png" alt="Restaurant">
+      </div>
+      <div class="bottom-row">
+        <p class="desc">Orange Sandwiches is delicious</p>
+        <div class="score-row">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--kPrimaryColor)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <span class="score">4.7</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FoodList (category pills) -->
+    <div class="food-list">
+      <button class="cat-pill selected" data-cat="0">Recommend</button>
+      <button class="cat-pill" data-cat="1">Popular</button>
+      <button class="cat-pill" data-cat="2">Noodles</button>
+      <button class="cat-pill" data-cat="3">Pizza</button>
+    </div>
+
+    <!-- FoodListView (swipeable pages) -->
+    <div class="food-list-view">
+      <div class="food-pages active" data-page="0">
+        <div class="food-item" onclick="alert('Soba Soup detail')">
+          <div class="img-wrap"><img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish1.png" alt=""></div>
+          <div class="content">
+            <div class="title-row"><span class="name">Soba Soup</span><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+            <span class="desc highlight">No1. in sales</span>
+            <div class="price-row"><span class="dollar">$</span><span class="price">12</span></div>
+          </div>
+        </div>
+        <div class="food-item" onclick="alert('Sei Ua detail')">
+          <div class="img-wrap"><img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish2.png" alt=""></div>
+          <div class="content">
+            <div class="title-row"><span class="name">Sei Ua Samun Phrai</span><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+            <span class="desc">No1. in sales</span>
+            <div class="price-row"><span class="dollar">$</span><span class="price">12</span></div>
+          </div>
+        </div>
+        <div class="food-item" onclick="alert('Ratatoullie detail')">
+          <div class="img-wrap"><img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish3.png" alt=""></div>
+          <div class="content">
+            <div class="title-row"><span class="name">Ratatoullie Pasta</span><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+            <span class="desc">No1. in sales</span>
+            <div class="price-row"><span class="dollar">$</span><span class="price">12</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="food-pages" data-page="1">
+        <div class="food-item" onclick="alert('Tomato Chicken detail')">
+          <div class="img-wrap"><img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish4.png" alt=""></div>
+          <div class="content">
+            <div class="title-row"><span class="name">Tomato Chicken</span><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+            <span class="desc">Most Popular</span>
+            <div class="price-row"><span class="dollar">$</span><span class="price">12</span></div>
+          </div>
+        </div>
+        <div class="food-item" onclick="alert('Soba Soup detail')">
+          <div class="img-wrap"><img src="https://cdn.jsdelivr.net/gh/govindsingh01/food_app_UI@main/assets/images/dish1.png" alt=""></div>
+          <div class="content">
+            <div class="title-row"><span class="name">Soba Soup</span><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+            <span class="desc">Most Popular</span>
+            <div class="price-row"><span class="dollar">$</span><span class="price">12</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="food-pages" data-page="2">
+        <p style="padding:40px;text-align:center;color:#888">No items in Noodles</p>
+      </div>
+      <div class="food-pages" data-page="3">
+        <p style="padding:40px;text-align:center;color:#888">No items in Pizza</p>
+      </div>
+    </div>
+
+    <!-- SmoothPageIndicator -->
+    <div class="page-indicator">
+      <span class="page-dot active" data-dot="0"></span>
+      <span class="page-dot" data-dot="1"></span>
+      <span class="page-dot" data-dot="2"></span>
+      <span class="page-dot" data-dot="3"></span>
+    </div>
+  </div>
+
+  <!-- FAB -->
+  <button class="fab" aria-label="Cart">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+  </button>
+
+  <script>
+    const pills = document.querySelectorAll('.cat-pill');
+    const pages = document.querySelectorAll('.food-pages');
+    const dots = document.querySelectorAll('.page-dot');
+
+    function setActive(i) {
+      pills.forEach((p, j) => p.classList.toggle('selected', j === i));
+      pages.forEach((p, j) => p.classList.toggle('active', j === i));
+      dots.forEach((d, j) => d.classList.toggle('active', j === i));
+    }
+
+    pills.forEach(p => p.addEventListener('click', () => setActive(+p.dataset.cat)));
+    dots.forEach(d => d.addEventListener('click', () => setActive(+d.dataset.dot)));
+  </script>
+</body>
+</html>
