@@ -221,13 +221,22 @@ async function getRestaurantsData(request: Request) {
     ? restaurants
     : restaurants.map(({ whatsappNumber: _w, ...r }) => r);
 
-  return Response.json({
-    restaurants: restaurantsToReturn,
-    categories: restaurantData.categories,
-    cravingCategories: restaurantData.cravingCategories,
-    tagline: restaurantData.tagline,
-    description: restaurantData.description,
-  });
+  return Response.json(
+    {
+      restaurants: restaurantsToReturn,
+      categories: restaurantData.categories,
+      cravingCategories: restaurantData.cravingCategories,
+      tagline: restaurantData.tagline,
+      description: restaurantData.description,
+      source: "live",
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        Pragma: "no-cache",
+      },
+    }
+  );
 }
 
 /** Fallback when DB fails - return static data only */
@@ -264,11 +273,20 @@ function getStaticFallback() {
       isHidden: false,
     };
   });
-  return Response.json({
-    restaurants,
-    categories: restaurantData.categories,
-    cravingCategories: restaurantData.cravingCategories,
-    tagline: restaurantData.tagline,
-    description: restaurantData.description,
-  });
+  return Response.json(
+    {
+      restaurants,
+      categories: restaurantData.categories,
+      cravingCategories: restaurantData.cravingCategories,
+      tagline: restaurantData.tagline,
+      description: restaurantData.description,
+      source: "fallback",
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        Pragma: "no-cache",
+      },
+    }
+  );
 }

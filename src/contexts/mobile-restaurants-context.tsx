@@ -24,6 +24,7 @@ type MobileRestaurantsContextValue = {
   ratings: Record<string, { avg: number; count: number }>;
   loading: boolean;
   refetch: () => void;
+  source: "live" | "fallback" | null;
 };
 
 const MobileRestaurantsContext = createContext<MobileRestaurantsContextValue | null>(null);
@@ -38,6 +39,7 @@ export function MobileRestaurantsProvider({ children }: { children: React.ReactN
   const [categories, setCategories] = useState<string[]>([]);
   const [ratings, setRatings] = useState<Record<string, { avg: number; count: number }>>({});
   const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState<"live" | "fallback" | null>(null);
 
   const fetchRestaurants = React.useCallback(() => {
     setLoading(true);
@@ -46,6 +48,7 @@ export function MobileRestaurantsProvider({ children }: { children: React.ReactN
       .then((data) => {
         setRestaurants(data.restaurants || []);
         setCategories(data.categories || ["All"]);
+        setSource(data.source ?? null);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -71,7 +74,7 @@ export function MobileRestaurantsProvider({ children }: { children: React.ReactN
   }, [restaurants]);
 
   return (
-    <MobileRestaurantsContext.Provider value={{ restaurants, categories, ratings, loading, refetch: fetchRestaurants }}>
+    <MobileRestaurantsContext.Provider value={{ restaurants, categories, ratings, loading, refetch: fetchRestaurants, source }}>
       {children}
     </MobileRestaurantsContext.Provider>
   );

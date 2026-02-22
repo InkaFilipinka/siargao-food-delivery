@@ -218,8 +218,20 @@ function MobilePreviewContent() {
         )}
       </div>
 
+      {mobileRestaurants?.source === "fallback" && (
+        <div className="mt-4 mx-4 p-4 bg-amber-100 border border-amber-400 rounded-lg text-amber-900 text-sm max-w-md">
+          <strong>Using static data.</strong> The API could not connect to Supabase.
+        </div>
+      )}
+      <div className="mt-4 mx-4 p-3 bg-slate-100 rounded-lg text-slate-700 text-xs max-w-md font-mono">
+        Debug: {mobileRestaurants?.restaurants?.length ?? 0} restaurants, source: {mobileRestaurants?.source ?? "—"}
+        {mobileRestaurants?.restaurants?.some((r) => r.name?.toLowerCase().includes("amia")) && " • Amia found ✓"}
+        {mobileRestaurants?.restaurants?.some((r) => r.slug === "sunset-pizza") && (
+          <span> • sunset-pizza: {mobileRestaurants.restaurants.find((r) => r.slug === "sunset-pizza")?.name ?? "—"}</span>
+        )}
+      </div>
       <p className="mt-4 text-sm text-gray-600 text-center max-w-md">
-        Click <strong>Refresh data</strong> after changing restaurants in the admin panel to see updates (e.g. Amia&apos;s Pizza). Then go to Home to browse.
+        Click <strong>Refresh data</strong> after changing restaurants in the admin panel. Then go to Home to browse.
       </p>
 
       {/* Google Map modal - full viewport for mobile/Android */}
