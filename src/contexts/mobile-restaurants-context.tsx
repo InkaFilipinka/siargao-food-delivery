@@ -23,6 +23,7 @@ type MobileRestaurantsContextValue = {
   categories: string[];
   ratings: Record<string, { avg: number; count: number }>;
   loading: boolean;
+  refetch: () => void;
 };
 
 const MobileRestaurantsContext = createContext<MobileRestaurantsContextValue | null>(null);
@@ -38,8 +39,9 @@ export function MobileRestaurantsProvider({ children }: { children: React.ReactN
   const [ratings, setRatings] = useState<Record<string, { avg: number; count: number }>>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/restaurants", { cache: "no-store", headers: { "Cache-Control": "no-cache" } })
+  const fetchRestaurants = React.useCallback(() => {
+    setLoading(true);
+    fetch(`/api/restaurants?t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache", Pragma: "no-cache" } })
       .then((res) => res.json())
       .then((data) => {
         setRestaurants(data.restaurants || []);
@@ -48,6 +50,16 @@ export function MobileRestaurantsProvider({ children }: { children: React.ReactN
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchRestaurants();
+  }, [fetchRestaurants]);
+
+  useEffect(() => {
+    const onFocus = () => fetchRestaurants();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchRestaurants]);
 
   useEffect(() => {
     if (!restaurants.length) return;
@@ -59,7 +71,7 @@ export function MobileRestaurantsProvider({ children }: { children: React.ReactN
   }, [restaurants]);
 
   return (
-    <MobileRestaurantsContext.Provider value={{ restaurants, categories, ratings, loading }}>
+    <MobileRestaurantsContext.Provider value={{ restaurants, categories, ratings, loading, refetch: fetchRestaurants }}>
       {children}
     </MobileRestaurantsContext.Provider>
   );

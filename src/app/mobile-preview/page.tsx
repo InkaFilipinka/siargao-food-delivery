@@ -17,7 +17,7 @@ import { AccountScreen } from "@/components/figma-screens/AccountScreen";
 import { CursorPlaceholder } from "@/components/figma-screens/CursorPlaceholder";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { MapPicker } from "@/components/map-picker";
-import { MobileRestaurantsProvider } from "@/contexts/mobile-restaurants-context";
+import { MobileRestaurantsProvider, useMobileRestaurants } from "@/contexts/mobile-restaurants-context";
 import { useState } from "react";
 
 const CUSTOMER_SCREENS_WITH_NAV: MobileScreen[] = [
@@ -66,6 +66,7 @@ const SCREENS = [...FIGMA_SCREENS, ...CURSOR_PLACEHOLDERS];
 
 function MobilePreviewContent() {
   const ctx = useMobilePreview();
+  const mobileRestaurants = useMobileRestaurants();
   if (!ctx) return <div>Loading...</div>;
   const { screen, goTo, goBack, mapOpen, setMapOpen, deliveryLocation, setDeliveryLocation, setSelectedRestaurantSlug, setPartnerLoginRole } = ctx;
   const [showSwitcher, setShowSwitcher] = useState(false);
@@ -172,8 +173,15 @@ function MobilePreviewContent() {
 
   return (
     <div className="min-h-screen bg-neutral-200 flex flex-col items-center py-8">
-      {/* Screen switcher - floating button */}
-      <div className="fixed top-4 right-4 z-50">
+      {/* Screen switcher & Refresh - floating buttons */}
+      <div className="fixed top-4 right-4 z-50 flex gap-2">
+        <button
+          onClick={() => mobileRestaurants?.refetch()}
+          className="px-4 py-2 bg-amber-500 text-white rounded-lg shadow-lg text-sm font-medium hover:bg-amber-600"
+          title="Reload restaurant data (e.g. after admin changes)"
+        >
+          {mobileRestaurants?.loading ? "..." : "Refresh data"}
+        </button>
         <button
           onClick={() => setShowSwitcher(!showSwitcher)}
           className="px-4 py-2 bg-teal-600 text-white rounded-lg shadow-lg text-sm font-medium hover:bg-teal-700"
@@ -210,8 +218,8 @@ function MobilePreviewContent() {
         )}
       </div>
 
-      <p className="mt-4 text-sm text-gray-600">
-        Click through the app or use the screen switcher to jump between flows
+      <p className="mt-4 text-sm text-gray-600 text-center max-w-md">
+        Click <strong>Refresh data</strong> after changing restaurants in the admin panel to see updates (e.g. Amia&apos;s Pizza). Then go to Home to browse.
       </p>
 
       {/* Google Map modal - full viewport for mobile/Android */}
