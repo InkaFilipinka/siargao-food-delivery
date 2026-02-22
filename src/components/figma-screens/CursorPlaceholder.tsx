@@ -580,7 +580,7 @@ const SCREEN_COMPONENTS: Record<CursorScreenId, React.FC<{ onBack?: () => void; 
   "trip-history": TripHistoryScreen,
 };
 
-export function CursorPlaceholder({ screenId, title, onBack }: CursorPlaceholderProps) {
+export function CursorPlaceholder({ screenId, title, onBack, onNavigate, onRestaurantSelect }: CursorPlaceholderProps) {
   const Screen = SCREEN_COMPONENTS[screenId];
   if (!Screen) {
     return (
